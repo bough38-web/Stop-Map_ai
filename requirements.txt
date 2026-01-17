@@ -1,0 +1,8 @@
+streamlit
+pandas
+altair
+scikit-learn
+openpyxl
+rapidfuzz
+watchdog
+pyproj
