@@ -781,6 +781,7 @@ if raw_df is not None:
         sel_close_ym = "전체"
         sel_status = "전체"
         only_with_phone = False
+        address_search = ""  # Address search filter
         
         filter_df = raw_df.copy()
         
