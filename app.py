@@ -737,6 +737,10 @@ if raw_df is not None:
                     dist_counts = raw_df['관리지사'].value_counts().reset_index()
                     dist_counts.columns = ['지사명', '건수']
                     st.dataframe(dist_counts, use_container_width=True, hide_index=True)
+                    
+                    st.divider()
+                    st.caption("데이터 샘플 (상위 5건)")
+                    st.dataframe(raw_df[['관리지사', '소재지전체주소', '사업장명']].head(), use_container_width=True, hide_index=True)
                 else:
                     st.info("데이터가 로드되지 않았습니다.")
             
@@ -1136,7 +1140,9 @@ if raw_df is not None:
     if address_search:
         # Split search keywords by / or space
         import re
-        keywords = re.split(r'[/\s]+', address_search.strip())
+        # [FIX] Normalize input for Mac users (NFD -> NFC)
+        search_norm = unicodedata.normalize('NFC', address_search.strip())
+        keywords = re.split(r'[/\s]+', search_norm)
         keywords = [k for k in keywords if k]  # Remove empty strings
         
         if keywords:
@@ -1144,11 +1150,15 @@ if raw_df is not None:
             mask = pd.Series([False] * len(base_df), index=base_df.index)
             for keyword in keywords:
                 keyword_mask = (
-                    base_df['소재지전체주소'].astype(str).str.contains(keyword, case=False, na=False, regex=False) |
-                    base_df['사업장명'].astype(str).str.contains(keyword, case=False, na=False, regex=False)
+                    base_df['소재지전체주소'].astype(str).apply(lambda x: unicodedata.normalize('NFC', x)).str.contains(keyword, case=False, na=False, regex=False) |
+                    base_df['사업장명'].astype(str).apply(lambda x: unicodedata.normalize('NFC', x)).str.contains(keyword, case=False, na=False, regex=False)
                 )
                 mask = mask | keyword_mask  # OR logic: any keyword match
             base_df = base_df[mask]
+            
+            # Debug: Search Result Count for Admin
+            if st.session_state.user_role == 'admin':
+                 st.sidebar.caption(f"🔎 검색 결과: {len(base_df)}건")
         
     df = base_df.copy()
     if sel_status != "전체":
