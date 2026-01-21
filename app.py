@@ -1138,22 +1138,49 @@ if raw_df is not None:
     
     # [FEATURE] Address search filter - simplified with OR logic
     if address_search:
-        # Split search keywords by / or space
+        
+        # [FEATURE] Advanced Search Options
+        with st.expander("⚙️ 검색 옵션 설정", expanded=False):
+            col1, col2 = st.columns(2)
+            with col1:
+                search_logic = st.radio("검색 조건", ["OR (하나라도 포함)", "AND (모두 포함)"], index=0, help="'서울 대전' 입력 시: OR는 서울 또는 대전, AND는 서울이면서 대전")
+            with col2:
+                search_target = st.radio("검색 대상", ["전체(주소+상호)", "주소만", "상호만"], index=0)
+
+        # Split search keywords by / or space or comma
         import re
         # [FIX] Normalize input for Mac users (NFD -> NFC)
         search_norm = unicodedata.normalize('NFC', address_search.strip())
-        keywords = re.split(r'[/\s]+', search_norm)
+        keywords = re.split(r'[/\s,]+', search_norm)
         keywords = [k for k in keywords if k]  # Remove empty strings
         
         if keywords:
-            # Create a mask that checks if ANY keyword is present (OR logic)
-            mask = pd.Series([False] * len(base_df), index=base_df.index)
+            # Initialize mask based on logic
+            # OR logic starts with False (accumulate True)
+            # AND logic starts with True (eliminate False)
+            if "OR" in search_logic:
+                mask = pd.Series([False] * len(base_df), index=base_df.index)
+            else:
+                mask = pd.Series([True] * len(base_df), index=base_df.index)
+
             for keyword in keywords:
-                keyword_mask = (
-                    base_df['소재지전체주소'].astype(str).apply(lambda x: unicodedata.normalize('NFC', x)).str.contains(keyword, case=False, na=False, regex=False) |
-                    base_df['사업장명'].astype(str).apply(lambda x: unicodedata.normalize('NFC', x)).str.contains(keyword, case=False, na=False, regex=False)
-                )
-                mask = mask | keyword_mask  # OR logic: any keyword match
+                # Build keyword match mask based on target
+                if "주소만" in search_target:
+                    keyword_mask = base_df['소재지전체주소'].astype(str).apply(lambda x: unicodedata.normalize('NFC', x)).str.contains(keyword, case=False, na=False, regex=False)
+                elif "상호만" in search_target:
+                    keyword_mask = base_df['사업장명'].astype(str).apply(lambda x: unicodedata.normalize('NFC', x)).str.contains(keyword, case=False, na=False, regex=False)
+                else: # 전체
+                    keyword_mask = (
+                        base_df['소재지전체주소'].astype(str).apply(lambda x: unicodedata.normalize('NFC', x)).str.contains(keyword, case=False, na=False, regex=False) |
+                        base_df['사업장명'].astype(str).apply(lambda x: unicodedata.normalize('NFC', x)).str.contains(keyword, case=False, na=False, regex=False)
+                    )
+                
+                # Combine based on Logic
+                if "OR" in search_logic:
+                    mask = mask | keyword_mask
+                else:
+                    mask = mask & keyword_mask
+
             base_df = base_df[mask]
             
             # Debug: Search Result Count for Admin
