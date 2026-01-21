@@ -3,8 +3,11 @@ pandas
 openpyxl
 filelock
 altair
+numpy
+scipy
 scikit-learn
 folium
 streamlit-folium
 rapidfuzz
 pyproj
+# Force Rebuild 20260121-2
