@@ -9,9 +9,9 @@ from datetime import datetime
 
 # Import modularized components
 from src import utils
-from src.data_loader import load_and_process_data, fetch_from_api
-from src.map_visualizer import create_folium_map
-from src.report_generator import generate_pdf_report
+from src import data_loader
+from src import map_visualizer
+from src import report_generator
 from src import activity_logger  # Activity logging and status tracking
 
 # --- Configuration & Theme ---
