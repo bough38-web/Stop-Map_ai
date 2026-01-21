@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>영업기회 현장 비서 - 사용자 매뉴얼</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/light.css">
+    <style>
+        body {
+            max-width: 900px;
+            margin: 40px auto;
+            font-family: 'Pretendard', sans-serif;
+        }
+
+        .tab {
+            overflow: hidden;
+            border-bottom: 1px solid #ccc;
+            margin-bottom: 20px;
+        }
+
+        .tab button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 14px 16px;
+            transition: 0.3s;
+            font-size: 17px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .tab button:hover {
+            background-color: #ddd;
+        }
+
+        .tab button.active {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .tabcontent {
+            display: none;
+            padding: 6px 12px;
+            border-top: none;
+            animation: fadeEffect 1s;
+        }
+
+        @keyframes fadeEffect {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        h3 {
+            color: #2980b9;
+            border-left: 4px solid #3498db;
+            padding-left: 10px;
+        }
+
+        .step {
+            background: #f0f4f8;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .step-num {
+            font-weight: bold;
+            color: #fff;
+            background: #3498db;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: inline-block;
+            text-align: center;
+            line-height: 24px;
+            margin-right: 10px;
+        }
+
+        .tip {
+            background: #fff3e0;
+            border-left: 5px solid #ff9800;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>📘 영업기회 플랫폼 사용자 매뉴얼</h1>
+    <p>본 매뉴얼은 <strong>영업 담당자</strong>와 <strong>지사 관리자</strong>를 위한 운영 가이드입니다.</p>
+
+    <div class="tab">
+        <button class="tablinks active" onclick="openTab(event, 'Sales')">🏃 영업 담당자용</button>
+        <button class="tablinks" onclick="openTab(event, 'Manager')">🏢 지사 운영 가이드</button>
+    </div>
+
+    <!-- 영업 담당자 -->
+    <div id="Sales" class="tabcontent" style="display: block;">
+        <h2>현장 영업 활동 가이드</h2>
+
+        <div class="step">
+            <span class="step-num">1</span> <strong>접속 및 로그인</strong>
+            <p>공유받은 URL로 접속합니다. 별도의 앱 설치는 필요 없으며, 브라우저에서 '홈 화면에 추가'를 하면 앱처럼 사용할 수 있습니다.</p>
+        </div>
+
+        <div class="step">
+            <span class="step-num">2</span> <strong>내 담당 구역 조회</strong>
+            <p>화면 상단의 드롭다운 메뉴에서 <strong>[본인 이름]</strong>을 선택하세요. <br>
+                지도와 리스트가 자동으로 본인의 담당 구역 데이터로만 필터링됩니다.</p>
+        </div>
+
+        <div class="step">
+            <span class="step-num">3</span> <strong>영업/폐업 타겟팅</strong>
+            <ul>
+                <li><strong>신규 영업</strong>: 상단 카드에서 <button style="padding:2px 8px; font-size:12px;">영업</button> 버튼을 누르면
+                    현재 운영 중인 잠재 고객만 지도에 표시됩니다.</li>
+                <li><strong>방어 영업</strong>: <button
+                        style="padding:2px 8px; font-size:12px; background:#e74c3c;">폐업</button> 버튼을 누르면 최근 폐업했거나 폐업 예정인
+                    곳을 확인하여 해지 방어 활동을 수행합니다.</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <span class="step-num">4</span> <strong>모바일 리스트 활용</strong>
+            <p>'모바일 리스트' 탭으로 이동하면 내 위치 주변의 업체가 카드 형태로 보입니다.<br>
+                <strong>[📞] 버튼</strong>을 누르면 즉시 전화를 걸 수 있고, <strong>[📍] 버튼</strong>을 누르면 네이버 지도로 길찾기가 실행됩니다.
+            </p>
+        </div>
+
+        <div class="tip">
+            <strong>💡 Tip:</strong> '상세통계' 탭에서 우리 지역의 <strong>평균 업력</strong>을 확인해보세요. 업력이 짧은 곳일수록 통신 상품 교체 주기가 빠를 수
+            있습니다.
+        </div>
+    </div>
+
+    <!-- 지사 관리자 -->
+    <div id="Manager" class="tabcontent">
+        <h2>지사 운영 및 성과 관리 가이드</h2>
+
+        <h3>1. 지사 현황 한눈에 보기</h3>
+        <p>메인 화면 상단의 <strong>[지사 현황] 카드</strong>를 확인하세요. 우리 지사의 총 관리 업체 수와 현재 영업/폐업 비율이 실시간으로 집계됩니다.</p>
+
+        <h3>2. 팀원별 활동 독려</h3>
+        <p>'상세통계' 탭의 <strong>[담당자별 보유 현황] 차트</strong>를 활용하세요.</p>
+        <ul>
+            <li>특정 담당자의 관리 업체 수가 너무 많거나 적지 않은지 밸런스를 체크합니다.</li>
+            <li>폐업률이 유난히 높은 담당자가 있다면 집중 케어 구역으로 설정하여 지원합니다.</li>
+        </ul>
+
+        <h3>3. 전략적 타겟팅 설정</h3>
+        <p>사이드바의 <strong>[날짜 필터]</strong> 기능을 활용하여 전략을 수립합니다.</p>
+        <ul>
+            <li><strong>최근 3개월 인허가 업체</strong>: 신규 개업이 활발한 '핫플레이스' 동네를 파악하고 집중 영업을 지시합니다.</li>
+            <li><strong>최근 1개월 폐업 업체</strong>: 경쟁사가 치고 들어오기 전에 장비 회수 및 공실 영업 기회를 포착합니다.</li>
+        </ul>
+
+        <h3>4. 보고서 활용</h3>
+        <p>매주 월요일 회의 시, 대시보드를 띄워놓고 <strong>'데이터 그리드'</strong> 탭의 엑셀 다운로드 기능을 사용하여 주간 실적 보고 자료를 생성하세요.</p>
+    </div>
+
+    <script>
+        function openTab(evt, tabName) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+    </script>
+
+</body>
+
+</html>

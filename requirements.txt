@@ -1,12 +1,5 @@
-streamlit
+streamlit>=1.36.0
 pandas
-altair
-scikit-learn
 openpyxl
-rapidfuzz
-watchdog
-pyproj
-folium
-streamlit-folium
-requests
-python-dotenv
+filelock
+altair

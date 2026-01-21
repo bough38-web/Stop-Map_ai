@@ -1,8 +1,6 @@
 import pandas as pd
 import re
-import os
-import glob
-from sklearn.feature_extraction.text import TfidfVectorizer
+import unicodedata
 from sklearn.metrics.pairwise import cosine_similarity
 from difflib import SequenceMatcher
 
@@ -21,6 +19,7 @@ try:
     HAS_PYPROJ = True
 except ImportError:
     HAS_PYPROJ = False
+    transformer = None
 
 def normalize_address(address):
     """
@@ -88,7 +87,10 @@ def get_best_match(address, choices, vectorizer, tfidf_matrix, threshold=0.7):
 
     # 1. TF-IDF Cosine Similarity (Fast Filter)
     try:
-        tfidf_vec = vectorizer.transform([address])
+        # Use only first element if it's a list/series
+        if isinstance(address, pd.Series): address = address.iloc[0]
+            
+        tfidf_vec = vectorizer.transform([str(address)])
         cosine_sim = cosine_similarity(tfidf_vec, tfidf_matrix).flatten()
         # Get top candidate
         best_idx = cosine_sim.argmax()
@@ -114,16 +116,17 @@ def get_best_match(address, choices, vectorizer, tfidf_matrix, threshold=0.7):
         
         if HAS_RAPIDFUZZ:
             # RapidFuzz: 0-100 scale, normalize to 0-1
-            score = fuzz.ratio(address, choice) / 100.0
+            score = fuzz.ratio(str(address), str(choice)) / 100.0
         else:
             # Difflib: 0-1 scale
-            score = SequenceMatcher(None, address, choice).ratio()
+            score = SequenceMatcher(None, str(address), str(choice)).ratio()
             
         if score > best_score:
             best_score = score
             best_match = choice
             
     # Combine signals: Max of cosine and edit distance logic
+    # Actually, edit distance is usually better for small typos.
     final_score = max(best_score, best_cosine_score)
     
     if final_score >= threshold:
@@ -131,33 +134,7 @@ def get_best_match(address, choices, vectorizer, tfidf_matrix, threshold=0.7):
     
     return None
 
-def get_local_data_paths(data_dir="data"):
-    """
-    Scans the data directory for ZIP and Excel files.
-    Returns (zip_path, excel_path).
-    Prioritizes the most recently modified Excel file.
-    """
-    if not os.path.exists(data_dir):
-        return None, None
-        
-    zips = glob.glob(os.path.join(data_dir, "*.zip"))
-    excels = glob.glob(os.path.join(data_dir, "*.xlsx"))
-    
-    if not zips or not excels:
-        return None, None
-        
-    # Sort excels by modification time (newest first)
-    excels.sort(key=os.path.getmtime, reverse=True)
-    
-    zip_path = zips[0]
-    excel_path = excels[0]
-    
-    return zip_path, excel_path
-
 def calculate_area(row):
-    """
-    Calculates area in Pyeong from '소재지면적' or '총면적'.
-    """
     val = row.get('소재지면적', 0)
     if pd.isna(val) or val == 0: val = row.get('총면적', 0)
     try:

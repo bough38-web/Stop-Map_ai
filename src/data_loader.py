@@ -11,11 +11,15 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 # Import from local utils (assuming src is a package or in path)
 # When running app.py from root, 'src.utils' is the way if src has __init__.py
 # For now, we will assume this file is imported as 'src.data_loader'
-from src.utils import normalize_address, parse_coordinates_row, get_best_match, calculate_area
+from src.utils import normalize_address, parse_coordinates_row, get_best_match, calculate_area, transformer, HAS_PYPROJ
 
 def normalize_str(s):
     if pd.isna(s): return s
     return unicodedata.normalize('NFC', str(s)).strip()
+
+import shutil
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 
 @st.cache_data
 def load_and_process_data(zip_file_path_or_obj, district_file_path_or_obj):
@@ -26,6 +30,13 @@ def load_and_process_data(zip_file_path_or_obj, district_file_path_or_obj):
     
     # 1. Process Zip File
     extract_folder = "temp_extracted_data"
+    
+    # [OPTIMIZATION] Cleanup Temp Folder
+    if os.path.exists(extract_folder):
+        try:
+            shutil.rmtree(extract_folder)
+        except:
+            pass
     os.makedirs(extract_folder, exist_ok=True)
     
     try:
@@ -107,11 +118,49 @@ def load_and_process_data(zip_file_path_or_obj, district_file_path_or_obj):
         target_df.sort_values(by='인허가일자', ascending=False, inplace=True)
     
     # Coordinate Parsing
+    # Coordinate Parsing (Vectorized)
     if x_col and y_col:
         x_c = x_col if x_col in target_df.columns else next((k for k,v in rename_map.items() if v == '좌표정보(X)'), x_col)
         y_c = y_col if y_col in target_df.columns else next((k for k,v in rename_map.items() if v == '좌표정보(Y)'), y_col)
         
-        target_df['lat'], target_df['lon'] = zip(*target_df.apply(lambda row: parse_coordinates_row(row, x_col, y_col), axis=1))
+        # Safe numeric conversion
+        xs = pd.to_numeric(target_df[x_c], errors='coerce').values
+        ys = pd.to_numeric(target_df[y_c], errors='coerce').values
+        
+        lats = np.full(xs.shape, np.nan)
+        lons = np.full(ys.shape, np.nan)
+        
+        valid_mask = ~np.isnan(xs) & ~np.isnan(ys)
+        
+        if np.any(valid_mask):
+             # Check if data is already Lat/Lon (Small numbers) or Projected (Large numbers)
+             # Heuristic: Median of X. If > 200, it's likely projected (e.g. 190000)
+             sample_x = xs[valid_mask]
+             if np.median(sample_x) > 200 and HAS_PYPROJ:
+                 # Transform
+                 x_valid = xs[valid_mask]
+                 y_valid = ys[valid_mask]
+                 
+                 try:
+                     lon_v, lat_v = transformer.transform(x_valid, y_valid)
+                     lats[valid_mask] = lat_v
+                     lons[valid_mask] = lon_v
+                 except Exception:
+                     pass # Fallback or keep NaN
+             else:
+                 # Assume Lat/Lon (X=Lon, Y=Lat)
+                 # Validate Range: Lat 30-45, Lon 120-140
+                 # existing code heuristic: return y, x
+                 lats = ys
+                 lons = xs
+                 
+        # Bound Check
+        bad_mask = (lats < 30) | (lats > 45) | (lons < 120) | (lons > 140)
+        lats[bad_mask] = np.nan
+        lons[bad_mask] = np.nan
+        
+        target_df['lat'] = lats
+        target_df['lon'] = lons
     else:
         target_df['lat'] = None
         target_df['lon'] = None
@@ -142,53 +191,72 @@ def load_and_process_data(zip_file_path_or_obj, district_file_path_or_obj):
     df_district = df_district.drop_duplicates(subset=['full_address_norm'], keep='first')
     
     target_df['소재지전체주소_norm'] = target_df['소재지전체주소'].astype(str).apply(normalize_address)
-    
-    # 4. Matching Logic
-    vectorizer = TfidfVectorizer(analyzer='char', ngram_range=(2, 3)).fit(df_district['full_address_norm'])
-    tfidf_matrix = vectorizer.transform(df_district['full_address_norm'])
-    choices = df_district['full_address_norm'].tolist()
-    # Keep mapping-back dictionary
-    norm_to_original = dict(zip(df_district['full_address_norm'], df_district['full_address']))
-    
     target_df = target_df.dropna(subset=['소재지전체주소_norm'])
+
+    # 4. Matching Logic (Batch Optimized)
+    # [OPTIMIZATION] Batch Vectorization instead of row-by-row
+    
+    # A. Prepare Corpus (District)
+    vectorizer = TfidfVectorizer(analyzer='char', ngram_range=(2, 3)).fit(df_district['full_address_norm'])
+    district_matrix = vectorizer.transform(df_district['full_address_norm'])
+    district_choices = df_district['full_address_norm'].tolist()
+    district_originals = df_district['full_address'].tolist()
+    
+    # B. Prepare Query (Target)
+    target_addrs = target_df['소재지전체주소_norm'].tolist()
+    if not target_addrs:
+        return target_df, None # Empty
+        
+    target_matrix = vectorizer.transform(target_addrs)
+    
+    # C. Compute Cosine Similarity (Query x Corpus) - CHUNKED to prevent Memory Overflow
+    # If N=50k, M=50k, Matrix=2.5B floats => 20GB RAM. We must chunk.
+    
+    chunk_size = 1000
+    num_rows = target_matrix.shape[0]
+    
+    matched_results = []
+    
+    # Threshold
+    THRESHOLD = 0.5 
     
     # [FIX] Geographic Validation Helper
     def extract_geo_tokens(addr):
         if not addr: return set()
         tokens = addr.split()
-        # Return first 2 tokens (Province + City/District) as a set for comparison
-        # e.g. "경기도 김포시" -> {'경기도', '김포시'}
-        # e.g. "강원도 강릉시" -> {'강원도', '강릉시'}
         return set(tokens[:2]) if len(tokens) >= 2 else set(tokens)
 
-    def validate_geographic_match(input_addr, matched_addr):
-        if not matched_addr: return False
+    for i in range(0, num_rows, chunk_size):
+        end = min(i + chunk_size, num_rows)
+        chunk_target = target_matrix[i:end]
         
-        input_tokens = extract_geo_tokens(input_addr)
-        matched_tokens = extract_geo_tokens(matched_addr)
+        # Compute similarity for this chunk: (ChunkSize x M)
+        # 1000 x 50000 = 50M floats = 400MB (Manageable)
+        chunk_sim = cosine_similarity(chunk_target, district_matrix)
         
-        # Check intersection
-        # If they share NOTHING in the first 2 tokens, it's likely a bad match (e.g. Gyeonggi vs Gangwon)
-        # But we must be careful of abbreviations. Normalized strings should handle this well.
-        if not input_tokens.intersection(matched_tokens):
-            return False
-            
-        return True
-
-    def match_row(row):
-        addr = row['소재지전체주소_norm']
-        matched = get_best_match(addr, choices, vectorizer, tfidf_matrix)
+        # Find best for this chunk
+        chunk_best_indices = chunk_sim.argmax(axis=1)
+        chunk_best_scores = chunk_sim.max(axis=1)
         
-        if matched:
-            # [FIX] Validate Geography
-            if not validate_geographic_match(addr, matched):
-                return None
+        # Process results for this chunk
+        for j, score in enumerate(chunk_best_scores):
+            if score >= THRESHOLD:
+                candidate = district_originals[chunk_best_indices[j]]
+                # Original global index is i + j
+                query = target_addrs[i + j]
                 
-            return norm_to_original.get(matched)
+                # Geo Validation
+                q_tok = extract_geo_tokens(query)
+                c_tok = extract_geo_tokens(candidate)
+                
+                if q_tok.intersection(c_tok):
+                    matched_results.append(candidate)
+                else:
+                    matched_results.append(None)
+            else:
+                matched_results.append(None)
             
-        return None
-
-    target_df['matched_address'] = target_df.apply(match_row, axis=1)
+    target_df['matched_address'] = matched_results
     
     # 5. Merge
     merge_cols = ['full_address', '관리지사', 'SP담당']
@@ -198,7 +266,14 @@ def load_and_process_data(zip_file_path_or_obj, district_file_path_or_obj):
     final_df = target_df.merge(df_district[merge_cols], left_on='matched_address', right_on='full_address', how='left')
     
     # Area Calculation
-    final_df['평수'] = final_df.apply(calculate_area, axis=1)
+    # Area Calculation (Vectorized)
+    # final_df['평수'] = final_df.apply(calculate_area, axis=1) # Old Slow Way
+    site_area = pd.to_numeric(final_df['소재지면적'], errors='coerce').fillna(0)
+    tot_area = pd.to_numeric(final_df['총면적'], errors='coerce').fillna(0)
+    # Use site_area if > 0 else tot_area. 
+    # Vectorized 'where': np.where(condition, x, y)
+    use_area = np.where(site_area > 0, site_area, tot_area)
+    final_df['평수'] = (use_area / 3.3058).round(1)
     
     # Fill NA
     # [OPTIMIZATION] Drop Unassigned Data
@@ -371,7 +446,11 @@ def process_api_data(target_df, district_file_path_or_obj):
     final_df = target_df.merge(df_district[merge_cols], left_on='matched_address', right_on='full_address', how='left')
     
     # Area
-    final_df['평수'] = final_df.apply(calculate_area, axis=1)
+    # Area Calculation (Vectorized)
+    site_area = pd.to_numeric(final_df['소재지면적'], errors='coerce').fillna(0)
+    tot_area = pd.to_numeric(final_df['총면적'], errors='coerce').fillna(0)
+    use_area = np.where(site_area > 0, site_area, tot_area)
+    final_df['평수'] = (use_area / 3.3058).round(1)
     
     # Fill NA
     final_df['관리지사'] = final_df['관리지사'].fillna('미지정')

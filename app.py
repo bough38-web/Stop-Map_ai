@@ -475,29 +475,145 @@ if error:
 if raw_df is not None:
     
     # [FIX] Global NFC Normalization to prevent Mac/Windows mismatch
-    # This ensures all subsequent filters and buttons work with consistent strings.
     for col in ['관리지사', 'SP담당', '사업장명', '소재지전체주소', '영업상태명', '업태구분명']:
         if col in raw_df.columns:
-            # [FIX] NFC + Strip to ensure exact matching
             raw_df[col] = raw_df[col].astype(str).apply(lambda x: unicodedata.normalize('NFC', x).strip() if x else x)
             
     # [REFACTOR] Centralized Branch List Calculation
-    # Calculate ONCE, use EVERYWHERE
     custom_branch_order = ['중앙지사', '강북지사', '서대문지사', '고양지사', '의정부지사', '남양주지사', '강릉지사', '원주지사']
     custom_branch_order = [unicodedata.normalize('NFC', b) for b in custom_branch_order]
     
     current_branches_raw = [unicodedata.normalize('NFC', str(b)) for b in raw_df['관리지사'].unique() if pd.notna(b)]
     
-    # Intersection while preserving order
     global_branch_opts = [b for b in custom_branch_order if b in current_branches_raw]
     others = [b for b in current_branches_raw if b not in custom_branch_order]
     global_branch_opts.extend(others)
+
+    # -------------------------------------------------------------
+    # [FEATURE] Role-Based Landing Page
+    # -------------------------------------------------------------
+    if 'user_role' not in st.session_state:
+        st.session_state.user_role = None  # None, 'admin', 'branch', 'manager'
+        st.session_state.user_branch = None
+        st.session_state.user_manager_name = None
+        st.session_state.user_manager_code = None
+
+    if st.session_state.user_role is None:
+        st.markdown(
+            """
+            <style>
+                [data-testid="stSidebar"] {display: none;}
+                .main .block-container {max_width: 800px; padding-top: 2rem;}
+            </style>
+            """, 
+            unsafe_allow_html=True
+        )
+        
+        st.markdown("<h1 style='text-align: center; margin-bottom: 10px;'>Sales Opportunity Capture</h1>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #666; margin-bottom: 40px;'>행정안전부 공공DATA 기반 고객 및 시장의 변화 신호(신규,폐업 징후)를 조기에 감지하여<br>신규 영업기회를 발굴, 기존 고객 해지 예방 활동 표시</p>", unsafe_allow_html=True)
+        
+        l_tab1, l_tab2, l_tab3 = st.tabs(["👮 관리자(Admin)", "🏢 지사(Branch)", "👤 담당자(Manager)"])
+        
+        with l_tab1:
+            st.info("관리자 권한으로 접속합니다. (모든 데이터 열람 가능)")
+            with st.form("login_admin"):
+                pw = st.text_input("관리자 암호", type="password")
+                if st.form_submit_button("관리자 로그인", type="primary", use_container_width=True):
+                    if pw == "admin1234":
+                        st.session_state.user_role = 'admin'
+                        st.session_state.admin_auth = True
+                        st.rerun()
+                    else:
+                        st.error("암호가 올바르지 않습니다.")
+                        
+        with l_tab2:
+            st.info("특정 지사의 데이터만 조회합니다.")
+            with st.form("login_branch"):
+                s_branch = st.selectbox("지사 선택", global_branch_opts)
+                if st.form_submit_button("지사 접속", type="primary", use_container_width=True):
+                    st.session_state.user_role = 'branch'
+                    st.session_state.user_branch = s_branch
+                    st.session_state.sb_branch = s_branch # Pre-set filter
+                    st.rerun()
+                    
+        with l_tab3:
+            st.info("본인의 영업구역/담당 데이터만 조회합니다.")
+            
+            # Helper for Manager Selection
+            # 1. Filter Branch First (Optional)
+            sel_br_for_mgr = st.selectbox("소속 지사 (필터용)", ["전체"] + global_branch_opts)
+            
+            if raw_df is not None:
+                mgr_candidates = raw_df.copy()
+                if sel_br_for_mgr != "전체":
+                    mgr_candidates = mgr_candidates[mgr_candidates['관리지사'] == sel_br_for_mgr]
+                
+                # Generate Logic: Name + Code
+                if '영업구역 수정' in mgr_candidates.columns:
+                    mgr_candidates['display'] = mgr_candidates.apply(lambda x: f"{x['SP담당']} ({x['영업구역 수정']})" if pd.notna(x['영업구역 수정']) and x['영업구역 수정'] else x['SP담당'], axis=1)
+                else:
+                    mgr_candidates['display'] = mgr_candidates['SP담당']
+                    
+                mgr_list = sorted(mgr_candidates['display'].unique().tolist())
+            else:
+                st.warning("데이터가 로드되지 않아 담당자 목록을 불러올 수 없습니다.")
+                mgr_list = []
+            
+            with st.form("login_manager"):
+                s_manager_display = st.selectbox("담당자 선택", mgr_list)
+                if st.form_submit_button("담당자 접속", type="primary", use_container_width=True):
+                    # Parse Name/Code
+                    # Format: "Name (Code)" or "Name"
+                    if "(" in s_manager_display and ")" in s_manager_display:
+                        p_name = s_manager_display.split("(")[0].strip()
+                        p_code = s_manager_display.split("(")[1].replace(")", "").strip()
+                    else:
+                        p_name = s_manager_display
+                        p_code = None
+                        
+                    st.session_state.user_role = 'manager'
+                    st.session_state.user_manager_name = p_name
+                    st.session_state.user_manager_code = p_code
+                    
+                    # Pre-set filters
+                    # Find branch for this manager to set context if possible
+                    user_br_find = raw_df[raw_df['SP담당'] == p_name]['관리지사'].mode()
+                    if not user_br_find.empty:
+                        st.session_state.user_branch = user_br_find[0]
+                        st.session_state.sb_branch = user_br_find[0]
+                        
+                    st.session_state.sb_manager = p_name # This usually takes Name in main logic
+                    
+                    st.rerun()
+                    
+        st.markdown("---")
+        st.caption("ⓒ 2026 Field Sales Assistant System")
+        st.stop() # Stop here if no role
+
+    # -------------------------------------------------------------
+    # Main Logic (Authenticated)
+    # -------------------------------------------------------------
     
     # --- Apply Global Filters (Sidebar) ---
     # --- Sidebar Filters ---
     with st.sidebar:
         st.header("⚙️ 설정")
         
+        # [FEATURE] Logout / Role Info
+        role_map = {'admin': '👮 관리자', 'branch': '🏢 지사 관리자', 'manager': '👤 담당자'}
+        cur_role_txt = role_map.get(st.session_state.user_role, 'Unknown')
+        st.sidebar.info(f"접속: **{cur_role_txt}**")
+        if st.session_state.user_role == 'branch':
+            st.sidebar.caption(f"지사: {st.session_state.user_branch}")
+        elif st.session_state.user_role == 'manager':
+            st.sidebar.caption(f"담당: {st.session_state.user_manager_name}")
+
+        if st.sidebar.button("로그아웃 (처음으로)", key="btn_logout", type="primary"):
+            for key in ['user_role', 'user_branch', 'user_manager_name', 'user_manager_code', 'admin_auth']:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.rerun()
+
         # [SECURITY] Session-based Admin Auth
         if 'admin_auth' not in st.session_state:
             st.session_state.admin_auth = False
@@ -508,39 +624,25 @@ if raw_df is not None:
             
         c_mode1, c_mode2 = st.columns(2)
         
-        
-        # [UX] Admin Settings Toggle (Replaces simple login toggle)
-        show_admin_settings = st.checkbox("⚙️ 관리자 설정 (필터 열기)", value=False)
-        
-        # Auth Logic Triggered by Checkbox
-        if show_admin_settings:
-            if not st.session_state.admin_auth:
-                st.info("관리자 암호를 입력하세요.")
-                admin_pw = st.text_input("암호", type="password", key="admin_pw_input", label_visibility="collapsed")
-                if st.button("확인", key="admin_login_btn"):
-                    if admin_pw == "admin1234":
-                        st.session_state.admin_auth = True
-                        st.rerun()
-                    else:
-                        st.error("암호 오류")
-            else:
-                # Logged In UI
-                st.success("✅ 관리자 모드 활성")
-                
-                c_edit, c_view = st.columns(2)
-                with c_edit:
-                    edit_mode = st.toggle("🛠️ 수정 모드", value=False)
-                with c_view:
-                    custom_view_mode = st.toggle("👮 관리자 뷰", value=False)
-                    
-                if st.button("로그아웃 (잠금)", key="admin_logout_btn"):
-                    st.session_state.admin_auth = False
-                    st.rerun()
+        # [UX] Admin Settings Toggle (Only for Admin Role)
+        if st.session_state.user_role == 'admin':
+            show_admin_settings = st.checkbox("⚙️ 관리자 설정 (필터 열기)", value=False)
+            
+            # Auth Logic Triggered by Checkbox
+            if show_admin_settings:
+                # Already authenticated via Landing Page, but double check or just show controls
+                if not st.session_state.admin_auth:
+                     st.warning("재인증이 필요합니다.")
+                     # Re-auth logic if needed, but usually redundant here
+                else:
+                    # Logged In UI
+                    c_edit, c_view = st.columns(2)
+                    with c_edit:
+                        edit_mode = st.toggle("🛠️ 수정 모드", value=False)
+                    with c_view:
+                        custom_view_mode = st.toggle("👮 관리자 뷰", value=False)
         else:
-            # If checkbox is OFF, force auth off (or just hide controls)?
-            # User expectation: "Button select -> Global Filter appear".
-            # So if unchecked, filters are hidden. Auth state can persist or not, but visibility is off.
-            pass
+            show_admin_settings = False
 
         # [FEATURE] Custom Dashboard View Controls (Only if auth)
         custom_view_managers = []
@@ -579,76 +681,136 @@ if raw_df is not None:
         
         filter_df = raw_df.copy()
         
+        # [SECURITY] Hard Filter for Manager Role
+        # This ensures sidebar options are restricted even if UI logic fails.
+        if st.session_state.user_role == 'manager':
+             if st.session_state.user_manager_code:
+                  if '영업구역 수정' in filter_df.columns:
+                      filter_df = filter_df[filter_df['영업구역 수정'] == st.session_state.user_manager_code]
+                  else:
+                      filter_df = filter_df[filter_df['SP담당'] == st.session_state.user_manager_name]
+             elif st.session_state.user_manager_name:
+                  filter_df = filter_df[filter_df['SP담당'] == st.session_state.user_manager_name]
+        
         # [UI] Common Filters Logic
-        # ONLY show if 'show_admin_settings' is Checked AND 'admin_auth' is True
-        if show_admin_settings and st.session_state.admin_auth:
-            st.markdown("---")
-            st.markdown("### 🔍 공통 필터 설정")
+        # Always show Common Filters, but Restriction based on Role
+        st.markdown("### 🔍 조회 조건 설정")
             
-            # 1. Branch
-            custom_branch_order = ['중앙지사', '강북지사', '서대문지사', '고양지사', '의정부지사', '남양주지사', '강릉지사', '원주지사']
-            custom_branch_order = [unicodedata.normalize('NFC', b) for b in custom_branch_order]
-            current_branches_in_raw = [unicodedata.normalize('NFC', str(b)) for b in raw_df['관리지사'].unique() if pd.notna(b)]
-            sorted_branches_for_filter = [b for b in custom_branch_order if b in current_branches_in_raw]
-            others_for_filter = [b for b in current_branches_in_raw if b not in custom_branch_order]
-            sorted_branches_for_filter.extend(others_for_filter)
-            sorted_branches_for_filter = [unicodedata.normalize('NFC', b) for b in sorted_branches_for_filter]
+        # 1. Branch
+        custom_branch_order = ['중앙지사', '강북지사', '서대문지사', '고양지사', '의정부지사', '남양주지사', '강릉지사', '원주지사']
+        custom_branch_order = [unicodedata.normalize('NFC', b) for b in custom_branch_order]
+        current_branches_in_raw = [unicodedata.normalize('NFC', str(b)) for b in raw_df['관리지사'].unique() if pd.notna(b)]
+        sorted_branches_for_filter = [b for b in custom_branch_order if b in current_branches_in_raw]
+        others_for_filter = [b for b in current_branches_in_raw if b not in custom_branch_order]
+        sorted_branches_for_filter.extend(others_for_filter)
+        sorted_branches_for_filter = [unicodedata.normalize('NFC', b) for b in sorted_branches_for_filter]
 
-            st.markdown("##### 🏢 지사 선택")
-            branch_opts = ["전체"] + sorted_branches_for_filter
-            if 'sb_branch' not in st.session_state: st.session_state.sb_branch = "전체"
+        st.markdown("##### 🏢 지사 선택")
+        
+        # [ROLE_CONSTRAINT] Branch Selection
+        branch_opts = ["전체"] + sorted_branches_for_filter
+        
+        # Default logic
+        if 'sb_branch' not in st.session_state: st.session_state.sb_branch = "전체"
+        
+        # Force overrides
+        disabled_branch = False
+        if st.session_state.user_role == 'branch' or st.session_state.user_role == 'manager':
+            # Lock to user's branch
+            if st.session_state.user_branch:
+                st.session_state.sb_branch = st.session_state.user_branch
+                disabled_branch = True
+        
+        if st.session_state.sb_branch != "전체":
+                st.session_state.sb_branch = unicodedata.normalize('NFC', st.session_state.sb_branch)
+        
+        def reset_manager_filter():
+            st.session_state.sb_manager = "전체"
             
-            if st.session_state.sb_branch != "전체":
-                 st.session_state.sb_branch = unicodedata.normalize('NFC', st.session_state.sb_branch)
-            
-            def reset_manager_filter():
-                st.session_state.sb_manager = "전체"
-                
-            sel_branch = st.selectbox(
-                "관리지사", 
-                branch_opts, 
-                key="sb_branch",
-                on_change=reset_manager_filter
-            )
+        sel_branch = st.selectbox(
+            "관리지사", 
+            branch_opts, 
+            key="sb_branch",
+            on_change=reset_manager_filter,
+            disabled=disabled_branch
+        )
 
-            if sel_branch != "전체":
-                filter_df = filter_df[filter_df['관리지사'] == sel_branch]
-            
-            # 2. Manager
-            has_area_code = '영업구역 수정' in filter_df.columns
-            
-            if has_area_code:
-                st.markdown("##### 🧑‍💻 영업구역 (담당자) 선택")
-                temp_df = filter_df[['영업구역 수정', 'SP담당']].dropna(subset=['영업구역 수정']).copy()
-                temp_df['label'] = temp_df['영업구역 수정'].astype(str) + " (" + temp_df['SP담당'].astype(str) + ")"
-                temp_df = temp_df.sort_values('영업구역 수정')
-                manager_opts = ["전체"] + list(temp_df['label'].unique())
-                label_to_code = dict(zip(temp_df['label'], temp_df['영업구역 수정']))
-            else:
-                st.markdown("##### 🧑‍💻 담당자 선택")
-                manager_opts = ["전체"] + sorted(list(filter_df['SP담당'].dropna().unique()))
+        if sel_branch != "전체":
+            filter_df = filter_df[filter_df['관리지사'] == sel_branch]
+        
+        # 2. Manager
+        has_area_code = '영업구역 수정' in filter_df.columns
+        
+        st.markdown("##### 🧑‍💻 영업구역 (담당자) 선택")
+        
+        if has_area_code:
+            temp_df = filter_df[['영업구역 수정', 'SP담당']].dropna(subset=['SP담당']).copy()
+            # Handle potential NaN in code
+            temp_df['영업구역 수정'] = temp_df['영업구역 수정'].fillna('')
+            temp_df['label'] = temp_df.apply(lambda x: f"{x['영업구역 수정']} ({x['SP담당']})" if x['영업구역 수정'] else x['SP담당'], axis=1)
+            temp_df = temp_df.sort_values(['SP담당', '영업구역 수정'])
+            manager_opts = ["전체"] + list(temp_df['label'].unique())
+            # Map label back to data
+            label_map_code = dict(zip(temp_df['label'], temp_df['영업구역 수정']))
+            label_map_name = dict(zip(temp_df['label'], temp_df['SP담당']))
+        else:
+            manager_opts = ["전체"] + sorted(list(filter_df['SP담당'].dropna().unique()))
+        
+        if 'sb_manager' not in st.session_state: st.session_state.sb_manager = "전체"
+
+        # [ROLE_CONSTRAINT] Manager
+        disabled_mgr = False
+        if st.session_state.user_role == 'manager':
+            # Identify current manager's label
+            if st.session_state.user_manager_name:
+                # Try to matching label in list
+                target_name = st.session_state.user_manager_name
+                target_code = st.session_state.user_manager_code
                 
-            if 'sb_manager' not in st.session_state: st.session_state.sb_manager = "전체"
-            
-            sel_manager_label = st.selectbox(
-                "영업구역/담당", 
-                manager_opts, 
-                index=manager_opts.index(st.session_state.get('sb_manager', "전체")) if st.session_state.get('sb_manager') in manager_opts else 0,
-                key="sb_manager"
-            )
-            
-            sel_manager = "전체" 
-            selected_area_code = None 
-            
-            if sel_manager_label != "전체":
-                if has_area_code:
-                    selected_area_code = label_to_code.get(sel_manager_label)
-                    if selected_area_code:
-                        filter_df = filter_df[filter_df['영업구역 수정'] == selected_area_code]
-                        sel_manager = filter_df['SP담당'].iloc[0] if not filter_df.empty else "전체"
+                # Find matching label
+                # If code exists, look for "Code (Name)"
+                # Else "Name"
+                found_label = None
+                if target_code:
+                     found_label = f"{target_code} ({target_name})"
                 else:
-                    filter_df = filter_df[filter_df['SP담당'] == sel_manager_label]
-                    sel_manager = sel_manager_label
+                     found_label = target_name
+                     
+                if found_label in manager_opts:
+                    st.session_state.sb_manager = found_label
+                    disabled_mgr = True
+                elif target_name in manager_opts:
+                    st.session_state.sb_manager = target_name
+                    disabled_mgr = True
+        
+        sel_manager_label = st.selectbox(
+            "영업구역/담당", 
+            manager_opts, 
+            index=manager_opts.index(st.session_state.get('sb_manager', "전체")) if st.session_state.get('sb_manager') in manager_opts else 0,
+            key="sb_manager",
+            disabled=disabled_mgr
+        )
+        
+        sel_manager = "전체" 
+        selected_area_code = None 
+        
+        if sel_manager_label != "전체":
+            if has_area_code:
+                # Reverse lookup
+                # If using label map
+                selected_area_code = label_map_code.get(sel_manager_label)
+                selected_name_only = label_map_name.get(sel_manager_label)
+                
+                if selected_area_code:
+                    filter_df = filter_df[filter_df['영업구역 수정'] == selected_area_code]
+                    sel_manager = selected_name_only
+                else:
+                    # No code, just name
+                    filter_df = filter_df[filter_df['SP담당'] == selected_name_only]
+                    sel_manager = selected_name_only
+            else:
+                filter_df = filter_df[filter_df['SP담당'] == sel_manager_label]
+                sel_manager = sel_manager_label
 
             if sel_manager != "전체":
                 sel_manager = unicodedata.normalize('NFC', sel_manager)
@@ -725,6 +887,16 @@ if raw_df is not None:
     # Data Filtering
     base_df = raw_df.copy()
     base_df = base_df[base_df['관리지사'] != '미지정']
+
+    # [SECURITY] Hard Filter for Manager Role (Main Data)
+    if st.session_state.user_role == 'manager':
+            if st.session_state.user_manager_code:
+                if '영업구역 수정' in base_df.columns:
+                    base_df = base_df[base_df['영업구역 수정'] == st.session_state.user_manager_code]
+                else:
+                    base_df = base_df[base_df['SP담당'] == st.session_state.user_manager_name]
+            elif st.session_state.user_manager_name:
+                base_df = base_df[base_df['SP담당'] == st.session_state.user_manager_name]
     
     # [FEATURE] Admin Custom Dashboard Override
     if custom_view_mode and admin_auth and (custom_view_managers or exclude_branches):
@@ -883,6 +1055,20 @@ if raw_df is not None:
     except:
         sorted_branches = []
     
+    # [FEATURE] AI Summary Section
+    st.markdown("""
+    <div style="background-color: #f8f9fa; border-left: 4px solid #4CAF50; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+        <h4 style="margin-top:0; color:#2E7D32;">🏁 AI 데이터 요약</h4>
+        <p style="font-size: 0.95rem; line-height: 1.6; color: #333;">
+        이 데이터는 <b>행정안전부 공공데이터</b>로 1월 변동분(신규영업, 폐업, 변동이슈발생)데이터 입니다. <br>
+        지사별, 담당구역별 <b>영업(신규인허가 또는 변경이슈)</b>, <b>폐업(폐업등록)</b>된 시설로 지사/담당자별 조건 조회기능이 있으며, 
+        <b>신규/폐업(15일)</b> 체크박스 선택시 이슈 발생일로부터 15일이내 인것만 볼수 있으며, <b>병원, 100평</b> 다중조건 기능도 사용하실수 있습니다. <br>
+        특히 시설 위치를 <b>웹 지도</b>로 영업/폐업 각각 볼수 있으며 시설 선택시 기본정보 및 <b>카카오 네비게이션</b> 연결기능을 사용할수 있습니다. <br>
+        웹, 모바일에서 활용할수 있는 <b>모바일리스트, 데이터 그리드</b> 기능이 있어 필요시 다운로드 활용 가능합니다.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("### 🏢 지사별 현황")
     
     if 'dash_branch' not in st.session_state:
@@ -970,8 +1156,18 @@ if raw_df is not None:
              # We go back to raw_df and filter explicitly for the request branch.
              # This bypasses any Sidebar lag that might have filtered base_df to the wrong branch. (e.g. Gangbuk)
              
-             # 1. Start with Raw
+             # 1. Start with Raw (but respect Role!)
              mgr_df = raw_df[raw_df['관리지사'].astype(str).apply(lambda x: unicodedata.normalize('NFC', x)) == current_br_name].copy()
+             
+             # [SECURITY] Re-Apply Manager Filter here because we started from raw_df
+             if st.session_state.user_role == 'manager':
+                 if st.session_state.user_manager_code:
+                     if '영업구역 수정' in mgr_df.columns:
+                         mgr_df = mgr_df[mgr_df['영업구역 수정'] == st.session_state.user_manager_code]
+                     else:
+                         mgr_df = mgr_df[mgr_df['SP담당'] == st.session_state.user_manager_name]
+                 elif st.session_state.user_manager_name:
+                     mgr_df = mgr_df[mgr_df['SP담당'] == st.session_state.user_manager_name]
              
              # 2. Re-apply Common Filters (Date, Type, Status) if they exist
              # This ensures the manager view is still relevant, just correctly branched.

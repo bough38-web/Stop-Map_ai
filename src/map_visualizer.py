@@ -60,14 +60,18 @@ def render_kakao_map(map_df, kakao_key):
     # [FEATURE] Business Type
     display_df['biz_type'] = display_df['업태구분명'].fillna('') if '업태구분명' in display_df.columns else ''
     
-    map_data = display_df[['lat', 'lon', 'title', 'status', 'addr', 'tel', 'close_date', 'permit_date', 'reopen_date', 'modified_date', 'biz_type']].to_dict(orient='records')
+    # [FEATURE] Branch & Manager info
+    display_df['branch'] = display_df['관리지사'].fillna('') if '관리지사' in display_df.columns else ''
+    display_df['manager'] = display_df['SP담당'].fillna('') if 'SP담당' in display_df.columns else ''
+    
+    map_data = display_df[['lat', 'lon', 'title', 'status', 'addr', 'tel', 'close_date', 'permit_date', 'reopen_date', 'modified_date', 'biz_type', 'branch', 'manager']].to_dict(orient='records')
     json_data = json.dumps(map_data, ensure_ascii=False)
     
     st.markdown('<div style="background-color: #e3f2fd; border-left: 5px solid #2196F3; padding: 10px; margin-bottom: 10px; border-radius: 4px;"><small><b>Tip:</b> 지도가 보이지 않으면 도메인 등록(http://localhost:8501)을 확인하세요.</small></div>', unsafe_allow_html=True)
 
     map_css = '''
         html, body { width:100%; height:100%; margin:0; padding:0; overflow:hidden; } 
-        #map { width: 100%; height: 500px; border: 1px solid #ddd; background-color: #f8f9fa; }
+        #map { width: 100%; height: 450px; border: 1px solid #ddd; background-color: #f8f9fa; }
         .infowindow { padding:10px; font-size:12px; font-family: 'Pretendard', sans-serif; width: 220px; }
         .info-title { font-weight:bold; font-size:14px; margin-bottom:5px; color:#333; border-bottom:1px solid #eee; padding-bottom:5px; }
         .status-badge { display:inline-block; padding:2px 6px; border-radius:4px; color:white; font-size:11px; margin-left:5px; vertical-align:middle; }
@@ -129,6 +133,7 @@ def render_kakao_map(map_df, kakao_key):
                 var content = '<div class="infowindow">' + 
                               '<div class="info-title">' + item.title + 
                               '<span class="status-badge" style="background-color:' + badgeColor + ';">' + item.status + '</span></div>' +
+                              (item.branch ? ('<div style="color:#333; font-weight:bold; margin-bottom:2px;">🏠 ' + item.branch + ' / ' + item.manager + '</div>') : '') +
                               (item.biz_type ? ('<div style="color:#555; font-size:11px; margin-bottom:5px;">[' + item.biz_type + ']</div>') : '') + 
                               (item.permit_date ? ('<div style="color:#666;">인허가: ' + item.permit_date + '</div>') : '') + 
                               (item.close_date ? ('<div style="color:#D32F2F;">폐업: ' + item.close_date + '</div>') : '') + 
@@ -203,7 +208,7 @@ def render_kakao_map(map_df, kakao_key):
     </html>
     '''
     
-    components.html(html_content, height=520)
+    components.html(html_content, height=470)
 
 def render_folium_map(map_df):
     """
@@ -302,11 +307,17 @@ def render_folium_map(map_df):
                 status_style = "color:gray;"
 
             # Popup HTML
+            branch_info = str(row.get('관리지사', '')).replace('nan', '')
+            mgr_info = str(row.get('SP담당', '')).replace('nan', '')
+            
             popup_html = f"""
             <div style="font-family:'Pretendard', sans-serif; width:240px; font-size:12px;">
                 <h4 style="margin:0 0 8px 0; border-bottom:1px solid #eee; padding-bottom:5px; color:#333;">
                     {title}
                 </h4>
+                <div style="font-weight:bold; color:#222; margin-bottom:5px;">
+                     🏠 {branch_info} / {mgr_info}
+                </div>
                 <table style="width:100%; border-collapse:collapse;">
                     <tr><td style="color:#666; width:60px;">업태</td><td style="font-weight:bold; color:#555;">{str(row.get('업태구분명', ''))}</td></tr>
                     <tr><td style="color:#666; width:60px;">상태</td><td style="{status_style}">{status}</td></tr>
@@ -343,4 +354,4 @@ def render_folium_map(map_df):
         
     # Render
     map_html = m._repr_html_()
-    components.html(map_html, height=500, scrolling=False)
+    components.html(map_html, height=450, scrolling=False)
