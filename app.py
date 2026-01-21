@@ -1083,23 +1083,27 @@ if raw_df is not None:
         
     else:
         # Standard Sidebar Filters
-        # [FIX] Source of Truth is Session State (for Immediate Button Response)
-        current_branch_filter = st.session_state.get('sb_branch', "전체")
-        
-        if current_branch_filter != "전체":
-            # [FIX] Normalize comparison for Mac/Excel compatibility
-            norm_sel_branch = unicodedata.normalize('NFC', current_branch_filter)
-            base_df = base_df[base_df['관리지사'] == norm_sel_branch]
+        if not global_search_mode:
+            # [FIX] Source of Truth is Session State (for Immediate Button Response)
+            current_branch_filter = st.session_state.get('sb_branch', "전체")
             
-            # Debug log for admin
-            if st.session_state.user_role == 'admin':
-                st.sidebar.caption(f"📊 필터: {norm_sel_branch} | 결과: {len(base_df)}건")
-            
-        if selected_area_code:
-            base_df = base_df[base_df['영업구역 수정'] == selected_area_code]
-        elif sel_manager != "전체": 
-            norm_sel_manager = unicodedata.normalize('NFC', sel_manager)
-            base_df = base_df[base_df['SP담당'] == norm_sel_manager]
+            if current_branch_filter != "전체":
+                # [FIX] Normalize comparison for Mac/Excel compatibility
+                norm_sel_branch = unicodedata.normalize('NFC', current_branch_filter)
+                base_df = base_df[base_df['관리지사'] == norm_sel_branch]
+                
+                # Debug log for admin
+                if st.session_state.user_role == 'admin':
+                    st.sidebar.caption(f"📊 필터: {norm_sel_branch} | 결과: {len(base_df)}건")
+                
+            if selected_area_code:
+                base_df = base_df[base_df['영업구역 수정'] == selected_area_code]
+            elif sel_manager != "전체": 
+                norm_sel_manager = unicodedata.normalize('NFC', sel_manager)
+                base_df = base_df[base_df['SP담당'] == norm_sel_manager]
+        else:
+             if st.session_state.user_role == 'admin':
+                 st.sidebar.caption(f"🌐 전체 검색 모드: {len(base_df)}건 대상")
             
     # Common Filters (Applied to both modes)
     if only_hospitals:
