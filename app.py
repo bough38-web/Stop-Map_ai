@@ -730,6 +730,16 @@ if raw_df is not None:
                 placeholder="제외할 지사 선택..."
             )
             
+            # Debug: Raw Data Distribution
+            with st.expander("📊 데이터 분포 확인 (관리자용)", expanded=False):
+                st.caption("원본 데이터 지사별 건수")
+                if raw_df is not None and '관리지사' in raw_df.columns:
+                    dist_counts = raw_df['관리지사'].value_counts().reset_index()
+                    dist_counts.columns = ['지사명', '건수']
+                    st.dataframe(dist_counts, use_container_width=True, hide_index=True)
+                else:
+                    st.info("데이터가 로드되지 않았습니다.")
+            
             # Admin Log Viewer
             st.markdown("---")
             st.markdown("#### 📊 관리 기록 조회")
