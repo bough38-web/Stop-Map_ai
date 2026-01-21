@@ -162,6 +162,43 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Korean to English Romanization Helper
+def korean_to_romanization(text):
+    """
+    Convert Korean text to English romanization for password validation.
+    Simplified mapping for common Korean characters.
+    """
+    romanization_map = {
+        'ㅏ': 'a', 'ㅐ': 'ae', 'ㅑ': 'ya', 'ㅒ': 'yae', 'ㅓ': 'eo', 'ㅔ': 'e', 'ㅕ': 'yeo', 'ㅖ': 'ye',
+        'ㅗ': 'o', 'ㅘ': 'wa', 'ㅙ': 'wae', 'ㅚ': 'oe', 'ㅛ': 'yo', 'ㅜ': 'u', 'ㅝ': 'wo', 'ㅞ': 'we',
+        'ㅟ': 'wi', 'ㅠ': 'yu', 'ㅡ': 'eu', 'ㅢ': 'ui', 'ㅣ': 'i',
+        'ㄱ': 'g', 'ㄴ': 'n', 'ㄷ': 'd', 'ㄹ': 'r', 'ㅁ': 'm', 'ㅂ': 'b', 'ㅅ': 's', 'ㅇ': '',
+        'ㅈ': 'j', 'ㅊ': 'ch', 'ㅋ': 'k', 'ㅌ': 't', 'ㅍ': 'p', 'ㅎ': 'h',
+        'ㄲ': 'kk', 'ㄸ': 'tt', 'ㅃ': 'pp', 'ㅆ': 'ss', 'ㅉ': 'jj',
+        '가': 'ga', '나': 'na', '다': 'da', '라': 'ra', '마': 'ma', '바': 'ba', '사': 'sa', '아': 'a', '자': 'ja', '차': 'cha', '카': 'ka', '타': 'ta', '파': 'pa', '하': 'ha',
+        '각': 'gak', '간': 'gan', '갈': 'gal', '감': 'gam', '강': 'gang', '개': 'gae', '거': 'geo', '건': 'geon', '걸': 'geol', '검': 'geom', '게': 'ge', '겨': 'gyeo', '격': 'gyeok', '견': 'gyeon', '경': 'gyeong',
+        '고': 'go', '곡': 'gok', '곤': 'gon', '골': 'gol', '공': 'gong', '과': 'gwa', '관': 'gwan', '광': 'gwang', '괴': 'goe', '교': 'gyo', '구': 'gu', '국': 'guk', '군': 'gun', '굴': 'gul', '궁': 'gung', '권': 'gwon', '귀': 'gwi', '규': 'gyu', '균': 'gyun', '그': 'geu', '극': 'geuk', '근': 'geun', '글': 'geul', '금': 'geum', '급': 'geup', '기': 'gi', '길': 'gil',
+        '나': 'na', '낙': 'nak', '난': 'nan', '날': 'nal', '남': 'nam', '낭': 'nang', '내': 'nae', '너': 'neo', '널': 'neol', '네': 'ne', '녀': 'nyeo', '년': 'nyeon', '념': 'nyeom', '녕': 'nyeong', '노': 'no', '녹': 'nok', '논': 'non', '농': 'nong', '뇌': 'noe', '누': 'nu', '눈': 'nun', '늘': 'neul', '니': 'ni',
+        '다': 'da', '단': 'dan', '달': 'dal', '담': 'dam', '당': 'dang', '대': 'dae', '더': 'deo', '덕': 'deok', '던': 'deon', '덜': 'deol', '데': 'de', '도': 'do', '독': 'dok', '돈': 'don', '동': 'dong', '두': 'du', '둔': 'dun', '뒤': 'dwi', '드': 'deu', '득': 'deuk', '든': 'deun', '들': 'deul', '등': 'deung', '디': 'di',
+        '라': 'ra', '락': 'rak', '란': 'ran', '람': 'ram', '랑': 'rang', '래': 'rae', '러': 'reo', '럭': 'reok', '런': 'reon', '럴': 'reol', '레': 're', '려': 'ryeo', '력': 'ryeok', '련': 'ryeon', '렬': 'ryeol', '령': 'ryeong', '례': 'rye', '로': 'ro', '록': 'rok', '론': 'ron', '롱': 'rong', '뢰': 'roe', '료': 'ryo', '루': 'ru', '룩': 'ruk', '룬': 'run', '률': 'ryul', '륙': 'ryuk', '륜': 'ryun', '르': 'reu', '른': 'reun', '를': 'reul', '름': 'reum', '릉': 'reung', '리': 'ri', '린': 'rin', '림': 'rim', '립': 'rip',
+        '마': 'ma', '막': 'mak', '만': 'man', '말': 'mal', '망': 'mang', '매': 'mae', '머': 'meo', '먹': 'meok', '면': 'myeon', '멸': 'myeol', '명': 'myeong', '모': 'mo', '목': 'mok', '몰': 'mol', '못': 'mot', '무': 'mu', '묵': 'muk', '문': 'mun', '물': 'mul', '미': 'mi', '민': 'min',
+        '바': 'ba', '박': 'bak', '반': 'ban', '발': 'bal', '밤': 'bam', '방': 'bang', '배': 'bae', '백': 'baek', '번': 'beon', '벌': 'beol', '범': 'beom', '법': 'beop', '벽': 'byeok', '변': 'byeon', '별': 'byeol', '병': 'byeong', '보': 'bo', '복': 'bok', '본': 'bon', '봉': 'bong', '부': 'bu', '북': 'buk', '분': 'bun', '불': 'bul', '붕': 'bung', '비': 'bi', '빈': 'bin', '빙': 'bing',
+        '사': 'sa', '산': 'san', '살': 'sal', '삼': 'sam', '상': 'sang', '새': 'sae', '서': 'seo', '석': 'seok', '선': 'seon', '설': 'seol', '섬': 'seom', '성': 'seong', '세': 'se', '소': 'so', '속': 'sok', '손': 'son', '솔': 'sol', '송': 'song', '수': 'su', '숙': 'suk', '순': 'sun', '술': 'sul', '숭': 'sung', '슬': 'seul', '습': 'seup', '승': 'seung', '시': 'si', '식': 'sik', '신': 'sin', '실': 'sil', '심': 'sim',
+        '아': 'a', '악': 'ak', '안': 'an', '알': 'al', '암': 'am', '압': 'ap', '앙': 'ang', '애': 'ae', '야': 'ya', '약': 'yak', '양': 'yang', '어': 'eo', '언': 'eon', '얼': 'eol', '엄': 'eom', '업': 'eop', '에': 'e', '여': 'yeo', '역': 'yeok', '연': 'yeon', '열': 'yeol', '염': 'yeom', '영': 'yeong', '예': 'ye', '오': 'o', '옥': 'ok', '온': 'on', '올': 'ol', '옹': 'ong', '와': 'wa', '완': 'wan', '왕': 'wang', '외': 'oe', '요': 'yo', '용': 'yong', '우': 'u', '욱': 'uk', '운': 'un', '울': 'ul', '웅': 'ung', '원': 'won', '월': 'wol', '위': 'wi', '유': 'yu', '육': 'yuk', '윤': 'yun', '율': 'yul', '융': 'yung', '은': 'eun', '을': 'eul', '음': 'eum', '읍': 'eup', '응': 'eung', '의': 'ui', '이': 'i', '익': 'ik', '인': 'in', '일': 'il', '임': 'im', '입': 'ip',
+        '자': 'ja', '작': 'jak', '잔': 'jan', '잘': 'jal', '장': 'jang', '재': 'jae', '저': 'jeo', '적': 'jeok', '전': 'jeon', '절': 'jeol', '점': 'jeom', '접': 'jeop', '정': 'jeong', '제': 'je', '조': 'jo', '족': 'jok', '존': 'jon', '졸': 'jol', '종': 'jong', '좌': 'jwa', '주': 'ju', '죽': 'juk', '준': 'jun', '줄': 'jul', '중': 'jung', '즉': 'jeuk', '증': 'jeung', '지': 'ji', '직': 'jik', '진': 'jin', '질': 'jil', '집': 'jip',
+        '차': 'cha', '착': 'chak', '찬': 'chan', '찰': 'chal', '창': 'chang', '채': 'chae', '처': 'cheo', '척': 'cheok', '천': 'cheon', '철': 'cheol', '첨': 'cheom', '청': 'cheong', '체': 'che', '초': 'cho', '촉': 'chok', '촌': 'chon', '총': 'chong', '최': 'choe', '추': 'chu', '축': 'chuk', '춘': 'chun', '출': 'chul', '충': 'chung', '측': 'cheuk', '치': 'chi', '친': 'chin', '칠': 'chil', '침': 'chim',
+        '카': 'ka', '칸': 'kan', '쾌': 'kwae', '크': 'keu', '큰': 'keun',
+        '타': 'ta', '탁': 'tak', '탄': 'tan', '탈': 'tal', '탐': 'tam', '태': 'tae', '터': 'teo', '테': 'te', '토': 'to', '통': 'tong', '투': 'tu', '특': 'teuk', '티': 'ti',
+        '파': 'pa', '판': 'pan', '팔': 'pal', '패': 'pae', '평': 'pyeong', '폐': 'pye', '포': 'po', '폭': 'pok', '표': 'pyo', '품': 'pum', '풍': 'pung', '피': 'pi', '필': 'pil',
+        '하': 'ha', '학': 'hak', '한': 'han', '할': 'hal', '함': 'ham', '합': 'hap', '항': 'hang', '해': 'hae', '핵': 'haek', '행': 'haeng', '향': 'hyang', '허': 'heo', '헌': 'heon', '혁': 'hyeok', '현': 'hyeon', '혈': 'hyeol', '협': 'hyeop', '형': 'hyeong', '혜': 'hye', '호': 'ho', '혹': 'hok', '혼': 'hon', '홍': 'hong', '화': 'hwa', '확': 'hwak', '환': 'hwan', '활': 'hwal', '황': 'hwang', '회': 'hoe', '획': 'hoek', '횡': 'hoeng', '효': 'hyo', '후': 'hu', '훈': 'hun', '휘': 'hwi', '휴': 'hyu', '흐': 'heu', '흔': 'heun', '흥': 'heung', '희': 'hui', '흰': 'huin',
+        '중앙': 'wnddkd', '지사': 'wltk', '강북': 'rkddnr', '서대문': 'tjeoaems', '고양': 'rhidkd', '의정부': 'dmlwjdqn', '남양주': 'skakdrdnwn',  '강릉': 'rkddma', '원주': 'dnswn'
+    }
+    
+    result = ""
+    for char in text:
+        result += romanization_map.get(char, char)
+    return result.lower().replace(' ', '')
+
 # State Update Callbacks
 def update_branch_state(name):
     # [FIX] Force NFC to match selectbox options strictly
@@ -530,11 +567,17 @@ if raw_df is not None:
             st.info("특정 지사의 데이터만 조회합니다.")
             with st.form("login_branch"):
                 s_branch = st.selectbox("지사 선택", global_branch_opts)
+                branch_pw = st.text_input("지사 패스워드 (영문)", type="password", help="예: 중앙지사 → wnddkdwltk")
                 if st.form_submit_button("지사 접속", type="primary", use_container_width=True):
-                    st.session_state.user_role = 'branch'
-                    st.session_state.user_branch = s_branch
-                    st.session_state.sb_branch = s_branch # Pre-set filter
-                    st.rerun()
+                    # Validate password
+                    expected_pw = korean_to_romanization(s_branch)
+                    if branch_pw == expected_pw:
+                        st.session_state.user_role = 'branch'
+                        st.session_state.user_branch = s_branch
+                        st.session_state.sb_branch = s_branch # Pre-set filter
+                        st.rerun()
+                    else:
+                        st.error(f"패스워드가 올바르지 않습니다. (예상: {expected_pw})")
                     
         with l_tab3:
             st.info("본인의 영업구역/담당 데이터만 조회합니다.")
@@ -561,6 +604,7 @@ if raw_df is not None:
             
             with st.form("login_manager"):
                 s_manager_display = st.selectbox("담당자 선택", mgr_list)
+                manager_pw = st.text_input("담당자 패스워드 (영문)", type="password", help="예: 홍길동 → honggildong")
                 if st.form_submit_button("담당자 접속", type="primary", use_container_width=True):
                     # Parse Name/Code
                     # Format: "Name (Code)" or "Name"
@@ -570,21 +614,26 @@ if raw_df is not None:
                     else:
                         p_name = s_manager_display
                         p_code = None
-                        
-                    st.session_state.user_role = 'manager'
-                    st.session_state.user_manager_name = p_name
-                    st.session_state.user_manager_code = p_code
                     
-                    # Pre-set filters
-                    # Find branch for this manager to set context if possible
-                    user_br_find = raw_df[raw_df['SP담당'] == p_name]['관리지사'].mode()
-                    if not user_br_find.empty:
-                        st.session_state.user_branch = user_br_find[0]
-                        st.session_state.sb_branch = user_br_find[0]
+                    # Validate password
+                    expected_pw = korean_to_romanization(p_name)
+                    if manager_pw == expected_pw:
+                        st.session_state.user_role = 'manager'
+                        st.session_state.user_manager_name = p_name
+                        st.session_state.user_manager_code = p_code
                         
-                    st.session_state.sb_manager = p_name # This usually takes Name in main logic
-                    
-                    st.rerun()
+                        # Pre-set filters
+                        # Find branch for this manager to set context if possible
+                        user_br_find = raw_df[raw_df['SP담당'] == p_name]['관리지사'].mode()
+                        if not user_br_find.empty:
+                            st.session_state.user_branch = user_br_find[0]
+                            st.session_state.sb_branch = user_br_find[0]
+                            
+                        st.session_state.sb_manager = p_name # This usually takes Name in main logic
+                        
+                        st.rerun()
+                    else:
+                        st.error(f"패스워드가 올바르지 않습니다. (예상: {expected_pw})")
                     
         st.markdown("---")
         st.caption("ⓒ 2026 Field Sales Assistant System")
@@ -1055,10 +1104,10 @@ if raw_df is not None:
     except:
         sorted_branches = []
     
-    # [FEATURE] AI Summary Section
+    # [FEATURE] Usage Guide Section
     st.markdown("""
     <div style="background-color: #f8f9fa; border-left: 4px solid #4CAF50; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-        <h4 style="margin-top:0; color:#2E7D32;">🏁 AI 데이터 요약</h4>
+        <h4 style="margin-top:0; color:#2E7D32;">📖 사용안내</h4>
         <p style="font-size: 0.95rem; line-height: 1.6; color: #333;">
         이 데이터는 <b>행정안전부 공공데이터</b>로 1월 변동분(신규영업, 폐업, 변동이슈발생)데이터 입니다. <br>
         지사별, 담당구역별 <b>영업(신규인허가 또는 변경이슈)</b>, <b>폐업(폐업등록)</b>된 시설로 지사/담당자별 조건 조회기능이 있으며, 
