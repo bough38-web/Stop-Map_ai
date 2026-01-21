@@ -240,14 +240,20 @@ def render_folium_map(map_df):
     else:
         avg_lat, avg_lon = 37.5665, 126.9780
         
-    # [FIX] Use OpenStreetMap (Default) for stability
-    # VWorld tiles might be unstable or blocked in some environments
+    # [FIX] Use OpenStreetMap as Base, but Overlay VWorld for better Korean details
     m = folium.Map(location=[avg_lat, avg_lon], zoom_start=11, tiles='OpenStreetMap')
     
-    # [REVERT] Removed MarkerCluster, back to simple markers
+    # Add VWorld Layer (User prefers this style)
+    folium.TileLayer(
+        tiles='https://xdworld.vworld.kr/2d/Base/service/{z}/{x}/{y}.png',
+        attr='VWorld',
+        name='상세 지도 (VWorld)',
+        overlay=True,  # Overlay on top of OSM
+        control=True,
+        show=True
+    ).add_to(m)
     
-    # Layers (Optional: Add VWorld as secondary if needed, but keeping simple for now)
-    # folium.TileLayer(...).add_to(m)
+    # [REVERT] Removed MarkerCluster, back to simple markers
     
     # [FIX] markers added directly to map (No Cluster)
     # [FIX] Test Marker (Red Circle)
