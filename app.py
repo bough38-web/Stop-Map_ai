@@ -715,6 +715,54 @@ if raw_df is not None:
                 all_branches_raw,
                 placeholder="제외할 지사 선택..."
             )
+            
+            # Admin Log Viewer
+            st.markdown("---")
+            st.markdown("#### 📊 관리 기록 조회")
+            log_tab1, log_tab2 = st.tabs(["접속 로그", "활동 변경 이력"])
+            
+            with log_tab1:
+                st.caption("최근 접속 로그 (최대 50건)")
+                access_logs = activity_logger.get_access_logs(limit=50)
+                if access_logs:
+                    log_df = pd.DataFrame(access_logs)
+                    log_df = log_df[::-1]  # Reverse to show newest first
+                    st.dataframe(
+                        log_df,
+                        use_container_width=True,
+                        height=300,
+                        column_config={
+                            "timestamp": "접속시간",
+                            "user_role": "역할",
+                            "user_name": "사용자",
+                            "action": "행동"
+                        }
+                    )
+                else:
+                    st.info("접속 로그가 없습니다.")
+            
+            with log_tab2:
+                st.caption("최근 활동 변경 이력 (최대 50건)")
+                change_history = activity_logger.get_change_history(limit=50)
+                if change_history:
+                    history_df = pd.DataFrame(change_history)
+                    history_df = history_df[::-1]  # Reverse to show newest first
+                    st.dataframe(
+                        history_df,
+                        use_container_width=True,
+                        height=300,
+                        column_config={
+                            "timestamp": "변경시간",
+                            "user": "변경자",
+                            "record_key": "대상",
+                            "old_status": "이전 상태",
+                            "new_status": "변경 상태",
+                            "old_notes": "이전 특이사항",
+                            "new_notes": "변경 특이사항"
+                        }
+                    )
+                else:
+                    st.info("변경 이력이 없습니다.")
         
         st.divider()
         
@@ -1648,10 +1696,24 @@ if raw_df is not None:
             '중앙지사', '강북지사', '서대문지사', '고양지사', '의정부지사', 
             '남양주지사', '강릉지사', '원주지사', '미지정'
         ]
-        
         df['관리지사'] = pd.Categorical(df['관리지사'], categories=custom_branch_order, ordered=True)
         
         grid_df = df.copy()
+        
+        # Add activity status and notes from storage
+        grid_df['record_key'] = grid_df.apply(lambda row: activity_logger.get_record_key(row), axis=1)
+        grid_df['활동진행상태'] = grid_df['record_key'].apply(
+            lambda k: activity_logger.get_activity_status(k).get('활동진행상태', '')
+        )
+        grid_df['특이사항'] = grid_df['record_key'].apply(
+            lambda k: activity_logger.get_activity_status(k).get('특이사항', '')
+        )
+        grid_df['상태변경일시'] = grid_df['record_key'].apply(
+            lambda k: activity_logger.get_activity_status(k).get('변경일시', '')
+        )
+        grid_df['상태변경자'] = grid_df['record_key'].apply(
+            lambda k: activity_logger.get_activity_status(k).get('변경자', '')
+        )
         
         if '인허가일자' in grid_df.columns:
             grid_df['인허가일자'] = grid_df['인허가일자'].apply(lambda x: x.strftime('%Y-%m-%d') if pd.notna(x) else "")
@@ -1664,25 +1726,73 @@ if raw_df is not None:
 
         grid_df = grid_df.sort_values(by=['관리지사', 'SP담당', '업태구분명'])
         
+        # Get current user info
+        current_user = st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or '관리자'
+        
         display_cols = [
             '관리지사', 'SP담당', '업태구분명', '사업장명', 
-            '소재지전체주소', '소재지전화', '평수', '최종수정시점', '인허가일자', '폐업일자'
+            '소재지전체주소', '소재지전화', '평수', 
+            '활동진행상태', '특이사항', '상태변경일시', '상태변경자',
+            '최종수정시점', '인허가일자', '폐업일자', 'record_key'
         ]
         
         final_cols = [c for c in display_cols if c in grid_df.columns]
-        df_display = grid_df[final_cols]
+        df_display = grid_df[final_cols].reset_index(drop=True)
         
-        st.dataframe(
+        # Editable data grid
+        edited_df = st.data_editor(
             df_display, 
             use_container_width=True, 
             height=600,
             column_config={
                 "평수": st.column_config.NumberColumn(format="%.1f평"),
-            }
+                "활동진행상태": st.column_config.SelectboxColumn(
+                    "활동상태",
+                    options=["", "진행중", "계약완료", "활동불가대상"],
+                    required=False
+                ),
+                "특이사항": st.column_config.TextColumn(
+                    "특이사항",
+                    help="특이사항을 입력하세요",
+                    max_chars=200
+                ),
+                "record_key": None,  # Hide this column
+                "상태변경일시": st.column_config.TextColumn("변경일시", disabled=True),
+                "상태변경자": st.column_config.TextColumn("변경자", disabled=True)
+            },
+            hide_index=True,
+            key="data_grid_editor"
         )
         
-        csv = df_display.to_csv(index=False, encoding='cp949').encode('cp949')
-        st.download_button("📥 CSV 다운로드", csv, "영업기회_처리결과.csv", "text/csv")
+        # Save button
+        col1, col2 = st.columns([1, 4])
+        with col1:
+            if st.button("💾 변경사항 저장", use_container_width=True):
+                # Save changes
+                saved_count = 0
+                for idx, row in edited_df.iterrows():
+                    orig_row = df_display.iloc[idx]
+                    # Check if changed
+                    if (row['활동진행상태'] != orig_row['활동진행상태'] or 
+                        row['특이사항'] != orig_row['특이사항']):
+                        activity_logger.save_activity_status(
+                            row['record_key'],
+                            row['활동진행상태'],
+                            row['특이사항'],
+                            current_user
+                        )
+                        saved_count += 1
+                
+                if saved_count > 0:
+                    st.success(f"✅ {saved_count}건의 변경사항이 저장되었습니다!")
+                    st.rerun()
+                else:
+                    st.info("변경된 항목이 없습니다.")
+        
+        with col2:
+            # Download button
+            csv = df_display.drop(columns=['record_key']).to_csv(index=False, encoding='cp949').encode('cp949')
+            st.download_button("📥 CSV 다운로드", csv, "영업기회_처리결과.csv", "text/csv")
 
 else:
     st.info("👈 사이드바에서 데이터를 업로드하거나, '자동 감지' 기능을 확인하세요.")
