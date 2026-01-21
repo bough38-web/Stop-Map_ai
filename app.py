@@ -1094,12 +1094,24 @@ if raw_df is not None:
     if only_with_phone:
         base_df = base_df[base_df['소재지전화'].notna() & (base_df['소재지전화'] != "")]
     
-    # [FEATURE] Address search filter
+    
+    # [FEATURE] Address search filter - improved to handle multiple keywords
     if address_search:
-        base_df = base_df[
-            base_df['소재지전체주소'].astype(str).str.contains(address_search, case=False, na=False) |
-            base_df['사업장명'].astype(str).str.contains(address_search, case=False, na=False)
-        ]
+        # Split search keywords by / or space
+        import re
+        keywords = re.split(r'[/\s]+', address_search.strip())
+        keywords = [k for k in keywords if k]  # Remove empty strings
+        
+        if keywords:
+            # Create a mask that checks if ALL keywords are present in either address or business name
+            mask = pd.Series([True] * len(base_df), index=base_df.index)
+            for keyword in keywords:
+                keyword_mask = (
+                    base_df['소재지전체주소'].astype(str).str.contains(keyword, case=False, na=False) |
+                    base_df['사업장명'].astype(str).str.contains(keyword, case=False, na=False)
+                )
+                mask = mask & keyword_mask
+            base_df = base_df[mask]
         
     df = base_df.copy()
     if sel_status != "전체":
