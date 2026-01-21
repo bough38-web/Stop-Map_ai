@@ -1027,7 +1027,6 @@ if raw_df is not None:
         # [FEATURE] Address search (outside conditional block to ensure always defined)
         st.markdown("##### 🔍 주소 검색")
         address_search = st.text_input("주소 검색 (예: 인천/삼산동)", value="", placeholder="주소 또는 업체명 입력...")
-        global_search_mode = st.checkbox("🌐 지사 필터 무시하고 전체 검색", value=False, help="체크하면 선택한 지사와 상관없이 전체 데이터에서 검색합니다.")
         
     # Data Filtering
     base_df = raw_df.copy()
@@ -1035,13 +1034,9 @@ if raw_df is not None:
     # Get current branch selection
     current_branch_filter = st.session_state.get('sb_branch', "전체")
     
-    # [FEATURE] Global Search Mode: Skip branch filtering if enabled
-    if not global_search_mode:
-        # [FEATURE] Simple Logic: Only filter out 미지정 for Non-Admin users
-        # Admin users should ALWAYS have access to '미지정' data in the base set
-        # Sub-filtering happens via the Sidebar Branch Selector later
-        if st.session_state.user_role != 'admin':
-             base_df = base_df[base_df['관리지사'] != '미지정']
+    # [REVERT] Exclude '미지정' unless explicitly selected (Previous behavior)
+    if st.session_state.user_role != 'admin' or (st.session_state.user_role == 'admin' and current_branch_filter not in ["전체", "미지정"]):
+         base_df = base_df[base_df['관리지사'] != '미지정']
         
     # Debug: show total records after 미지정 filter
     if st.session_state.user_role == 'admin':
@@ -1089,27 +1084,23 @@ if raw_df is not None:
         
     else:
         # Standard Sidebar Filters
-        if not global_search_mode:
-            # [FIX] Source of Truth is Session State (for Immediate Button Response)
-            current_branch_filter = st.session_state.get('sb_branch', "전체")
+        # [FIX] Source of Truth is Session State (for Immediate Button Response)
+        current_branch_filter = st.session_state.get('sb_branch', "전체")
+        
+        if current_branch_filter != "전체":
+            # [FIX] Normalize comparison for Mac/Excel compatibility
+            norm_sel_branch = unicodedata.normalize('NFC', current_branch_filter)
+            base_df = base_df[base_df['관리지사'] == norm_sel_branch]
             
-            if current_branch_filter != "전체":
-                # [FIX] Normalize comparison for Mac/Excel compatibility
-                norm_sel_branch = unicodedata.normalize('NFC', current_branch_filter)
-                base_df = base_df[base_df['관리지사'] == norm_sel_branch]
-                
-                # Debug log for admin
-                if st.session_state.user_role == 'admin':
-                    st.sidebar.caption(f"📊 필터: {norm_sel_branch} | 결과: {len(base_df)}건")
-                
-            if selected_area_code:
-                base_df = base_df[base_df['영업구역 수정'] == selected_area_code]
-            elif sel_manager != "전체": 
-                norm_sel_manager = unicodedata.normalize('NFC', sel_manager)
-                base_df = base_df[base_df['SP담당'] == norm_sel_manager]
-        else:
-             if st.session_state.user_role == 'admin':
-                 st.sidebar.caption(f"🌐 전체 검색 모드: {len(base_df)}건 대상")
+            # Debug log for admin
+            if st.session_state.user_role == 'admin':
+                st.sidebar.caption(f"📊 필터: {norm_sel_branch} | 결과: {len(base_df)}건")
+            
+        if selected_area_code:
+            base_df = base_df[base_df['영업구역 수정'] == selected_area_code]
+        elif sel_manager != "전체": 
+            norm_sel_manager = unicodedata.normalize('NFC', sel_manager)
+            base_df = base_df[base_df['SP담당'] == norm_sel_manager]
             
     # Common Filters (Applied to both modes)
     if only_hospitals:
@@ -1138,49 +1129,22 @@ if raw_df is not None:
     
     # [FEATURE] Address search filter - simplified with OR logic
     if address_search:
-        
-        # [FEATURE] Advanced Search Options
-        with st.expander("⚙️ 검색 옵션 설정", expanded=False):
-            col1, col2 = st.columns(2)
-            with col1:
-                search_logic = st.radio("검색 조건", ["OR (하나라도 포함)", "AND (모두 포함)"], index=0, help="'서울 대전' 입력 시: OR는 서울 또는 대전, AND는 서울이면서 대전")
-            with col2:
-                search_target = st.radio("검색 대상", ["전체(주소+상호)", "주소만", "상호만"], index=0)
-
-        # Split search keywords by / or space or comma
+        # Split search keywords by / or space
         import re
         # [FIX] Normalize input for Mac users (NFD -> NFC)
         search_norm = unicodedata.normalize('NFC', address_search.strip())
-        keywords = re.split(r'[/\s,]+', search_norm)
+        keywords = re.split(r'[/\s]+', search_norm)
         keywords = [k for k in keywords if k]  # Remove empty strings
         
         if keywords:
-            # Initialize mask based on logic
-            # OR logic starts with False (accumulate True)
-            # AND logic starts with True (eliminate False)
-            if "OR" in search_logic:
-                mask = pd.Series([False] * len(base_df), index=base_df.index)
-            else:
-                mask = pd.Series([True] * len(base_df), index=base_df.index)
-
+            # Create a mask that checks if ANY keyword is present (OR logic)
+            mask = pd.Series([False] * len(base_df), index=base_df.index)
             for keyword in keywords:
-                # Build keyword match mask based on target
-                if "주소만" in search_target:
-                    keyword_mask = base_df['소재지전체주소'].astype(str).apply(lambda x: unicodedata.normalize('NFC', x)).str.contains(keyword, case=False, na=False, regex=False)
-                elif "상호만" in search_target:
-                    keyword_mask = base_df['사업장명'].astype(str).apply(lambda x: unicodedata.normalize('NFC', x)).str.contains(keyword, case=False, na=False, regex=False)
-                else: # 전체
-                    keyword_mask = (
-                        base_df['소재지전체주소'].astype(str).apply(lambda x: unicodedata.normalize('NFC', x)).str.contains(keyword, case=False, na=False, regex=False) |
-                        base_df['사업장명'].astype(str).apply(lambda x: unicodedata.normalize('NFC', x)).str.contains(keyword, case=False, na=False, regex=False)
-                    )
-                
-                # Combine based on Logic
-                if "OR" in search_logic:
-                    mask = mask | keyword_mask
-                else:
-                    mask = mask & keyword_mask
-
+                keyword_mask = (
+                    base_df['소재지전체주소'].astype(str).apply(lambda x: unicodedata.normalize('NFC', x)).str.contains(keyword, case=False, na=False, regex=False) |
+                    base_df['사업장명'].astype(str).apply(lambda x: unicodedata.normalize('NFC', x)).str.contains(keyword, case=False, na=False, regex=False)
+                )
+                mask = mask | keyword_mask  # OR logic: any keyword match
             base_df = base_df[mask]
             
             # Debug: Search Result Count for Admin
