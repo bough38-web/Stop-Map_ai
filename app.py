@@ -934,6 +934,22 @@ if raw_df is not None:
     # Data Filtering
     base_df = raw_df.copy()
     base_df = base_df[base_df['관리지사'] != '미지정']
+    
+    # [FEATURE] Add 최종수정시점 column (Last Modified Date)
+    # Use the most recent date from 인허가일자 or 폐업일자, or current date if both are missing
+    def get_last_modified_date(row):
+        dates = []
+        if pd.notna(row.get('인허가일자')):
+            dates.append(row['인허가일자'])
+        if pd.notna(row.get('폐업일자')):
+            dates.append(row['폐업일자'])
+        
+        if dates:
+            return max(dates)
+        else:
+            return pd.Timestamp.now()
+    
+    base_df['최종수정시점'] = base_df.apply(get_last_modified_date, axis=1)
 
     # [SECURITY] Hard Filter for Manager Role (Main Data)
     if st.session_state.user_role == 'manager':
@@ -1593,8 +1609,11 @@ if raw_df is not None:
 
                 permit_date = fmt_date(row.get('인허가일자'))
                 close_date = fmt_date(row.get('폐업일자'))
+                last_modified = fmt_date(row.get('최종수정시점'))
                 
                 date_html = ""
+                if last_modified:
+                    date_html += f"<span style='color:#7C4DFF; font-weight:bold'>🔄 수정: {last_modified}</span><br>"
                 if permit_date:
                     date_html += f"<span style='color:#1565C0'>인허가: {permit_date}</span> "
                 if close_date:
@@ -1631,12 +1650,15 @@ if raw_df is not None:
             
         if '폐업일자' in grid_df.columns:
             grid_df['폐업일자'] = grid_df['폐업일자'].apply(lambda x: x.strftime('%Y-%m-%d') if pd.notna(x) else "")
+        
+        if '최종수정시점' in grid_df.columns:
+            grid_df['최종수정시점'] = grid_df['최종수정시점'].apply(lambda x: x.strftime('%Y-%m-%d') if pd.notna(x) else "")
 
         grid_df = grid_df.sort_values(by=['관리지사', 'SP담당', '업태구분명'])
         
         display_cols = [
             '관리지사', 'SP담당', '업태구분명', '사업장명', 
-            '소재지전체주소', '소재지전화', '평수', '인허가일자', '폐업일자'
+            '소재지전체주소', '소재지전화', '평수', '최종수정시점', '인허가일자', '폐업일자'
         ]
         
         final_cols = [c for c in display_cols if c in grid_df.columns]
