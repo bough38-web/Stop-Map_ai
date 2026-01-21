@@ -511,6 +511,13 @@ if error:
 
 if raw_df is not None:
     
+    # [FIX] Ensure '관리지사' has no NaNs, fill with '미지정' (Global for all sources)
+    if '관리지사' in raw_df.columns:
+        raw_df['관리지사'] = raw_df['관리지사'].fillna('미지정')
+        raw_df.loc[raw_df['관리지사'].astype(str).str.strip() == '', '관리지사'] = '미지정'
+    else:
+        raw_df['관리지사'] = '미지정'
+
     # [FIX] Global NFC Normalization to prevent Mac/Windows mismatch
     for col in ['관리지사', 'SP담당', '사업장명', '소재지전체주소', '영업상태명', '업태구분명']:
         if col in raw_df.columns:
