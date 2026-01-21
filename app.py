@@ -982,14 +982,21 @@ if raw_df is not None:
                 key="sb_status"
             )
             
+            
             st.markdown("##### 📞 전화번호 필터")
             only_with_phone = st.toggle("전화번호 있는 것만 보기", value=False)
+            
+            st.markdown("##### 🔍 주소 검색")
+            address_search = st.text_input("주소 검색 (예: 인천/삼산동)", value="", placeholder="주소 또는 업체명 입력...")
             
             st.markdown("---")
         
     # Data Filtering
     base_df = raw_df.copy()
-    base_df = base_df[base_df['관리지사'] != '미지정']
+    
+    # [FEATURE] Only filter out 미지정 for non-admin users
+    if st.session_state.user_role != 'admin':
+        base_df = base_df[base_df['관리지사'] != '미지정']
     
     # [FEATURE] Add 최종수정시점 column (Last Modified Date)
     # Use the most recent date from 인허가일자 or 폐업일자, or current date if both are missing
@@ -1070,6 +1077,13 @@ if raw_df is not None:
         
     if only_with_phone:
         base_df = base_df[base_df['소재지전화'].notna() & (base_df['소재지전화'] != "")]
+    
+    # [FEATURE] Address search filter
+    if address_search:
+        base_df = base_df[
+            base_df['소재지전체주소'].astype(str).str.contains(address_search, case=False, na=False) |
+            base_df['사업장명'].astype(str).str.contains(address_search, case=False, na=False)
+        ]
         
     df = base_df.copy()
     if sel_status != "전체":
