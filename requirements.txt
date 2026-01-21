@@ -3,3 +3,8 @@ pandas
 openpyxl
 filelock
 altair
+scikit-learn
+folium
+streamlit-folium
+rapidfuzz
+pyproj
