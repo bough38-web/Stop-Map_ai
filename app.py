@@ -1010,9 +1010,16 @@ if raw_df is not None:
     # Data Filtering
     base_df = raw_df.copy()
     
-    # [FEATURE] Only filter out 미지정 for non-admin users
-    if st.session_state.user_role != 'admin':
+    # Get current branch selection
+    current_branch_filter = st.session_state.get('sb_branch', "전체")
+    
+    # [FEATURE] Only filter out 미지정 for non-admin users OR when admin is not specifically viewing 미지정
+    if st.session_state.user_role != 'admin' or (st.session_state.user_role == 'admin' and current_branch_filter not in ["전체", "미지정"]):
         base_df = base_df[base_df['관리지사'] != '미지정']
+        
+    # Debug: show total records after 미지정 filter
+    if st.session_state.user_role == 'admin':
+        st.sidebar.caption(f"🔍 전체 데이터: {len(base_df)}건 (미지정 필터 후)")
     
     # [FEATURE] Add 최종수정시점 column (Last Modified Date)
     # Use the most recent date from 인허가일자 or 폐업일자, or current date if both are missing
