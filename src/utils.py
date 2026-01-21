@@ -95,6 +95,13 @@ def get_best_match(address, choices, vectorizer, tfidf_matrix, threshold=0.7):
         # Get top candidate
         best_idx = cosine_sim.argmax()
         best_cosine_score = cosine_sim[best_idx]
+        
+        # [FIX] Add Similarity Threshold to prevent incorrect matches
+        # e.g. "Busan" matching "Gangneung" because both have "dong"
+        # Threshold 0.4 seems reasonable for address matching
+        if best_cosine_score < 0.4:
+            return None
+            
     except Exception:
         best_cosine_score = 0
         best_idx = -1
