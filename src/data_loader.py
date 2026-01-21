@@ -293,7 +293,13 @@ def load_and_process_data(zip_file_path_or_obj, district_file_path_or_obj):
     if '영업구역 수정' in final_df.columns:
         final_df['영업구역 수정'] = final_df['영업구역 수정'].fillna('')
     
-    return final_df, None
+    # Extract Full Manager List from District File (regardless of matches)
+    if '영업구역 수정' in df_district.columns:
+        mgr_info = df_district[['SP담당', '영업구역 수정', '관리지사']].drop_duplicates().to_dict(orient='records')
+    else:
+        mgr_info = df_district[['SP담당', '관리지사']].drop_duplicates().to_dict(orient='records')
+
+    return final_df, mgr_info, None
 
 def fetch_openapi_data(auth_key, local_code, start_date, end_date):
     """
