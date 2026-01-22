@@ -4,7 +4,7 @@ import os
 import glob
 import datetime
 from src.config import ROLE_MAP
-from src.utils import mask_name
+from src import utils
 from src import data_loader
 
 def render_sidebar():
@@ -28,7 +28,7 @@ def render_sidebar():
         if st.session_state.user_role == 'branch':
             st.sidebar.caption(f"지사: {st.session_state.user_branch}")
         elif st.session_state.user_role == 'manager':
-            st.sidebar.caption(f"담당: {mask_name(st.session_state.user_manager_name)}")
+            st.sidebar.caption(f"담당: {utils.mask_name(st.session_state.user_manager_name)}")
 
         if st.sidebar.button("로그아웃 (처음으로)", key="btn_logout", type="primary"):
             for key in ['user_role', 'user_branch', 'user_manager_name', 'user_manager_code', 'admin_auth']:

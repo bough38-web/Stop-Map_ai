@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 from typing import Optional, List, Dict, Any
 from src.config import BRANCH_PASSWORDS
-from src.utils import mask_name
+from src import utils
 from src import activity_logger
 
 def get_manager_password(manager_name: str) -> str:
@@ -116,13 +116,13 @@ def render_login_page(global_branch_opts: List[str], raw_df: Optional[pd.DataFra
                      # Check for '영업구역 수정'
                     if '영업구역 수정' in mgr_candidates.columns:
                         mgr_candidates['display'] = mgr_candidates.apply(
-                            lambda x: f"{mask_name(x['SP담당'])} ({x['영업구역 수정']})" if pd.notna(x['영업구역 수정']) and x['영업구역 수정'] else mask_name(x['SP담당']), 
+                            lambda x: f"{utils.mask_name(x['SP담당'])} ({x['영업구역 수정']})" if pd.notna(x['영업구역 수정']) and x['영업구역 수정'] else utils.mask_name(x['SP담당']), 
                             axis=1
                         )
                         # Mapping for back-reference
                         mgr_candidates['real_name'] = mgr_candidates['SP담당']
                     else:
-                        mgr_candidates['display'] = mgr_candidates['SP담당'].apply(mask_name)
+                        mgr_candidates['display'] = mgr_candidates['SP담당'].apply(utils.mask_name)
                         mgr_candidates['real_name'] = mgr_candidates['SP담당']
                     
                     # Create a mapping dictionary to recover the real name for password check

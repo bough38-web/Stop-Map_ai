@@ -1,6 +1,7 @@
 import pandas as pd
 import re
 import unicodedata
+from typing import Optional, Any
 from sklearn.metrics.pairwise import cosine_similarity
 from difflib import SequenceMatcher
 
@@ -21,9 +22,6 @@ except ImportError:
     HAS_PYPROJ = False
     transformer = None
 
-from typing import Optional, Any
-import pandas as pd
-import re
 
 # ... existing code ...
 
@@ -48,7 +46,7 @@ def normalize_address(address: Optional[str]) -> Optional[str]:
     address = address.replace('  ', ' ') # Double spaces
     address = address.replace('-', '')
     
-    if '*' in address or len(address) < 5:  # Too short or masked
+    if '*' in address or len(address) < 2:  # Too short or masked
         return None
         
     return address.strip()
