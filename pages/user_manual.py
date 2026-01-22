@@ -47,7 +47,7 @@ st.markdown("""
 # Best bet: Read code, replace asset paths with base64 OR absolute URL if possible.
 # But for now, let's try reading the file and rendering.
 
-manual_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "reports", "premium_user_manual.html")
+manual_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "premium_user_manual.html")
 
 if os.path.exists(manual_path):
     with open(manual_path, 'r', encoding='utf-8') as f:
