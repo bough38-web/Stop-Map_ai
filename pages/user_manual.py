@@ -1,6 +1,8 @@
 import streamlit as st
 import os
 import streamlit.components.v1 as components
+import base64
+import re
 
 # Configure page to look like a standalone document
 st.set_page_config(
@@ -39,38 +41,52 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Path to the manual
-# We use the one in static to ensure assets are resolved if we used static linking,
-# but for component.html, we need to read the content.
-# Images in the HTML rely on specific paths. 
-# If the HTML expects "assets/...", it will look relative to the iframe's context.
-# Streamlit components interact trickily with relative paths.
-# Best bet: Read code, replace asset paths with base64 OR absolute URL if possible.
-# But for now, let's try reading the file and rendering.
-
 manual_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "premium_user_manual.html")
+
+def embed_images(html_content):
+    """
+    Replace relative image paths with base64 encoded data URIs.
+    Target pattern: src="assets/filename.png"
+    """
+    static_assets_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "assets")
+
+    def replace_match(match):
+        filename = match.group(1)
+        filepath = os.path.join(static_assets_dir, filename)
+
+        if os.path.exists(filepath):
+            try:
+                with open(filepath, "rb") as f:
+                    encoded_string = base64.b64encode(f.read()).decode()
+                    ext = os.path.splitext(filename)[1].lower().replace('.', '')
+                    # Determine mime type
+                    mime_type = f"image/{ext}"
+                    if ext == 'svg':
+                        mime_type = 'image/svg+xml'
+                    elif ext == 'jpg' or ext == 'jpeg':
+                        mime_type = 'image/jpeg'
+                    elif ext == 'png':
+                        mime_type = 'image/png'
+                    
+                    return f'src="data:{mime_type};base64,{encoded_string}"'
+            except Exception as e:
+                # Log error to console but keep running
+                print(f"Error embedding image {filename}: {e}")
+                return match.group(0)
+        else:
+            # File not found
+            print(f"Image not found: {filepath}")
+            return match.group(0)
+
+    # Regex to find src="assets/..."
+    return re.sub(r'src="assets/([^"]+)"', replace_match, html_content)
 
 if os.path.exists(manual_path):
     with open(manual_path, 'r', encoding='utf-8') as f:
         html_content = f.read()
         
-    # [FIX] Handle image paths for Streamlit Component
-    # Since component runs in an iframe, relative paths like "assets/img.png" 
-    # might not work unless served correctly.
-    # However, we have correct static serving enabled now for 'static/'.
-    # So we can replace "assets/" with "/app/static/assets/" or similar.
-    
-    # 1. Update image src to point to the served static files
-    # Streamlit serves static files at /app/static/ if configured.
-    # Let's try replacing "assets/" with "static/assets/" assuming root context.
-    
-    # Actually, simpler: Embed the HTML raw.
-    # If standard static serving is on, and we are at localhost:8501/user_manual
-    # Relative path "assets/..." would look for localhost:8501/assets/... which fails.
-    # loading it as /app/static/assets/... 
-    
-    # Let's assume the user enabled static serving in config.toml as we did.
-    # So http://localhost:8501/app/static/assets/image.png should exist.
-    html_content = html_content.replace('src="assets/', 'src="/app/static/assets/')
+    # Embed images directly into HTML
+    html_content = embed_images(html_content)
     
     components.html(html_content, height=1000, scrolling=True)
 else:
