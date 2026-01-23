@@ -1317,6 +1317,13 @@ if raw_df is not None:
                     base_df = base_df[base_df['SP담당'] == st.session_state.user_manager_name]
             elif st.session_state.user_manager_name:
                 base_df = base_df[base_df['SP담당'] == st.session_state.user_manager_name]
+                
+    # [SECURITY] Hard Filter for Branch Role
+    if st.session_state.user_role == 'branch':
+        if st.session_state.user_branch:
+             # Normalize just in case
+             u_branch = unicodedata.normalize('NFC', st.session_state.user_branch)
+             base_df = base_df[base_df['관리지사'] == u_branch]
     
     # [FEATURE] Admin Custom Dashboard Override
     if custom_view_mode and admin_auth and (custom_view_managers or exclude_branches):

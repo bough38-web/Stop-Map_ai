@@ -261,8 +261,8 @@ def render_folium_map(map_df):
     else:
         avg_lat, avg_lon = 37.5665, 126.9780
         
-    # [FIX] Set 'tiles=None' to allow custom base layers
-    m = folium.Map(location=[avg_lat, avg_lon], zoom_start=11, tiles=None)
+    # [FIX] Set 'tiles' to OpenStreetMap for stability (VWorld as option)
+    m = folium.Map(location=[avg_lat, avg_lon], zoom_start=11, tiles='OpenStreetMap')
     
     # 1. Add VWorld (Primary Base Map - Best for Korea Buildings/Roads)
     folium.TileLayer(
@@ -271,33 +271,11 @@ def render_folium_map(map_df):
         name='브이월드 (상세 건물/도로)',
         overlay=False, # Allows it to be selected as a base map
         control=True,
-        show=True
-    ).add_to(m)
-    
-    # 2. Add OpenStreetMap (Secondary Base Map - Stability/Fallback)
-    folium.TileLayer(
-        tiles='OpenStreetMap',
-        name='일반 지도 (OpenStreetMap)',
-        overlay=False,
-        control=True,
-        show=False
+        show=False # Default to OSM (Safe), user can switch
     ).add_to(m)
     
     # Add Layer Control to switch between VWorld and OSM
     folium.LayerControl(collapsed=False).add_to(m)
-    
-    # [REVERT] Removed MarkerCluster, back to simple markers
-    
-    # [FIX] markers added directly to map (No Cluster)
-    # [FIX] Test Marker (Red Circle)
-    folium.CircleMarker(
-        location=[avg_lat, avg_lon],
-        radius=10,
-        color='red',
-        fill=True,
-        fill_color='red',
-        tooltip="중심점(Center)"
-    ).add_to(m)
     
     # [FEATURE] My Location
     from folium.plugins import LocateControl
@@ -398,6 +376,5 @@ def render_folium_map(map_df):
         m.fit_bounds([sw, ne])
         
     # Render using st_folium (Stable)
-    # components.html can cause 'removeChild' DOM errors on re-render.
     from streamlit_folium import st_folium
     st_folium(m, width="100%", height=450, returned_objects=[])
