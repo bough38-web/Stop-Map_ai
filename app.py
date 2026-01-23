@@ -1484,72 +1484,74 @@ if raw_df is not None:
     </div>
     """, unsafe_allow_html=True)
 
-    with st.expander("🏭 지사별 현황", expanded=True):
-        
-        if 'dash_branch' not in st.session_state:
-            st.session_state.dash_branch = sorted_branches[0] if sorted_branches else None
+    # [DASHBOARD] Branch Status Cards (Hide for Manager role)
+    if st.session_state.user_role != 'manager':
+        with st.expander("🏭 지사별 현황", expanded=True):
             
-        b_rows = [sorted_branches[i:i+8] for i in range(0, len(sorted_branches), 8)]
-        for row in b_rows:
-            cols = st.columns(len(row))
-            for idx, btn_name in enumerate(row):
-                with cols[idx]:
-                    # [FIX] Normalize comparison (use calculated source)
-                    # We defer calculation of raw_dashboard_branch to below (hack for layout order), 
-                    # OR we accept that buttons might flicker if we don't move the logic up.
-                    # Actually, best is to use sel_branch directly here as well:
-                    current_active_btn = sel_branch if sel_branch != "전체" else st.session_state.get('sb_branch', "전체")
-                    current_active_btn = unicodedata.normalize('NFC', current_active_btn)
-                    
-                    # [FIX] Shorten Branch Name for Display (e.g., "중앙지사" -> "중앙")
-                    # But keep full name for logic
-                    disp_name = btn_name.replace("지사", "")
-                    
-                    type_ = "primary" if current_active_btn == btn_name else "secondary"
-                    st.button(
-                        disp_name, 
-                        key=f"btn_{btn_name}", 
-                        type=type_, 
-                        use_container_width=True,
-                        on_click=update_branch_state,
-                        args=(btn_name,)
-                    )
+            if 'dash_branch' not in st.session_state:
+                st.session_state.dash_branch = sorted_branches[0] if sorted_branches else None
+                
+            b_rows = [sorted_branches[i:i+8] for i in range(0, len(sorted_branches), 8)]
+            for row in b_rows:
+                cols = st.columns(len(row))
+                for idx, btn_name in enumerate(row):
+                    with cols[idx]:
+                        # [FIX] Normalize comparison (use calculated source)
+                        # We defer calculation of raw_dashboard_branch to below (hack for layout order), 
+                        # OR we accept that buttons might flicker if we don't move the logic up.
+                        # Actually, best is to use sel_branch directly here as well:
+                        current_active_btn = sel_branch if sel_branch != "전체" else st.session_state.get('sb_branch', "전체")
+                        current_active_btn = unicodedata.normalize('NFC', current_active_btn)
+                        
+                        # [FIX] Shorten Branch Name for Display (e.g., "중앙지사" -> "중앙")
+                        # But keep full name for logic
+                        disp_name = btn_name.replace("지사", "")
+                        
+                        type_ = "primary" if current_active_btn == btn_name else "secondary"
+                        st.button(
+                            disp_name, 
+                            key=f"btn_{btn_name}", 
+                            type=type_, 
+                            use_container_width=True,
+                            on_click=update_branch_state,
+                            args=(btn_name,)
+                        )
 
 
-        
-        # [FIX] Source of Truth: Prioritize Widget (sel_branch) if active, else Session State
-        if sel_branch != "전체":
-            raw_dashboard_branch = sel_branch
-        else:
-            raw_dashboard_branch = st.session_state.get('sb_branch', "전체")
-        sel_dashboard_branch = unicodedata.normalize('NFC', raw_dashboard_branch)
+            
+            # [FIX] Source of Truth: Prioritize Widget (sel_branch) if active, else Session State
+            if sel_branch != "전체":
+                raw_dashboard_branch = sel_branch
+            else:
+                raw_dashboard_branch = st.session_state.get('sb_branch', "전체")
+            sel_dashboard_branch = unicodedata.normalize('NFC', raw_dashboard_branch)
 
-        cols = st.columns(len(sorted_branches) if sorted_branches else 1)
-        for i, col in enumerate(cols):
-            if i < len(sorted_branches):
-                b_name = sorted_branches[i]
-                # b_name is already normalized
-                b_df = base_df[base_df['관리지사'] == b_name]
-                b_total = len(b_df)
-                count_active = len(b_df[b_df['영업상태명'] == '영업/정상'])
-                count_closed = len(b_df[b_df['영업상태명'] == '폐업'])
-                count_others = b_total - count_active - count_closed
-                
-                bg_color = "#e8f5e9" if b_name == sel_dashboard_branch else "#ffffff"
-                border_color = "#2E7D32" if b_name == sel_dashboard_branch else "#e0e0e0"
-                
-                status_text = f"<span style='color:#2E7D32'>영업 {count_active}</span> / <span style='color:#d32f2f'>폐업 {count_closed}</span>"
-                if count_others > 0: status_text += f" / <span style='color:#757575'>기타 {count_others}</span>"
-                
-                with col:
-                    branch_html = f'<div style="background-color: {bg_color}; border: 2px solid {border_color}; border-radius: 8px; padding: 10px; text-align: center;"><div style="font-weight:bold; font-size:0.9rem; margin-bottom:5px; color:#333;">{b_name}</div><div style="font-size:1.2rem; font-weight:bold; color:#000;">{b_total:,}</div><div style="font-size:0.8rem; margin-top:4px;">{status_text}</div></div>'
-                    st.markdown(branch_html, unsafe_allow_html=True)
+            cols = st.columns(len(sorted_branches) if sorted_branches else 1)
+            for i, col in enumerate(cols):
+                if i < len(sorted_branches):
+                    b_name = sorted_branches[i]
+                    # b_name is already normalized
+                    b_df = base_df[base_df['관리지사'] == b_name]
+                    b_total = len(b_df)
+                    count_active = len(b_df[b_df['영업상태명'] == '영업/정상'])
+                    count_closed = len(b_df[b_df['영업상태명'] == '폐업'])
+                    count_others = b_total - count_active - count_closed
                     
-                    b_c1, b_c2 = st.columns(2)
-                    with b_c1:
-                        st.button("영업", key=f"btn_br_active_{b_name}", on_click=update_branch_with_status, args=(b_name, '영업/정상'), use_container_width=True)
-                    with b_c2:
-                        st.button("폐업", key=f"btn_br_closed_{b_name}", on_click=update_branch_with_status, args=(b_name, '폐업'), use_container_width=True)
+                    bg_color = "#e8f5e9" if b_name == sel_dashboard_branch else "#ffffff"
+                    border_color = "#2E7D32" if b_name == sel_dashboard_branch else "#e0e0e0"
+                    
+                    status_text = f"<span style='color:#2E7D32'>영업 {count_active}</span> / <span style='color:#d32f2f'>폐업 {count_closed}</span>"
+                    if count_others > 0: status_text += f" / <span style='color:#757575'>기타 {count_others}</span>"
+                    
+                    with col:
+                        branch_html = f'<div style="background-color: {bg_color}; border: 2px solid {border_color}; border-radius: 8px; padding: 10px; text-align: center;"><div style="font-weight:bold; font-size:0.9rem; margin-bottom:5px; color:#333;">{b_name}</div><div style="font-size:1.2rem; font-weight:bold; color:#000;">{b_total:,}</div><div style="font-size:0.8rem; margin-top:4px;">{status_text}</div></div>'
+                        st.markdown(branch_html, unsafe_allow_html=True)
+                        
+                        b_c1, b_c2 = st.columns(2)
+                        with b_c1:
+                            st.button("영업", key=f"btn_br_active_{b_name}", on_click=update_branch_with_status, args=(b_name, '영업/정상'), use_container_width=True)
+                        with b_c2:
+                            st.button("폐업", key=f"btn_br_closed_{b_name}", on_click=update_branch_with_status, args=(b_name, '폐업'), use_container_width=True)
     
     st.markdown("---")
     
@@ -2054,6 +2056,10 @@ if raw_df is not None:
         
         final_cols = [c for c in display_cols if c in grid_df.columns]
         df_display = grid_df[final_cols].reset_index(drop=True)
+        
+        # [CLEANUP] Replace NaN and None values with empty string for clean display
+        df_display = df_display.fillna('')
+        df_display = df_display.replace(['None', 'nan', 'NaN'], '')
         
         
         # Render Editable Grid (Full Width for All Users)
