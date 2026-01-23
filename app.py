@@ -683,8 +683,7 @@ if raw_df is not None:
             c_man1, c_man2, c_man3 = st.columns([1, 2, 1])
             with c_man2:
                  if st.button("📘 이용 가이드 (설명서 Full Screen) 보기", use_container_width=True):
-                     st.session_state.show_landing_manual = True
-                     st.rerun()
+                     st.switch_page("pages/99_사용_가이드.py")
 
             st.markdown("<div style='margin-bottom: 30px;'></div>", unsafe_allow_html=True)
             
