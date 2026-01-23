@@ -1779,7 +1779,8 @@ if raw_df is not None:
         
         st.markdown("---")
         
-        c_f1, c_f2, c_f3 = st.columns(3)
+        
+        c_f1, c_f2, c_f3, c_f4 = st.columns(4)
         
         # [Dynamic Dropdowns]
         # Logic: Type Selection should filter Region/Manager lists.
@@ -1821,12 +1822,19 @@ if raw_df is not None:
             except:
                 map_type_opts = ["전체"]
             sel_map_type = st.selectbox("업종(업태)", map_type_opts, key="map_biz_type")
+        
+        with c_f4:
+             # Status Dropdown
+             # Usually "Active" vs "Closed".
+             map_status_opts = ["전체", "영업/정상", "폐업"]
+             sel_map_status = st.selectbox("영업상태", map_status_opts, key="map_status_filter")
             
         # Final Filtering
         map_df = map_df_base.copy()
         if sel_map_region != "전체": map_df = map_df[map_df['관리지사'] == sel_map_region]
         if sel_map_sales != "전체": map_df = map_df[map_df['SP담당'] == sel_map_sales]
         if sel_map_type != "전체": map_df = map_df[map_df['업태구분명'] == sel_map_type]
+        if sel_map_status != "전체": map_df = map_df[map_df['영업상태명'] == sel_map_status]
             
         st.markdown(f"**📍 조회된 업체**: {len(map_df):,} 개")
         
