@@ -531,6 +531,40 @@ with st.sidebar:
         else:
             st.sidebar.error(f"설명서 파일이 없습니다. (경로: {manual_path})")
         
+    # [LANDING] Show manual from landing page button
+    if st.session_state.get('show_landing_manual', False):
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        manual_filename = "premium_user_manual.html"
+        static_dir = os.path.join(BASE_DIR, "static")
+        manual_path = os.path.join(static_dir, manual_filename)
+        
+        # [FIX] Robust find (Unicode Normalization)
+        if not os.path.exists(manual_path) and os.path.exists(static_dir):
+            for f in os.listdir(static_dir):
+                if unicodedata.normalize('NFC', f) == unicodedata.normalize('NFC', manual_filename):
+                    manual_path = os.path.join(static_dir, f)
+                    break
+        
+        if os.path.exists(manual_path):
+            with open(manual_path, "r", encoding="utf-8") as f:
+                html_content = f.read()
+            
+            # Embed Images
+            html_content = embed_local_images(html_content, base_path=os.path.join(BASE_DIR, "static"))
+            
+            # Show close button
+            if st.button("❌ 설명서 닫기", type="primary"):
+                st.session_state.show_landing_manual = False
+                st.rerun()
+            
+            st.components.v1.html(html_content, height=1200, scrolling=True)
+            st.stop()
+        else:
+            st.error("설명서를 찾을 수 없습니다.")
+            if st.button("돌아가기"):
+                st.session_state.show_landing_manual = False
+                st.rerun()
+            st.stop()
 
 
 # --- Main Logic ---
@@ -649,7 +683,8 @@ if raw_df is not None:
             c_man1, c_man2, c_man3 = st.columns([1, 2, 1])
             with c_man2:
                  if st.button("📘 이용 가이드 (설명서 Full Screen) 보기", use_container_width=True):
-                     st.switch_page("pages/99_Manual.py")
+                     st.session_state.show_landing_manual = True
+                     st.rerun()
 
             st.markdown("<div style='margin-bottom: 30px;'></div>", unsafe_allow_html=True)
             
