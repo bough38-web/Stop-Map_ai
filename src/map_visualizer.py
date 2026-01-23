@@ -64,7 +64,19 @@ def render_kakao_map(map_df, kakao_key):
     display_df['branch'] = display_df['관리지사'].fillna('') if '관리지사' in display_df.columns else ''
     display_df['manager'] = display_df['SP담당'].fillna('') if 'SP담당' in display_df.columns else ''
     
-    map_data = display_df[['lat', 'lon', 'title', 'status', 'addr', 'tel', 'close_date', 'permit_date', 'reopen_date', 'modified_date', 'biz_type', 'branch', 'manager']].to_dict(orient='records')
+    # [FEATURE] Large Area Flag (>= 100py approx 330m2)
+    def check_large(row):
+        try:
+            val = float(row.get('소재지면적', 0))
+            # If 0, try '총면적' (rarely used but possible fallback)
+            # Actually just stick to 소재지면적 as primary
+            if val >= 330.0: return True
+        except: pass
+        return False
+        
+    display_df['is_large'] = display_df.apply(check_large, axis=1)
+    
+    map_data = display_df[['lat', 'lon', 'title', 'status', 'addr', 'tel', 'close_date', 'permit_date', 'reopen_date', 'modified_date', 'biz_type', 'branch', 'manager', 'is_large']].to_dict(orient='records')
     json_data = json.dumps(map_data, ensure_ascii=False)
     
     st.markdown('<div style="background-color: #e3f2fd; border-left: 5px solid #2196F3; padding: 10px; margin-bottom: 10px; border-radius: 4px;"><small><b>Tip:</b> 지도가 보이지 않으면 도메인 등록(http://localhost:8501)을 확인하세요.</small></div>', unsafe_allow_html=True)
@@ -107,15 +119,24 @@ def render_kakao_map(map_df, kakao_key):
             
             // Markers
             var imgSize = new kakao.maps.Size(35, 35); 
-            // Blue for Open, Red for Closed
+            // Blue for Open, Red for Closed, Purple for Large (>=100py)
             var openImg = "https://maps.google.com/mapfiles/ms/icons/blue-dot.png";
             var closeImg = "https://maps.google.com/mapfiles/ms/icons/red-dot.png";
+            var largeImg = "https://maps.google.com/mapfiles/ms/icons/purple-dot.png";
             
             var bounds = new kakao.maps.LatLngBounds();
             
             data.forEach(function(item) {{
                 var isOpen = item.status.includes('영업') || item.status.includes('정상');
-                var imgSrc = isOpen ? openImg : closeImg;
+                
+                // [LOGIC] Large Area takes priority? Or only for Open? 
+                // Requests usually imply "Highlight important opportunities". 
+                // A large CLOSED place is less of an opportunity than a large OPEN one?
+                // But "Closed" is also an opportunity (to win back).
+                // Let's use Purple for ALL Large properties to match request "100평이상... 보라색".
+                
+                var imgSrc = item.is_large ? largeImg : (isOpen ? openImg : closeImg);
+                
                 var markerImage = new kakao.maps.MarkerImage(imgSrc, imgSize);
                 var markerPos = new kakao.maps.LatLng(item.lat, item.lon);
                 
@@ -128,7 +149,7 @@ def render_kakao_map(map_df, kakao_key):
                 bounds.extend(markerPos);
                 
                 // Color Logic for Badge
-                var badgeColor = isOpen ? "#2196F3" : "#F44336"; 
+                var badgeColor = item.is_large ? "#9C27B0" : (isOpen ? "#2196F3" : "#F44336"); 
                 
                 var content = '<div class="infowindow">' + 
                               '<div class="info-title">' + item.title + 
@@ -308,7 +329,16 @@ def render_folium_map(map_df):
             close_date = fmt_date(row.get('폐업일자'))
             
             # Color Logic
-            if "영업" in status or "정상" in status:
+            try:
+                raw_area = float(row.get('소재지면적', 0))
+            except:
+                raw_area = 0
+                
+            if raw_area >= 330.0:
+                color = "purple"
+                icon_type = "star"
+                status_style = "color:purple; font-weight:bold;"
+            elif "영업" in status or "정상" in status:
                 color = "green"
                 icon_type = "info-sign"
                 status_style = "color:green; font-weight:bold;"

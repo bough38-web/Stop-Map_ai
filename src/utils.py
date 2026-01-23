@@ -1,6 +1,8 @@
 import pandas as pd
 import re
 import unicodedata
+import os
+import json
 from sklearn.metrics.pairwise import cosine_similarity
 from difflib import SequenceMatcher
 
@@ -148,3 +150,73 @@ def calculate_area(row):
         return round(float(val) / 3.3058, 1)
     except:
         return 0
+
+# --- System Configuration ---
+DATA_DIR = "data"
+CONFIG_FILE = os.path.join(DATA_DIR, "system_config.json")
+
+def load_system_config():
+    """Load system configuration (notices, data dates)"""
+    default_config = {
+        "notice_title": "",
+        "notice_content": "",
+        "show_notice": False,
+        "data_standard_date": ""
+    }
+    if not os.path.exists(CONFIG_FILE):
+        return default_config
+    
+    try:
+        with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Error loading config: {e}")
+        return default_config
+
+def save_system_config(config):
+    """Save system configuration"""
+    try:
+        # Ensure data directory exists
+        os.makedirs(DATA_DIR, exist_ok=True)
+        with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+            json.dump(config, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        print(f"Error saving config: {e}")
+        return False
+
+import base64
+def embed_local_images(html_content, base_path=""):
+    """
+    Replace local image src with base64 embedded data.
+    Assumes images are in 'assets/'.
+    """
+    def replace_match(match):
+        src = match.group(1)
+        # Check if local file
+        if not src.startswith("http") and not src.startswith("data:"):
+            # Construct full path
+            # If src is 'assets/img.png', and base_path is project root, it should work.
+            full_path = src
+            if base_path:
+                full_path = os.path.join(base_path, src)
+            
+            if os.path.exists(full_path):
+                try:
+                    ext = full_path.split('.')[-1].lower()
+                    mime_type = f"image/{ext}"
+                    if ext == 'jpg': mime_type = "image/jpeg"
+                    if ext == 'svg': mime_type = "image/svg+xml"
+                    
+                    with open(full_path, "rb") as f:
+                        encoded = base64.b64encode(f.read()).decode()
+                        return f'src="data:{mime_type};base64,{encoded}"'
+                except Exception as e:
+                    print(f"Error checking image {full_path}: {e}")
+                    pass
+        return match.group(0) # No change
+
+    # Regex to find src="..."
+    # We look for src="([^"]+)"
+    pattern = r'src="([^"]+)"'
+    return re.sub(pattern, replace_match, html_content)

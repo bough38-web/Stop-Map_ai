@@ -9,6 +9,7 @@ from datetime import datetime
 
 # Import modularized components
 from src import utils
+from src.utils import load_system_config, save_system_config, embed_local_images
 from src import data_loader
 from src import map_visualizer
 from src import report_generator
@@ -40,7 +41,7 @@ st.markdown("""
     
     /* Main Container Padding */
     .main .block-container {
-        padding-top: 1rem;
+        padding-top: 0.5rem !important;
         padding-bottom: 3rem;
     }
 
@@ -198,6 +199,19 @@ def get_manager_password(manager_name):
         prefix = first_syllable_map.get(first_char, 'user')
         return f"{prefix}1234"
     return "user1234"
+
+def mask_name(name):
+    """
+    Masks Korean names: 홍길동 -> 홍**, 이철 -> 이*
+    """
+    if not name or pd.isna(name):
+        return name
+    name_str = str(name)
+    if len(name_str) <= 1:
+        return name_str
+    if len(name_str) == 2:
+        return name_str[0] + "*"
+    return name_str[0] + "*" * (len(name_str) - 2) + name_str[-1]
 
 # State Update Callbacks
 def update_branch_state(name):
@@ -487,6 +501,22 @@ with st.sidebar:
             st.success("✅ 활성화됨")
         else:
             st.caption("미입력 시: 기본 지도 사용")
+            
+    st.sidebar.markdown("---")
+    show_manual = st.sidebar.toggle("📘 사용 설명서 보기", value=False)
+    if show_manual:
+        manual_path = os.path.join("reports", "premium_user_manual.html")
+        if os.path.exists(manual_path):
+            with open(manual_path, "r", encoding="utf-8") as f:
+                html_content = f.read()
+            
+            # Embed Images
+            html_content = embed_local_images(html_content, base_path="reports")
+            st.components.v1.html(html_content, height=1000, scrolling=True)
+            st.sidebar.info("설명서 닫기: 스위치 OFF")
+            st.stop()
+        else:
+            st.sidebar.error("설명서 파일이 없습니다.")
         
 
 
@@ -554,117 +584,185 @@ if raw_df is not None:
         st.session_state.user_branch = None
         st.session_state.user_manager_name = None
         st.session_state.user_manager_code = None
+        if 'show_manual_landing' not in st.session_state:
+            st.session_state.show_manual_landing = False
 
     if st.session_state.user_role is None:
         st.markdown(
             """
             <style>
                 [data-testid="stSidebar"] {display: none;}
-                .main .block-container {max_width: 800px; padding-top: 2rem;}
+                .main .block-container {max_width: 800px; padding-top: 0px;}
             </style>
             """, 
             unsafe_allow_html=True
         )
         
-        st.markdown("<h1 style='text-align: center; margin-bottom: 10px;'>영업기회 포착 대시보드</h1>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #666; margin-bottom: 40px;'>행정안전부 공공DATA 기반 고객 및 시장의 변화 신호(신규,폐업 징후)를 조기에 감지하여<br>신규 영업기회를 발굴, 기존 고객 해지 예방 활동 표시</p>", unsafe_allow_html=True)
+        _, main_col, _ = st.columns([1, 2, 1])
         
-        l_tab1, l_tab2, l_tab3 = st.tabs(["👮 관리자(Admin)", "🏢 지사(Branch)", "👤 담당자(Manager)"])
+        if st.session_state.show_manual_landing:
+             st.markdown("### 📘 이용 가이드 (사용 설명서)")
+             if st.button("⬅️ 설명서 닫기 (로그인 화면으로 돌아가기)", type="primary"):
+                 st.session_state.show_manual_landing = False
+                 st.rerun()
+             
+             manual_path = os.path.join("reports", "premium_user_manual.html")
+             if os.path.exists(manual_path):
+                  with open(manual_path, "r", encoding="utf-8") as f:
+                      html_content = f.read()
+                  
+                  # Embed Images
+                  html_content = embed_local_images(html_content, base_path="reports")
+                  # Full Width Component
+                  st.components.v1.html(html_content, height=1200, scrolling=True)
+             else:
+                  st.error("설명서 파일을 찾을 수 없습니다.")
+             st.stop()
         
-        with l_tab1:
-            st.info("관리자 권한으로 접속합니다. (모든 데이터 열람 가능)")
-            with st.form("login_admin"):
-                pw = st.text_input("관리자 암호", type="password")
-                if st.form_submit_button("관리자 로그인", type="primary", use_container_width=True):
-                    if pw == "admin1234":
-                        st.session_state.user_role = 'admin'
-                        st.session_state.admin_auth = True
-                        # Log access
-                        activity_logger.log_access('admin', '관리자', 'login')
-                        st.rerun()
-                    else:
-                        st.error("암호가 올바르지 않습니다.")
-                        
-        with l_tab2:
-            st.info("특정 지사의 데이터만 조회합니다.")
-            with st.form("login_branch"):
-                s_branch = st.selectbox("지사 선택", global_branch_opts)
-                branch_pw = st.text_input("지사 패스워드", type="password", help="예: central123")
-                if st.form_submit_button("지사 접속", type="primary", use_container_width=True):
-                    # Validate password
-                    expected_pw = BRANCH_PASSWORDS.get(s_branch, "")
-                    if branch_pw == expected_pw:
-                        st.session_state.user_role = 'branch'
-                        st.session_state.user_branch = s_branch
-                        st.session_state.sb_branch = s_branch # Pre-set filter
-                        # Log access
-                        activity_logger.log_access('branch', s_branch, 'login')
-                        st.rerun()
-                    else:
-                        st.error("패스워드가 올바르지 않습니다.")
-                    
-        with l_tab3:
-            st.info("본인의 영업구역/담당 데이터만 조회합니다.")
+        with main_col:
+            st.markdown("<h1 style='text-align: center; margin-top: -30px; margin-bottom: 5px;'>영업기회 포착 대시보드</h1>", unsafe_allow_html=True)
             
-            # Helper for Manager Selection
-            # 1. Filter Branch First (Optional)
-            sel_br_for_mgr = st.selectbox("소속 지사 (필터용)", ["전체"] + global_branch_opts)
+            # [FEATURE] System Notice
+            try:
+                sys_config_notice = load_system_config()
+                if sys_config_notice.get("show_notice") and sys_config_notice.get("notice_content"):
+                     # Determine type based on title or default to info
+                     notice_type = "info"
+                     n_title = sys_config_notice.get("notice_title", "")
+                     if "점검" in n_title or "긴급" in n_title:
+                         notice_type = "warning"
+                     
+                     if n_title:
+                         st.markdown(f"""
+                         <div style="padding: 10px; border-radius: 5px; background-color: {'#fff3cd' if notice_type=='warning' else '#cff4fc'}; border: 1px solid {'#ffecb5' if notice_type=='warning' else '#b6effb'}; margin-bottom: 15px;">
+                            <strong style="color: {'#664d03' if notice_type=='warning' else '#055160'};">📢 {n_title}</strong><br>
+                            <span style="font-size: 0.9em; color: {'#664d03' if notice_type=='warning' else '#055160'};">{sys_config_notice['notice_content']}</span>
+                         </div>
+                         """, unsafe_allow_html=True)
+                     else:
+                         if notice_type == "warning":
+                             st.warning(f"📢 {sys_config_notice['notice_content']}")
+                         else:
+                             st.info(f"📢 {sys_config_notice['notice_content']}")
+            except Exception as e:
+                print(f"Notice Error: {e}")
+
+            st.markdown("<p style='text-align: center; color: #666; margin-bottom: 20px;'>행정안전부 공공DATA 기반 고객 및 시장의 변화 신호(신규,폐업 징후)를 조기에 감지하여<br>영업기회 발굴</p>", unsafe_allow_html=True)
             
-            if raw_df is not None:
-                # [FIX] Use authoritative manager list from Excel if available
-                if 'mgr_info_list' in locals() and mgr_info_list:
-                    mgr_candidates = pd.DataFrame(mgr_info_list)
-                else:
-                    mgr_candidates = raw_df.copy()
+            # [FEATURE] Manual Button
+            c_man1, c_man2, c_man3 = st.columns([1, 2, 1])
+            with c_man2:
+                 if st.button("📘 이용 가이드 (사용 설명서) 보기", use_container_width=True):
+                     st.session_state.show_manual_landing = True
+                     st.rerun()
+
+            st.markdown("<div style='margin-bottom: 30px;'></div>", unsafe_allow_html=True)
+            
+            tab_mgr, tab_br, tab_adm = st.tabs(["👤 담당자(Manager)", "🏢 지사(Branch)", "👮 관리자(Admin)"])
+            
+            with tab_mgr:
+                st.info("본인의 영업구역/담당 데이터만 조회합니다.")
                 
-                if sel_br_for_mgr != "전체":
-                    mgr_candidates = mgr_candidates[mgr_candidates['관리지사'] == sel_br_for_mgr]
+                # Helper for Manager Selection
+                # 1. Filter Branch First (Optional)
+                sel_br_for_mgr = st.selectbox("소속 지사 (필터용)", ["전체"] + global_branch_opts)
                 
-                # Generate Logic: Name + Code
-                if '영업구역 수정' in mgr_candidates.columns:
-                    mgr_candidates['display'] = mgr_candidates.apply(lambda x: f"{x['SP담당']} ({x['영업구역 수정']})" if pd.notna(x['영업구역 수정']) and x['영업구역 수정'] else x['SP담당'], axis=1)
-                else:
-                    mgr_candidates['display'] = mgr_candidates['SP담당']
-                    
-                mgr_list = sorted(mgr_candidates['display'].unique().tolist())
-            else:
-                st.warning("데이터가 로드되지 않아 담당자 목록을 불러올 수 없습니다.")
-                mgr_list = []
-            
-            with st.form("login_manager"):
-                s_manager_display = st.selectbox("담당자 선택", mgr_list)
-                manager_pw = st.text_input("담당자 패스워드", type="password", help="예: kim1234")
-                if st.form_submit_button("담당자 접속", type="primary", use_container_width=True):
-                    # Parse Name/Code
-                    # Format: "Name (Code)" or "Name"
-                    if "(" in s_manager_display and ")" in s_manager_display:
-                        p_name = s_manager_display.split("(")[0].strip()
-                        p_code = s_manager_display.split("(")[1].replace(")", "").strip()
+                if raw_df is not None:
+                    # [FIX] Use authoritative manager list from Excel if available
+                    if 'mgr_info_list' in locals() and mgr_info_list:
+                        mgr_candidates = pd.DataFrame(mgr_info_list)
                     else:
-                        p_name = s_manager_display
-                        p_code = None
+                        mgr_candidates = raw_df.copy()
                     
-                    # Validate password
-                    expected_pw = get_manager_password(p_name)
-                    if manager_pw == expected_pw:
-                        st.session_state.user_role = 'manager'
-                        st.session_state.user_manager_name = p_name
-                        st.session_state.user_manager_code = p_code
+                    if sel_br_for_mgr != "전체":
+                        mgr_candidates = mgr_candidates[mgr_candidates['관리지사'] == sel_br_for_mgr]
+                    
+                    # Generate Logic: Name + Code
+                    if '영업구역 수정' in mgr_candidates.columns:
+                        mgr_candidates['display'] = mgr_candidates.apply(lambda x: f"{mask_name(x['SP담당'])} ({x['영업구역 수정']})" if pd.notna(x['영업구역 수정']) and x['영업구역 수정'] else mask_name(x['SP담당']), axis=1)
+                    else:
+                        mgr_candidates['display'] = mgr_candidates['SP담당'].apply(mask_name)
+                    
+                    # Create mapping for real name retrieval
+                    display_to_real_map = dict(zip(mgr_candidates['display'], mgr_candidates['SP담당']))
                         
-                        # Pre-set filters
-                        # Find branch for this manager to set context if possible
-                        user_br_find = raw_df[raw_df['SP담당'] == p_name]['관리지사'].mode()
-                        if not user_br_find.empty:
-                            st.session_state.user_branch = user_br_find[0]
-                            st.session_state.sb_branch = user_br_find[0]
+                    mgr_list = sorted(mgr_candidates['display'].unique().tolist())
+                else:
+                    st.warning("데이터가 로드되지 않아 담당자 목록을 불러올 수 없습니다.")
+                    mgr_list = []
+                    display_to_real_map = {}
+                
+                with st.form("login_manager"):
+                    s_manager_display = st.selectbox("담당자 선택", mgr_list)
+                    manager_pw = st.text_input("담당자 패스워드", type="password", help="예: kim1234")
+                    if st.form_submit_button("담당자 접속", type="primary", use_container_width=True):
+                        # Get real name
+                        p_name = display_to_real_map.get(s_manager_display)
+                        
+                        # Parse Code if present in display string for context
+                        if s_manager_display and "(" in s_manager_display and ")" in s_manager_display:
+                            p_code = s_manager_display.split("(")[1].replace(")", "").strip()
+                        else:
+                            p_code = None
+                        
+                        if not p_name:
+                            st.error("담당자 정보를 찾을 수 없습니다.")
+                        else:
+                            # Validate password using REAL name
+                            expected_pw = get_manager_password(p_name)
+                            if manager_pw == expected_pw:
+                                st.session_state.user_role = 'manager'
+                                st.session_state.user_manager_name = p_name
+                                st.session_state.user_manager_code = p_code
+                                
+                                # Pre-set filters
+                                # Find branch for this manager to set context if possible
+                                user_br_find = raw_df[raw_df['SP담당'] == p_name]['관리지사'].mode()
+                                if not user_br_find.empty:
+                                    st.session_state.user_branch = user_br_find[0]
+                                    st.session_state.sb_branch = user_br_find[0]
+                                    
+                                st.session_state.sb_manager = p_name # This usually takes Name in main logic
+                                
+                                # Log access
+                                activity_logger.log_access('manager', p_name, 'login')
+                                st.rerun()
+                            else:
+                                st.error("패스워드가 올바르지 않습니다.")
+
+            with tab_br:
+                st.info("특정 지사의 데이터만 조회합니다.")
+                with st.form("login_branch"):
+                    s_branch = st.selectbox("지사 선택", global_branch_opts)
+                    branch_pw = st.text_input("지사 패스워드", type="password", help="예: central123")
+                    if st.form_submit_button("지사 접속", type="primary", use_container_width=True):
+                        # Validate password
+                        expected_pw = BRANCH_PASSWORDS.get(s_branch, "")
+                        if branch_pw == expected_pw:
+                            st.session_state.user_role = 'branch'
+                            st.session_state.user_branch = s_branch
+                            st.session_state.sb_branch = s_branch # Pre-set filter
+                            # Log access
+                            activity_logger.log_access('branch', s_branch, 'login')
+                            st.rerun()
+                        else:
+                            st.error("패스워드가 올바르지 않습니다.")
                             
-                        st.session_state.sb_manager = p_name # This usually takes Name in main logic
-                        
-                        # Log access
-                        activity_logger.log_access('manager', p_name, 'login')
-                        st.rerun()
-                    else:
-                        st.error("패스워드가 올바르지 않습니다.")
+            with tab_adm:
+                st.info("관리자 권한으로 접속합니다. (모든 데이터 열람 가능)")
+                with st.form("login_admin"):
+                    pw = st.text_input("관리자 암호", type="password")
+                    if st.form_submit_button("관리자 로그인", type="primary", use_container_width=True):
+                        if pw == "admin1234!!":
+                            st.session_state.user_role = 'admin'
+                            st.session_state.admin_auth = True
+                            # Log access
+                            activity_logger.log_access('admin', '관리자', 'login')
+                            st.rerun()
+                        else:
+                            st.error("암호가 올바르지 않습니다.")
+
+        # ... (Rest of logic) ...
                     
         st.markdown("---")
         st.caption("ⓒ 2026 Field Sales Assistant System")
@@ -678,6 +776,11 @@ if raw_df is not None:
     # --- Sidebar Filters ---
     with st.sidebar:
         st.header("⚙️ 설정")
+        
+        # [FEATURE] System Config & Info
+        sys_config = load_system_config()
+        if sys_config.get("data_standard_date"):
+            st.warning(f"📅 데이터 기준: {sys_config['data_standard_date']}")
         
         # [FEATURE] Logout / Role Info
         role_map = {'admin': '👮 관리자', 'branch': '🏢 지사 관리자', 'manager': '👤 담당자'}
@@ -762,6 +865,38 @@ if raw_df is not None:
                 else:
                     st.info("데이터가 로드되지 않았습니다.")
             
+            # [FEATURE] System Config Admin
+            st.divider()
+            with st.expander("📢 공지사항 및 시스템 설정", expanded=False):
+                st.caption("전체 사용자에게 보여줄 공지사항과 데이터 기준일을 설정합니다.")
+                
+                # Load current config
+                curr_config = load_system_config()
+                
+                with st.form("sys_config_form"):
+                    st.subheader("1. 데이터 기준일 설정")
+                    new_date = st.text_input("데이터 기준일 (예: 2024.01.20 기준)", value=curr_config.get("data_standard_date", ""))
+                    
+                    st.subheader("2. 공지사항 설정")
+                    use_notice = st.checkbox("공지사항 노출", value=curr_config.get("show_notice", False))
+                    notice_title = st.text_input("공지 제목", value=curr_config.get("notice_title", ""))
+                    notice_content = st.text_area("공지 내용", value=curr_config.get("notice_content", ""))
+                    
+                    if st.form_submit_button("설정 저장"):
+                        updated_config = {
+                            "data_standard_date": new_date,
+                            "show_notice": use_notice,
+                            "notice_title": notice_title,
+                            "notice_content": notice_content
+                        }
+                        if save_system_config(updated_config):
+                            st.success("시스템 설정이 저장되었습니다. 새로고침 후 반영됩니다.")
+                            import time
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.error("설정 저장 실패")
+
             # Admin Log Viewer
             # [FEATURE] Enhanced Admin Log Viewer
             st.markdown("---")
@@ -1581,12 +1716,23 @@ if raw_df is not None:
                       current_sb_manager = st.session_state.get('sb_manager', "전체")
                       is_selected = (current_sb_manager == mgr_label)
                       
+                      # [FEATURE] Clickable Zone/Manager Button
+                      # User requested to click "Zone Number" to filter.
+                      btn_type = "primary" if is_selected else "secondary"
+                      
+                      unique_key_suffix = item['code'] if item['code'] else item['name']
+                      
+                      # Determine display label (Name or Code)
+                      # If just name, it's name. If Code (Name), maybe just Code?
+                      # User said "Zone Number". But keeping full label is safer for mapping.
+                      if st.button(mgr_label, key=f"btn_sel_mgr_{unique_key_suffix}", type=btn_type, use_container_width=True, on_click=update_manager_state, args=(mgr_label,)):
+                          pass
+                      
                       border_color_mgr = "#2E7D32" if is_selected else "#e0e0e0"
                       bg_color_mgr = "#e8f5e9" if is_selected else "#ffffff"
                       
-                      unique_key_suffix = item['code'] if item['code'] else item['name']
-
-                      manager_card_html = f'<div class="metric-card" style="margin-bottom:4px; padding: 10px 5px; text-align: center; border: 2px solid {border_color_mgr}; background-color: {bg_color_mgr};"><div class="metric-label" style="color:#555; font-size: 0.85rem; font-weight:bold; margin-bottom:4px;">{mgr_label}</div><div class="metric-value" style="color:#333; font-size: 1.1rem; font-weight:bold;">{m_total:,}</div><div class="metric-sub" style="font-size:0.75rem; margin-top:4px;"><span style="color:#2E7D32">영업 {m_active}</span> / <span style="color:#d32f2f">폐업 {m_closed}</span></div></div>'
+                      # Card without the Title (since Button acts as title)
+                      manager_card_html = f'<div class="metric-card" style="margin-top:-5px; margin-bottom:4px; padding: 10px 5px; text-align: center; border: 2px solid {border_color_mgr}; border-top: none; border-radius: 0 0 8px 8px; background-color: {bg_color_mgr};"><div class="metric-value" style="color:#333; font-size: 1.1rem; font-weight:bold;">{m_total:,}</div><div class="metric-sub" style="font-size:0.75rem; margin-top:4px;"><span style="color:#2E7D32">영업 {m_active}</span> / <span style="color:#d32f2f">폐업 {m_closed}</span></div></div>'
                       st.markdown(manager_card_html, unsafe_allow_html=True)
                       
                       m_c1, m_c2 = st.columns(2)
