@@ -1981,7 +1981,7 @@ if raw_df is not None:
         
         st.caption(f"조회 결과: {len(m_df):,}건")
         
-        ITEMS_PER_PAGE = 24 
+        ITEMS_PER_PAGE = 50 
         if 'page' not in st.session_state: st.session_state.page = 0
         total_pages = max(1, (len(m_df)-1)//ITEMS_PER_PAGE + 1)
         
