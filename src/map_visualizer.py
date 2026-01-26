@@ -427,6 +427,9 @@ def render_folium_map(display_df):
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <!-- Marker Cluster CSS -->
+        <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+        <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
         
         <style>
             html, body {{ margin: 0; padding: 0; height: 100%; width: 100%; font-family: 'Pretendard', sans-serif; overflow: hidden; }}
@@ -435,6 +438,7 @@ def render_folium_map(display_df):
             #container {{ 
                 display: grid; 
                 grid-template-columns: 65% 35%; 
+                grid-template-rows: 100%;
                 width: 100%; 
                 height: 100%; 
             }}
@@ -454,6 +458,32 @@ def render_folium_map(display_df):
                 display: flex; 
                 flex-direction: column;
                 overflow-y: auto;
+            }}
+            
+            /* Responsive Design for Mobile */
+            @media (max-width: 768px) {{
+                #container {{
+                    grid-template-columns: 100%;
+                    grid-template-rows: 55% 45%; /* Map top, Details bottom */
+                }}
+                
+                #map-container {{
+                    border-right: none;
+                    border-bottom: 2px solid #ddd;
+                }}
+                
+                #right-panel {{
+                    border-top: 4px solid #2E7D32; /* Visual cue for separation */
+                }}
+                
+                .detail-card {{
+                    margin: 10px; /* Smaller margin on mobile */
+                    padding: 15px; /* Compact padding */
+                }}
+                
+                .detail-title {{
+                    font-size: 18px; /* Slightly smaller title */
+                }}
             }}
             
             /* Detail Card Styles */
@@ -576,6 +606,8 @@ def render_folium_map(display_df):
         </div>
 
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <!-- Marker Cluster JS -->
+        <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
         <script>
             // Data
             var mapData = {json_data};
@@ -613,6 +645,14 @@ def render_folium_map(display_df):
             L.control.layers(baseMaps, null, {{ position: 'topright' }}).addTo(map);
             L.control.zoom({{ position: 'topright' }}).addTo(map);
             
+            // Marker Cluster Group
+            var markers = L.markerClusterGroup({{
+                disableClusteringAtZoom: 16,
+                spiderfyOnMaxZoom: true,
+                showCoverageOnHover: false,
+                chunkedLoading: true
+            }});
+            
             // Markers
             mapData.forEach(function(item) {{
                 var isOpen = (item.status && (item.status.includes('영업') || item.status.includes('정상')));
@@ -639,7 +679,7 @@ def render_folium_map(display_df):
                     iconAnchor: [15, 15]
                 }});
                 
-                var marker = L.marker([item.lat, item.lon], {{ icon: myIcon }}).addTo(map);
+                var marker = L.marker([item.lat, item.lon], {{ icon: myIcon }});
                 
                 // Tooltip
                 marker.bindTooltip(item.title, {{ direction: 'top', offset: [0, -18], className: 'marker_label' }});
@@ -672,7 +712,11 @@ def render_folium_map(display_df):
                     `;
                     document.getElementById('detail-content').innerHTML = html;
                 }});
+                
+                markers.addLayer(marker);
             }});
+            
+            map.addLayer(markers);
             
             if (mapData.length > 0) {{
                 var group = new L.featureGroup(mapData.map(d => L.marker([d.lat, d.lon])));
