@@ -79,14 +79,68 @@ def render_kakao_map(map_df, kakao_key):
     map_data = display_df[['lat', 'lon', 'title', 'status', 'addr', 'tel', 'close_date', 'permit_date', 'reopen_date', 'modified_date', 'biz_type', 'branch', 'manager', 'is_large']].to_dict(orient='records')
     json_data = json.dumps(map_data, ensure_ascii=False)
     
-    st.markdown('<div style="background-color: #e3f2fd; border-left: 5px solid #2196F3; padding: 10px; margin-bottom: 10px; border-radius: 4px;"><small><b>Tip:</b> 지도가 보이지 않으면 도메인 등록(http://localhost:8501)을 확인하세요.</small></div>', unsafe_allow_html=True)
+    st.markdown('<div style="background-color: #e3f2fd; border-left: 5px solid #2196F3; padding: 10px; margin-bottom: 10px; border-radius: 4px;"><small><b>Tip:</b> 왼쪽 지도에서 마커를 선택하면 오른쪽에서 <b>상세 위치</b>와 <b>정보</b>를 확인할 수 있습니다.</small></div>', unsafe_allow_html=True)
 
     map_css = '''
-        html, body { width:100%; height:100%; margin:0; padding:0; overflow:hidden; } 
-        #map { width: 100%; height: 450px; border: 1px solid #ddd; background-color: #f8f9fa; }
-        .infowindow { padding:10px; font-size:12px; font-family: 'Pretendard', sans-serif; width: 220px; }
-        .info-title { font-weight:bold; font-size:14px; margin-bottom:5px; color:#333; border-bottom:1px solid #eee; padding-bottom:5px; }
-        .status-badge { display:inline-block; padding:2px 6px; border-radius:4px; color:white; font-size:11px; margin-left:5px; vertical-align:middle; }
+        html, body { width:100%; height:100%; margin:0; padding:0; overflow:hidden; font-family: 'Pretendard', sans-serif; } 
+        * { box-sizing: border-box; }
+        
+        #container { 
+            display: grid; 
+            grid-template-columns: 65% 35%; /* Fixed ratio */
+            width: 100%; 
+            height: 100%; 
+        }
+        
+        /* Left: Overview Map */
+        #map-overview { 
+            width: 100%; 
+            height: 100%; 
+            position: relative; 
+            border-right: 2px solid #ddd; 
+        }
+        
+        /* Right: Detail Panel */
+        #right-panel { 
+            width: 100%; 
+            height: 100%; 
+            display: grid; 
+            grid-template-rows: 40% 60%; /* Split vertically */
+            background: white; 
+        }
+        
+        #map-detail { 
+            width: 100%; 
+            height: 100%; 
+            border-bottom: 2px solid #eee; 
+            background: #f0f0f0; 
+            position: relative; 
+        }
+        
+        #info-panel { 
+            width: 100%; 
+            height: 100%; 
+            overflow-y: auto; 
+            padding: 0; 
+        }
+        
+        /* Info Content Styles */
+        .sb-header { padding: 15px; border-bottom: 1px solid #eee; background: #fafafa; }
+        .sb-title { margin: 0; font-size: 16px; font-weight: bold; color: #333; display: flex; align-items: center; justify-content: space-between; }
+        .sb-body { padding: 15px; }
+        .sb-placeholder { text-align: center; margin-top: 60px; color: #aaa; }
+        
+        /* Details Table */
+        .info-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .info-table td { padding: 8px 0; border-bottom: 1px solid #f9f9f9; font-size: 13px; }
+        .info-label { color: #888; width: 70px; font-weight: 500; }
+        .info-value { color: #333; font-weight: 500; }
+        
+        .status-badge { display:inline-block; padding:3px 8px; border-radius:4px; color:white; font-size:12px; font-weight:bold; }
+        .navi-btn { display:block; width:100%; padding:12px 0; background-color:#FEE500; color:#3C1E1E; text-decoration:none; border-radius:6px; font-weight:bold; font-size:14px; text-align:center; margin-top:20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .navi-btn:hover { background-color:#FDD835; }
+        
+        .detail-label { position: absolute; top: 10px; left: 10px; z-index: 10; background: rgba(255,255,255,0.9); padding: 5px 10px; font-size: 12px; font-weight: bold; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); pointer-events: none; }
     '''
 
     html_content = f'''
@@ -97,19 +151,59 @@ def render_kakao_map(map_df, kakao_key):
         <style>{map_css}</style>
     </head>
     <body>
-        <div id="map"></div>
+        <div id="container">
+            <div id="map-overview">
+                <div class="detail-label">🗺️ 전체 지도 (이곳을 클릭하세요)</div>
+            </div>
+            <div id="right-panel">
+                <div id="map-detail">
+                    <div class="detail-label">🔍 상세 위치 (확대됨)</div>
+                </div>
+                <div id="info-panel">
+                     <div class="sb-header">
+                        <h3 class="sb-title">상세 정보</h3>
+                    </div>
+                    <div class="sb-body" id="info-content">
+                        <div class="sb-placeholder">
+                            <div style="font-size: 40px; margin-bottom: 10px;">👈</div>
+                            좌측 지도에서 마커를 선택하면<br>상세 위치와 정보가 표시됩니다.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey={kakao_key}&libraries=services,clusterer,drawing"></script>
         <script>
-            var mapContainer = document.getElementById('map'), 
-                mapOption = {{ 
+            // --- 1. Map Overview ---
+            var mapContainer1 = document.getElementById('map-overview'), 
+                mapOption1 = {{ 
                     center: new kakao.maps.LatLng({center_lat}, {center_lon}), 
                     level: 9 
                 }};
+            var mapOverview = new kakao.maps.Map(mapContainer1, mapOption1);
             
-            var map = new kakao.maps.Map(mapContainer, mapOption);
+            // --- 2. Map Detail ---
+            var mapContainer2 = document.getElementById('map-detail'), 
+                mapOption2 = {{ 
+                    center: new kakao.maps.LatLng({center_lat}, {center_lon}), 
+                    level: 3 
+                }};
+            var mapDetail = new kakao.maps.Map(mapContainer2, mapOption2);
+            mapDetail.setDraggable(true); 
+            mapDetail.setZoomable(true);
             
+            // [FIX] Force Relayout to ensure maps render correctly in split view
+            setTimeout(function() {{
+                mapOverview.relayout();
+                mapDetail.relayout();
+                mapOverview.setCenter(new kakao.maps.LatLng({center_lat}, {center_lon}));
+                mapDetail.setCenter(new kakao.maps.LatLng({center_lat}, {center_lon}));
+            }}, 500);
+
+            // --- 3. Data & Clusterer ---
             var clusterer = new kakao.maps.MarkerClusterer({{
-                map: map, 
+                map: mapOverview, 
                 averageCenter: true, 
                 minLevel: 10 
             }});
@@ -117,24 +211,17 @@ def render_kakao_map(map_df, kakao_key):
             var data = {json_data};
             var markers = [];
             
-            // Markers
+            // Marker Details
             var imgSize = new kakao.maps.Size(35, 35); 
-            // Blue for Open, Red for Closed, Purple for Large (>=100py)
             var openImg = "https://maps.google.com/mapfiles/ms/icons/blue-dot.png";
             var closeImg = "https://maps.google.com/mapfiles/ms/icons/red-dot.png";
             var largeImg = "https://maps.google.com/mapfiles/ms/icons/purple-dot.png";
             
             var bounds = new kakao.maps.LatLngBounds();
+            var detailMarker = null; // Single marker for detail map
             
             data.forEach(function(item) {{
                 var isOpen = item.status.includes('영업') || item.status.includes('정상');
-                
-                // [LOGIC] Large Area takes priority? Or only for Open? 
-                // Requests usually imply "Highlight important opportunities". 
-                // A large CLOSED place is less of an opportunity than a large OPEN one?
-                // But "Closed" is also an opportunity (to win back).
-                // Let's use Purple for ALL Large properties to match request "100평이상... 보라색".
-                
                 var imgSrc = item.is_large ? largeImg : (isOpen ? openImg : closeImg);
                 
                 var markerImage = new kakao.maps.MarkerImage(imgSrc, imgSize);
@@ -145,35 +232,59 @@ def render_kakao_map(map_df, kakao_key):
                     image: markerImage
                 }});
                 
-                // Extend bounds
                 bounds.extend(markerPos);
                 
-                // Color Logic for Badge
-                var badgeColor = item.is_large ? "#9C27B0" : (isOpen ? "#2196F3" : "#F44336"); 
-                
-                var content = '<div class="infowindow">' + 
-                              '<div class="info-title">' + item.title + 
-                              '<span class="status-badge" style="background-color:' + badgeColor + ';">' + item.status + '</span></div>' +
-                              (item.branch ? ('<div style="color:#333; font-weight:bold; margin-bottom:2px;">🏠 ' + item.branch + ' / ' + item.manager + '</div>') : '') +
-                              (item.biz_type ? ('<div style="color:#555; font-size:11px; margin-bottom:5px;">[' + item.biz_type + ']</div>') : '') + 
-                              (item.permit_date ? ('<div style="color:#666;">인허가: ' + item.permit_date + '</div>') : '') + 
-                              (item.close_date ? ('<div style="color:#D32F2F;">폐업: ' + item.close_date + '</div>') : '') + 
-                              (item.reopen_date ? ('<div style="color:#1976D2;">재개업: ' + item.reopen_date + '</div>') : '') + 
-                              (item.modified_date ? ('<div style="color:#666; font-size:11px;">(수정: ' + item.modified_date + ')</div>') : '') + 
-                              '<div style="margin-top:5px; color:#555;">' + item.addr + '</div>' + 
-                              (item.tel ? ('<div style="margin-top:5px; font-weight:bold; color:#1976D2;">📞 ' + item.tel + '</div>') : '') + 
-                              '<div style="margin-top:10px; padding-top:10px; border-top:1px solid #eee; text-align:center;">' +
-                              '<a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="display:inline-block; width:100%; padding:8px 0; background-color:#FEE500; color:#3C1E1E; text-decoration:none; border-radius:6px; font-weight:bold; font-size:13px;">🚗 카카오 네비게이션</a>' +
-                              '</div>' +
-                              '</div>';
-                              
-                var infowindow = new kakao.maps.InfoWindow({{
-                    content: content,
-                    removable: true
-                }});
-                
+                // Click Event
                 kakao.maps.event.addListener(marker, 'click', function() {{
-                    infowindow.open(map, marker);
+                    // Sync Detail Map
+                    var moveLatLon = new kakao.maps.LatLng(item.lat, item.lon);
+                    
+                    // 1. Pan Overview slightly? No, keep context.
+                    // mapOverview.panTo(moveLatLon); 
+                    
+                    // 2. Update Detail Map
+                    mapDetail.setCenter(moveLatLon);
+                    mapDetail.setLevel(1); // Very Close Zoom
+                    
+                    // Update Detail Marker
+                    if (detailMarker) detailMarker.setMap(null);
+                    
+                    // Creates a larger marker for detail view
+                    var detailImgSize = new kakao.maps.Size(45, 45);
+                    var detailImg = new kakao.maps.MarkerImage(imgSrc, detailImgSize);
+                    
+                    detailMarker = new kakao.maps.Marker({{
+                        position: moveLatLon,
+                        image: detailImg,
+                        map: mapDetail
+                    }});
+                    
+                    // 3. Update Info Panel
+                    var badgeColor = item.is_large ? "#9C27B0" : (isOpen ? "#2196F3" : "#F44336");
+                    
+                    var html = '<div style="margin-bottom:20px;">' +
+                               '<h2 style="margin:0 0 8px 0; color:#222; font-size:20px; line-height:1.4;">' + item.title + '</h2>' +
+                               '<span class="status-badge" style="background-color:' + badgeColor + ';">' + item.status + '</span>' +
+                               (item.is_large ? '<span class="status-badge" style="background-color:#673AB7; margin-left:5px;">🏢 대형시설</span>' : '') +
+                               '</div>';
+                               
+                    html += '<table class="info-table">';
+                    if(item.branch) html += '<tr><td class="info-label">관리지사</td><td class="info-value">' + item.branch + '</td></tr>';
+                    if(item.manager) html += '<tr><td class="info-label">담당자</td><td class="info-value">' + item.manager + '</td></tr>';
+                    html += '<tr><td class="info-label">업종</td><td class="info-value">' + (item.biz_type || '-') + '</td></tr>';
+                    html += '<tr><td class="info-label">주소</td><td class="info-value">' + item.addr + '</td></tr>';
+                    if(item.tel) html += '<tr><td class="info-label">전화번호</td><td class="info-value">' + item.tel + '</td></tr>';
+                    html += '<tr><td colspan="2" style="height:10px;"></td></tr>'; // Spacer
+                    
+                    if(item.permit_date) html += '<tr><td class="info-label">인허가일</td><td class="info-value">' + item.permit_date + '</td></tr>';
+                    if(item.close_date) html += '<tr><td class="info-label" style="color:#D32F2F;">폐업일자</td><td class="info-value" style="color:#D32F2F;">' + item.close_date + '</td></tr>';
+                    if(item.reopen_date) html += '<tr><td class="info-label" style="color:#1976D2;">재개업일</td><td class="info-value">' + item.reopen_date + '</td></tr>';
+                    if(item.modified_date) html += '<tr><td class="info-label">정보수정</td><td class="info-value">' + item.modified_date + '</td></tr>';
+                    html += '</table>';
+                    
+                    html += '<a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" class="navi-btn">🚗 카카오내비 길찾기</a>';
+                    
+                    document.getElementById('info-content').innerHTML = html;
                 }});
                 
                 markers.push(marker);
@@ -181,16 +292,15 @@ def render_kakao_map(map_df, kakao_key):
             
             clusterer.addMarkers(markers);
             
-            // Auto Fit Bounds if data exists
             if (markers.length > 0) {{
-                map.setBounds(bounds);
+                mapOverview.setBounds(bounds);
             }}
             
-            // Zoom Control
+            // Standard Zoom Control for Overview
             var zoomControl = new kakao.maps.ZoomControl();
-            map.addControl(zoomControl, kakao.maps.ControlPosition.RIGHT);
+            mapOverview.addControl(zoomControl, kakao.maps.ControlPosition.RIGHT);
             
-            // [FEATURE] My Location Button (Custom Control)
+            // Location Button (Left Map Only)
             var locBtn = document.createElement('div');
             locBtn.innerHTML = '🎯 내 위치';
             locBtn.style.cssText = 'position:absolute;bottom:30px;right:10px;z-index:999;background:white;padding:8px 12px;border-radius:4px;border:1px solid #ccc;cursor:pointer;font-weight:bold;box-shadow:0 1px 3px rgba(0,0,0,0.2);';
@@ -201,28 +311,29 @@ def render_kakao_map(map_df, kakao_key):
                         var lon = position.coords.longitude; 
                         var locPosition = new kakao.maps.LatLng(lat, lon); 
                         
+                        mapOverview.setCenter(locPosition);
+                        mapOverview.setLevel(4);
+                        
+                        // Marker on Overview
                         var imageSrc = 'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_red.png', 
                             imageSize = new kakao.maps.Size(64, 69), 
                             imageOption = {{offset: new kakao.maps.Point(27, 69)}}; 
-                        var markerImage = new kakao.maps.MarkerImage(imageSrc, imageSize, imageOption);
-                        var marker = new kakao.maps.Marker({{ position: locPosition, image: markerImage }}); 
-                        marker.setMap(map); 
+                        var marker = new kakao.maps.Marker({{ position: locPosition, image: new kakao.maps.MarkerImage(imageSrc, imageSize, imageOption) }}); 
+                        marker.setMap(mapOverview); 
                         
-                        map.setCenter(locPosition);
+                        // Also update Detail Map to My Location?
+                        mapDetail.setCenter(locPosition);
+                        mapDetail.setLevel(2);
+                        new kakao.maps.Marker({{ position: locPosition, map: mapDetail }});
                         
-                        var infowindow = new kakao.maps.InfoWindow({{
-                            content: '<div style="padding:5px; text-align:center;">🔴 현재 내 위치</div>'
-                        }});
-                        infowindow.open(map, marker);
+                        document.getElementById('info-content').innerHTML = '<div class="sb-placeholder">📍 현재 내 위치입니다.</div>';
                         
                     }}, function(err) {{
-                        alert('위치 정보를 가져올 수 없습니다: ' + err.message);
+                        alert('위치 실패: ' + err.message);
                     }});
-                }} else {{ 
-                    alert('이 브라우저에서는 위치 기반 서비스를 사용할 수 없습니다.'); 
                 }}
             }};
-            document.getElementById('map').appendChild(locBtn);
+            document.getElementById('map-overview').appendChild(locBtn);
             
         </script>
     </body>
@@ -230,11 +341,9 @@ def render_kakao_map(map_df, kakao_key):
     '''
     
     import hashlib
-    # Create a unique key based on the data to force remount and avoid "removeChild" errors
-    # Truncate json to avoid huge string hashing if needed, but hashing full string is safer for correctness
     data_hash = hashlib.md5(json_data.encode('utf-8')).hexdigest()
     
-    components.html(html_content, height=470, key=f"kakao_map_{data_hash}")
+    components.html(html_content, height=850, key=f"kakao_map_dual_{data_hash}")
 
 def render_folium_map(map_df):
     """
@@ -250,136 +359,329 @@ def render_folium_map(map_df):
     valid_rows = map_df.dropna(subset=['lat', 'lon'])
     n_valid = len(valid_rows)
     
-    # [DEBUG] Visible Debug Info Removed
-    display_df = valid_rows
+def render_folium_map(display_df):
+    """
+    Render Map using Leaflet (Client-Side) to prevent Streamlit reruns (flashing).
+    Layout: Split View (65% Map, 35% Detail)
+    """
+    if display_df.empty:
+        st.warning("표시할 데이터가 없습니다.")
+        return
+
+    # 1. Data Preparation & Date Formatting
+    # Create a copy to modify for display
+    map_data_df = display_df.copy()
     
-    # 2. Limit (Performance) - REVERTED to 2000 as per user request
-    limit = 2000
-    if len(display_df) > limit:
-         st.warning(f"⚠️ 성능을 위해 상위 {limit:,}개만 지도에 표시합니다.")
-         display_df = display_df.head(limit)
-    
-    # 3. Center
-    if not display_df.empty:
-        avg_lat = display_df['lat'].mean()
-        avg_lon = display_df['lon'].mean()
-    else:
-        avg_lat, avg_lon = 37.5665, 126.9780
+    def format_date_simple(d):
+        if pd.isna(d) or str(d) == 'NaT': return '-'
+        return str(d)[:10] # YYYY-MM-DD
         
-    # [FIX] Set 'tiles' to OpenStreetMap for stability (VWorld as option)
-    m = folium.Map(location=[avg_lat, avg_lon], zoom_start=11, tiles='OpenStreetMap')
+    # Apply formatting
+    if '인허가일자' in map_data_df.columns: map_data_df['permit_date'] = map_data_df['인허가일자'].apply(format_date_simple)
+    if '폐업일자' in map_data_df.columns: map_data_df['close_date'] = map_data_df['폐업일자'].apply(format_date_simple)
+    if '최종수정시점' in map_data_df.columns: map_data_df['modified_date'] = map_data_df['최종수정시점'].apply(format_date_simple)
+    if '재개업일자' in map_data_df.columns: map_data_df['reopen_date'] = map_data_df['재개업일자'].apply(format_date_simple)
     
-    # 1. Add VWorld (Primary Base Map - Best for Korea Buildings/Roads)
-    folium.TileLayer(
-        tiles='https://xdworld.vworld.kr/2d/Base/service/{z}/{x}/{y}.png',
-        attr='VWorld',
-        name='브이월드 (상세 건물/도로)',
-        overlay=False, # Allows it to be selected as a base map
-        control=True,
-        show=False # Default to OSM (Safe), user can switch
-    ).add_to(m)
+    # Fill defaults
+    map_data_df['title'] = map_data_df['사업장명'].fillna('상호미상')
+    map_data_df['status'] = map_data_df['영업상태명'].fillna("-")
+    map_data_df['addr'] = map_data_df['소재지전체주소'].fillna("-")
+    map_data_df['tel'] = map_data_df['소재지전화'].fillna("").replace('nan', '')
+    map_data_df['branch'] = map_data_df['관리지사'].fillna("-")
+    map_data_df['manager'] = map_data_df['SP담당'].fillna("-")
+    map_data_df['biz_type'] = map_data_df['업태구분명'].fillna("-")
     
-    # Add Layer Control to switch between VWorld and OSM
-    folium.LayerControl(collapsed=False).add_to(m)
-    
-    # [FEATURE] My Location
-    from folium.plugins import LocateControl
-    LocateControl(
-        auto_start=False,
-        strings={"title": "내 위치 보기", "popup": "현재 위치"},
-        locateOptions={'enableHighAccuracy': True}
-    ).add_to(m)
+    # Check for '평수' or calculate it (Assuming 1 '소재지면적' unit approx to meters, usually m2)
+    # If logic exists elsewhere, reuse. Here we approximate if '평수' column exists.
+    if '평수' in map_data_df.columns:
+        map_data_df['area_py'] = map_data_df['평수'].fillna(0).astype(float).round(1)
+    else:
+        map_data_df['area_py'] = 0.0
+        
+    # Large Area Flag for Coloring
+    map_data_df['is_large'] = map_data_df['area_py'] >= 100.0
 
-    count = 0
-    for _, row in display_df.iterrows():
-        try:
-            # Data Preparation
-            status = str(row['영업상태명'])
-            title = str(row['사업장명']).replace('"', '&quot;').replace("'", "&#39;")
-            addr = str(row.get('소재지전체주소', '')).replace('nan', '')
-            tel = str(row.get('소재지전화', '')).replace('nan', '')
+    # Convert to Dict for JSON
+    cols_to_keep = ['lat', 'lon', 'title', 'status', 'addr', 'tel', 
+                    'permit_date', 'close_date', 'modified_date', 'reopen_date', 
+                    'branch', 'manager', 'biz_type', 'area_py', 'is_large']
+                    
+    # Ensure cols exist
+    for c in cols_to_keep:
+        if c not in map_data_df.columns: map_data_df[c] = ""
+        
+    map_data = map_data_df[cols_to_keep].to_dict(orient='records')
+    json_data = json.dumps(map_data, ensure_ascii=False)
+    
+    # Center calculation
+    avg_lat = display_df['lat'].mean()
+    avg_lon = display_df['lon'].mean()
+    
+    st.markdown('<div style="background-color: #e3f2fd; border-left: 5px solid #2196F3; padding: 10px; margin-bottom: 10px; border-radius: 4px;"><small><b>Tip:</b> 지도 우측 상단의 <b>레이어 버튼(📚)</b>을 눌러 <b>브이월드(VWorld)</b>로 배경을 변경할 수 있습니다.</small></div>', unsafe_allow_html=True)
+    
+    leaflet_template = f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        
+        <style>
+            html, body {{ margin: 0; padding: 0; height: 100%; width: 100%; font-family: 'Pretendard', sans-serif; overflow: hidden; }}
+            * {{ box-sizing: border-box; }}
             
-            # Area
-            area_val = row.get('평수', 0)
-            area_str = f"{float(area_val):.1f}평" if area_val else "-"
+            #container {{ 
+                display: grid; 
+                grid-template-columns: 65% 35%; 
+                width: 100%; 
+                height: 100%; 
+            }}
             
-            # Dates
-            def fmt_date(d):
-                if pd.isna(d) or str(d) == 'NaT': return '-'
-                return str(d)[:10]
-                
-            permit_date = fmt_date(row.get('인허가일자'))
-            close_date = fmt_date(row.get('폐업일자'))
+            #map-container {{ 
+                width: 100%; 
+                height: 100%; 
+                border-right: 2px solid #ddd;
+                position: relative;
+                z-index: 1; 
+            }}
             
-            # Color Logic
-            try:
-                raw_area = float(row.get('소재지면적', 0))
-            except:
-                raw_area = 0
-                
-            if raw_area >= 330.0:
-                color = "purple"
-                icon_type = "star"
-                status_style = "color:purple; font-weight:bold;"
-            elif "영업" in status or "정상" in status:
-                color = "green"
-                icon_type = "info-sign"
-                status_style = "color:green; font-weight:bold;"
-            elif "폐업" in status:
-                color = "red"
-                icon_type = "ban-circle"
-                status_style = "color:red; font-weight:bold;"
-            else:
-                color = "gray"
-                icon_type = "question-sign"
-                status_style = "color:gray;"
-
-            # Popup HTML
-            branch_info = str(row.get('관리지사', '')).replace('nan', '')
-            mgr_info = str(row.get('SP담당', '')).replace('nan', '')
+            #right-panel {{ 
+                width: 100%; 
+                height: 100%; 
+                background: white; 
+                display: flex; 
+                flex-direction: column;
+                overflow-y: auto;
+            }}
             
-            popup_html = f"""
-            <div style="font-family:'Pretendard', sans-serif; width:240px; font-size:12px;">
-                <h4 style="margin:0 0 8px 0; border-bottom:1px solid #eee; padding-bottom:5px; color:#333;">
-                    {title}
-                </h4>
-                <div style="font-weight:bold; color:#222; margin-bottom:5px;">
-                     🏠 {branch_info} / {mgr_info}
-                </div>
-                <table style="width:100%; border-collapse:collapse;">
-                    <tr><td style="color:#666; width:60px;">업태</td><td style="font-weight:bold; color:#555;">{str(row.get('업태구분명', ''))}</td></tr>
-                    <tr><td style="color:#666; width:60px;">상태</td><td style="{status_style}">{status}</td></tr>
-                    <tr><td style="color:#666;">주소</td><td>{addr}</td></tr>
-                    <tr><td style="color:#666;">평수</td><td>{area_str}</td></tr>
-                    <tr><td style="color:#666;">전화</td><td>{tel}</td></tr>
-                    <tr><td style="color:#666;">인허가</td><td>{permit_date}</td></tr>
-                    <tr><td style="color:#666;">폐업일</td><td>{close_date}</td></tr>
-                    <tr><td style="color:#1976D2;">재개업</td><td>{fmt_date(row.get('재개업일자'))}</td></tr>
-                    <tr><td style="color:#666; font-size:11px;">수정일</td><td>{fmt_date(row.get('최종수정시점'))}</td></tr>
-                </table>
-                <div style="margin-top:10px; padding-top:10px; border-top:1px solid #eee; text-align:center;">
-                    <a href="https://map.kakao.com/link/to/{title},{row['lat']},{row['lon']}" target="_blank" style="display:inline-block; width:100%; padding:8px 0; background-color:#FEE500; color:#3C1E1E; text-decoration:none; border-radius:6px; font-weight:bold; font-size:13px;">🚗 카카오 네비게이션</a>
+            /* Detail Card Styles */
+            .detail-card {{
+                margin: 20px;
+                background: white;
+                border: 1px solid #e0e0e0;
+                border-radius: 12px;
+                padding: 24px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            }}
+            .detail-header {{
+                margin-bottom: 20px;
+                border-bottom: 2px solid #f5f5f5;
+                padding-bottom: 15px;
+            }}
+            .detail-title {{
+                font-size: 20px;
+                font-weight: 700;
+                color: #1a1a1a;
+                margin: 0 0 8px 0;
+            }}
+            .detail-badge {{
+                display: inline-block;
+                padding: 4px 10px;
+                border-radius: 6px;
+                font-size: 13px;
+                font-weight: 600;
+                color: white;
+            }}
+            .detail-row {{
+                display: flex;
+                margin-bottom: 8px;
+                font-size: 14px;
+            }}
+            .detail-label {{
+                min-width: 70px;
+                color: #757575;
+                font-weight: 500;
+            }}
+            .detail-value {{
+                font-weight: 600;
+                color: #333;
+                flex: 1;
+            }}
+            .detail-meta {{
+                margin-top: 20px;
+                padding-top: 15px;
+                border-top: 1px solid #f0f0f0;
+                font-size: 13px;
+                color: #909090;
+                line-height: 1.6;
+            }}
+            .navi-btn {{ 
+                display:block; width:100%; padding:12px 0; 
+                background-color:#FEE500; color:#3C1E1E; 
+                text-decoration:none; border-radius:8px; 
+                font-weight:bold; font-size:14px; text-align:center; 
+                margin-top:20px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }}
+            .navi-btn:hover {{ background-color:#FDD835; }}
+            
+            .placeholder-box {{
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 100%;
+                color: #bdbdbd;
+                padding: 20px;
+                text-align: center;
+            }}
+            
+            /* Custom CSS Icons */
+            .custom-marker {{
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 30px;
+                height: 30px;
+                border-radius: 50%;
+                color: white;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+                border: 2px solid white;
+            }}
+            .custom-marker i {{
+                font-size: 14px;
+            }}
+            .marker-green {{ background-color: #2E7D32; }}
+            .marker-red {{ background-color: #d32f2f; }}
+            .marker-purple {{ background-color: #7B1FA2; }}
+            .marker-gray {{ background-color: #757575; }}
+            
+            .marker_label {{
+                background: rgba(255,255,255,0.9);
+                border: 1px solid #999;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: 700;
+                white-space: nowrap;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                color: #333;
+            }}
+        </style>
+    </head>
+    <body>
+        <div id="container">
+            <div id="map-container"></div>
+            <div id="right-panel">
+                <div id="detail-content" style="height:100%;">
+                    <div class="placeholder-box">
+                        <div style="font-size:48px; margin-bottom:10px;">👈</div>
+                        <div style="font-size:18px; font-weight:600;">마커를 선택해주세요</div>
+                        <div style="font-size:14px; margin-top:10px;">지도에서 마커를 클릭하면<br>상세 정보가 바로 표시됩니다.</div>
+                    </div>
                 </div>
             </div>
-            """
-            
-            folium.Marker(
-                [row['lat'], row['lon']],
-                popup=folium.Popup(popup_html, max_width=260),
-                tooltip=f"{title} ({status})",
-                icon=folium.Icon(color=color, icon=icon_type)
-            ).add_to(m) 
-            count += 1
-        except: continue
-        
-    st.write(f"🗺️ 지도에 {count}개의 마커를 추가했습니다.")
+        </div>
 
-    # Bounds
-    if not display_df.empty:
-        sw = display_df[['lat', 'lon']].min().values.tolist()
-        ne = display_df[['lat', 'lon']].max().values.tolist()
-        m.fit_bounds([sw, ne])
-        
-    # Render using st_folium (Stable)
-    from streamlit_folium import st_folium
-    st_folium(m, width="100%", height=450, returned_objects=[])
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <script>
+            // Data
+            var mapData = {json_data};
+            
+            // Map Layers
+            var osm = L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+                attribution: '&copy; OpenStreetMap',
+                maxZoom: 19
+            }});
+            
+            var vworldBase = L.tileLayer('https://xdworld.vworld.kr/2d/Base/service/{{z}}/{{x}}/{{y}}.png', {{
+                attribution: '&copy; VWorld',
+                maxZoom: 19
+            }});
+            
+            var vworldSat = L.tileLayer('https://xdworld.vworld.kr/2d/Satellite/service/{{z}}/{{x}}/{{y}}.jpeg', {{
+                attribution: '&copy; VWorld',
+                maxZoom: 19
+            }});
+            
+            // Init Map
+            var map = L.map('map-container', {{
+                center: [{avg_lat}, {avg_lon}],
+                zoom: 11,
+                layers: [osm], 
+                zoomControl: false 
+            }});
+            
+            // Controls
+            var baseMaps = {{
+                "기본 지도 (OSM)": osm,
+                "브이월드 (상세)": vworldBase,
+                "브이월드 (위성)": vworldSat
+            }};
+            L.control.layers(baseMaps, null, {{ position: 'topright' }}).addTo(map);
+            L.control.zoom({{ position: 'topright' }}).addTo(map);
+            
+            // Markers
+            mapData.forEach(function(item) {{
+                var isOpen = (item.status && (item.status.includes('영업') || item.status.includes('정상')));
+                var className, iconHtml;
+                
+                if (item.is_large) {{
+                    className = "custom-marker marker-purple";
+                    iconHtml = '<i class="fa-solid fa-star"></i>';
+                }} else if (isOpen) {{
+                    className = "custom-marker marker-green";
+                    iconHtml = '<i class="fa-solid fa-check"></i>';
+                }} else if (item.status && item.status.includes('폐업')) {{
+                    className = "custom-marker marker-red";
+                    iconHtml = '<i class="fa-solid fa-xmark"></i>';
+                }} else {{
+                    className = "custom-marker marker-gray";
+                    iconHtml = '<i class="fa-solid fa-circle"></i>';
+                }}
+                
+                var myIcon = L.divIcon({{
+                    className: '', // Clear default class to avoid white square
+                    html: '<div class="' + className + '">' + iconHtml + '</div>',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                }});
+                
+                var marker = L.marker([item.lat, item.lon], {{ icon: myIcon }}).addTo(map);
+                
+                // Tooltip
+                marker.bindTooltip(item.title, {{ direction: 'top', offset: [0, -18], className: 'marker_label' }});
+                
+                // Click Event
+                marker.on('click', function(e) {{
+                    var statusColor = (item.is_large) ? "#9C27B0" : (isOpen ? "#2196F3" : "#F44336");
+                    
+                    var html = `
+                    <div class="detail-card">
+                        <div class="detail-header">
+                            <h3 class="detail-title">${{item.title}}</h3>
+                            <span class="detail-badge" style="background-color:${{statusColor}};">${{item.status}}</span>
+                        </div>
+                        <div class="detail-body">
+                            <div class="detail-row"><span class="detail-label">담당</span><span class="detail-value">${{item.branch}} / ${{item.manager}}</span></div>
+                            <div class="detail-row"><span class="detail-label">전화</span><span class="detail-value">${{item.tel || "(정보없음)"}}</span></div>
+                            <div class="detail-row"><span class="detail-label">업태</span><span class="detail-value">${{item.biz_type}}</span></div>
+                            <div class="detail-row"><span class="detail-label">면적</span><span class="detail-value">${{item.area_py}}평</span></div>
+                            <div style="margin-top:10px;"><b>📍 주소:</b><br>${{item.addr}}</div>
+                        </div>
+                        <div class="detail-meta">
+                            인허가: ${{item.permit_date}}<br>
+                            폐업일: ${{item.close_date}}<br>
+                            최종수정: ${{item.modified_date}}
+                        </div>
+                        
+                        <a href="https://map.kakao.com/link/to/${{item.title}},${{item.lat}},${{item.lon}}" target="_blank" class="navi-btn">🚗 카카오내비 길찾기</a>
+                    </div>
+                    `;
+                    document.getElementById('detail-content').innerHTML = html;
+                }});
+            }});
+            
+            if (mapData.length > 0) {{
+                var group = new L.featureGroup(mapData.map(d => L.marker([d.lat, d.lon])));
+                map.fitBounds(group.getBounds(), {{ padding: [50, 50] }});
+            }}
+
+        </script>
+    </body>
+    </html>
+    '''
+    
+    components.html(leaflet_template, height=750)

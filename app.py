@@ -1583,18 +1583,18 @@ if raw_df is not None:
         sorted_branches = []
     
     # [FEATURE] Usage Guide Section
-    st.markdown("""
-    <div style="background-color: #f8f9fa; border-left: 4px solid #4CAF50; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-        <h4 style="margin-top:0; color:#2E7D32;">📖 사용안내</h4>
-        <p style="font-size: 0.95rem; line-height: 1.6; color: #333;">
-        이 데이터는 <b>행정안전부 공공데이터</b>로 1월 변동분(신규영업, 폐업, 변동이슈발생)데이터 입니다. <br>
-        지사별, 담당구역별 <b>영업(신규인허가 또는 변경이슈)</b>, <b>폐업(폐업등록)</b>된 시설로 지사/담당자별 조건 조회기능이 있으며, 
-        <b>신규/폐업(15일)</b> 체크박스 선택시 이슈 발생일로부터 15일이내 인것만 볼수 있으며, <b>병원, 100평</b> 다중조건 기능도 사용하실수 있습니다. <br>
-        특히 시설 위치를 <b>웹 지도</b>로 영업/폐업 각각 볼수 있으며 시설 선택시 기본정보 및 <b>카카오 네비게이션</b> 연결기능을 사용할수 있습니다. <br>
-        웹, 모바일에서 활용할수 있는 <b>모바일리스트, 데이터 그리드</b> 기능이 있어 필요시 다운로드 활용 가능합니다.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    with st.expander("📖 사용안내 (클릭하여 접기/펼치기)", expanded=True):
+        st.markdown("""
+        <div style="background-color: #f8f9fa; border-left: 4px solid #4CAF50; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+            <p style="font-size: 0.95rem; line-height: 1.6; color: #333;">
+            이 데이터는 <b>행정안전부 공공데이터</b>로 1월 변동분(신규영업, 폐업, 변동이슈발생)데이터 입니다. <br>
+            지사별, 담당구역별 <b>영업(신규인허가 또는 변경이슈)</b>, <b>폐업(폐업등록)</b>된 시설로 지사/담당자별 조건 조회기능이 있으며, 
+            <b>신규/폐업(15일)</b> 체크박스 선택시 이슈 발생일로부터 15일이내 인것만 볼수 있으며, <b>병원, 100평</b> 다중조건 기능도 사용하실수 있습니다. <br>
+            특히 시설 위치를 <b>웹 지도</b>로 영업/폐업 각각 볼수 있으며 시설 선택시 기본정보 및 <b>카카오 네비게이션</b> 연결기능을 사용할수 있습니다. <br>
+            웹, 모바일에서 활용할수 있는 <b>모바일리스트, 데이터 그리드</b> 기능이 있어 필요시 다운로드 활용 가능합니다.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
     # [DASHBOARD] Branch Status Cards (Hide for Manager role)
     if st.session_state.user_role != 'manager':
@@ -1866,7 +1866,7 @@ if raw_df is not None:
         with c_q3: q_hosp = st.checkbox("🏥 병원만", value=False)
         with c_q4: q_large = st.checkbox("🏗️ 100평↑", value=False)
         
-        st.markdown("---")
+        # Remove divider to save space
         
         map_df_base = df.dropna(subset=['lat', 'lon']).copy()
         
@@ -1904,8 +1904,7 @@ if raw_df is not None:
                  map_df_base['소재지면적_ad'] = pd.to_numeric(map_df_base['소재지면적'], errors='coerce').fillna(0)
                  map_df_base = map_df_base[map_df_base['소재지면적_ad'] >= 330.0]
         
-        st.markdown("---")
-        
+        # Reduced spacing here
         
         c_f1, c_f2, c_f3, c_f4 = st.columns(4)
         
@@ -1974,8 +1973,8 @@ if raw_df is not None:
         
         if filter_summary:
             st.caption(f"ℹ️ 적용된 필터: {', '.join(filter_summary)}")
-            
-        st.markdown("---")
+        
+        # Reduced Spacing
         
         if len(map_df) > 5000:
             st.info(f"ℹ️ 데이터가 많아({len(map_df):,}건) 클러스터링되어 표시됩니다. 지도를 확대하면 개별 마커가 보입니다.")
