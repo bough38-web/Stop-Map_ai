@@ -4,13 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>System Architecture & Logic Diagrams</title>
+    <title>Integrated System Architecture</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Mermaid.js for Diagrams -->
+    <!-- Mermaid.js -->
     <script type="module">
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral', fontFamily: 'Pretendard' });
     </script>
     <style>
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
@@ -20,22 +20,38 @@
             background-color: #f8fafc;
         }
 
-        .diagram-container {
-            background-color: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 1rem;
-            padding: 2rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            overflow-x: auto;
-            margin-bottom: 2rem;
-            text-align: center;
+        .hybrid-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+            align-items: center;
         }
 
-        .section-title {
+        @media (min-width: 768px) {
+            .hybrid-container {
+                grid-template-columns: 1fr 1.5fr;
+            }
+        }
+
+        .analogy-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid;
+            height: 100%;
             display: flex;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            color: #1e293b;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .diagram-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+            overflow-x: auto;
         }
     </style>
 </head>
@@ -43,123 +59,160 @@
 <body class="text-slate-800">
 
     <!-- Header -->
-    <header class="bg-indigo-900 text-white py-12 px-6">
-        <div class="container mx-auto max-w-5xl">
-            <h1 class="text-3xl md:text-4xl font-bold mb-2">시스템 기술 적용 및 논리 구조도</h1>
-            <p class="text-indigo-200 text-sm">Visual Architecture Report for General, Patent, and Expert Audiences</p>
+    <header class="bg-slate-900 text-white py-12 px-6">
+        <div class="container mx-auto max-w-6xl">
+            <h1 class="text-3xl md:text-5xl font-bold mb-4">Hybrid System Architecture</h1>
+            <p class="text-slate-400">Concept (Analogy) <i class="fa-solid fa-arrow-right-arrow-left mx-2"></i> Logic
+                (Diagram)</p>
         </div>
     </header>
 
-    <main class="container mx-auto max-w-5xl px-6 py-12">
+    <main class="container mx-auto max-w-6xl px-6 py-12 space-y-20">
 
-        <!-- 1. General Public Concept (Level 1) -->
-        <section class="mb-16">
-            <div class="section-title">
-                <span class="bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full mr-3">Level 1
-                    (일반인)</span>
-                <h2 class="text-2xl font-bold">개념적 구성도 (Conceptual Model)</h2>
+        <!-- Section 1: Data Processing -->
+        <section>
+            <div class="flex items-center mb-6">
+                <div
+                    class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold mr-4">
+                    1</div>
+                <h2 class="text-2xl font-bold">Data Processing (ETL)</h2>
             </div>
-            <p class="text-slate-600 mb-6">복잡한 데이터가 시스템을 통과하여 "가치 있는 영업 기회"로 변환되는 과정을 직관적으로 표현합니다.</p>
 
-            <div class="diagram-container">
-                <pre class="mermaid">
-graph LR
-    A[🪨 원시 데이터 (Raw Data)<br/>공공데이터포털] -->|수집 & 정제| B(⚙️ 영업 기회 발굴 엔진<br/>AI Optimization)
-    B -->|분석 & 시각화| C[💎 영업 기회 지도 (Value)<br/>Actionable Leads]
-    
-    style A fill:#f1f5f9,stroke:#94a3b8,stroke-width:2px
-    style B fill:#dbeafe,stroke:#3b82f6,stroke-width:2px
-    style C fill:#dcfce7,stroke:#22c55e,stroke-width:2px
-                </pre>
-            </div>
-        </section>
+            <div class="hybrid-container">
+                <!-- Left: Analogy -->
+                <div class="analogy-card border-blue-500">
+                    <div class="text-5xl mb-4">🦪</div>
+                    <h3 class="text-xl font-bold text-blue-600 mb-2">The "Pearl Mining"</h3>
+                    <p class="text-slate-600 leading-relaxed">
+                        공공데이터는 진흙탕(99%)과 진주(1%)가 섞여 있습니다.
+                        <br><br>
+                        이 시스템은 <strong>"자동 거름망"</strong>입니다.
+                        무의미한 데이터(폐업 3년 경과 등)를 걸러내고,
+                        영업 가능한 '진주'만 남깁니다.
+                    </p>
+                </div>
 
-        <!-- 2. Patent Process Flow (Level 2) -->
-        <section class="mb-16">
-            <div class="section-title">
-                <span class="bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1 rounded-full mr-3">Level 2
-                    (특허청)</span>
-                <h2 class="text-2xl font-bold">데이터 처리 프로세스 (Logical Flowchart)</h2>
-            </div>
-            <p class="text-slate-600 mb-6">특허 청구항의 근거가 되는 데이터 전처리 및 상태 판단, 좌표 변환의 상세 논리 흐름입니다.</p>
-
-            <div class="diagram-container">
-                <pre class="mermaid">
-flowchart TD
-    Start([Start System]) --> Load[📥 데이터 로드 (API/CSV)]
-    Load --> Filter1{인허가 상태 확인?}
+                <!-- Right: Diagram -->
+                <div class="diagram-card">
+                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 border-b pb-2">Technical
+                        Logic Flow</h4>
+                    <pre class="mermaid">
+flowchart LR
+    Raw[🌊 Raw Data Pool] --> Filter1{Is Valid?}
     
-    Filter1 -- "정상/영업중" --> Ignore[제외 (기존 업체)]
-    Filter1 -- "폐업 (Closed)" --> CheckDate{폐업일 1년 이내?}
-    Filter1 -- "신축/허가" --> Const[🏗️ 공사 현장 (High Value)]
+    Filter1 -- "Mud (Noise)" --> Discard[🗑️ Discard]
+    Filter1 -- "Pearl (Lead)" --> Clean[💎 Clean Data]
     
-    CheckDate -- Yes --> Vacancy[🏚️ 공실/재임대 후보 (Mid Value)]
-    CheckDate -- No --> Ignore
-    
-    Const --> VectorTrans[🔄 좌표계 변환 수행]
-    Vacancy --> VectorTrans
-    
-    subgraph CoreLogic [특허 청구 핵심 기술]
-        VectorTrans -->|Vectorization| WGS84[표준 좌표계 (WGS84)]
-        WGS84 --> MapMapping[📍 지도 매핑 (Mapping)]
+    subgraph Logic [Filter Rules]
+        Filter1 -->|Rule A| Status[Status Check]
+        Filter1 -->|Rule B| Date[Date Check]
     end
     
-    MapMapping --> End([서비스 표출])
-    
-    style VectorTrans fill:#fef3c7,stroke:#d97706,stroke-width:2px
-    style CoreLogic fill:#fffbeb,stroke:#d97706,stroke-dasharray: 5 5
-                </pre>
+    style Raw fill:#e2e8f0,stroke:#64748b
+    style Clean fill:#dbeafe,stroke:#2563eb,stroke-width:2px
+    style Discard fill:#f1f5f9,stroke:#94a3b8,stroke-dasharray: 5 5
+                    </pre>
+                </div>
             </div>
         </section>
 
-        <!-- 3. Technical Stack (Level 3) -->
-        <section class="mb-16">
-            <div class="section-title">
-                <span class="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full mr-3">Level 3
-                    (전문가)</span>
-                <h2 class="text-2xl font-bold">시스템 구성 아키텍처 (Tech Stack)</h2>
+        <!-- Section 2: Vectorization -->
+        <section>
+            <div class="flex items-center mb-6">
+                <div
+                    class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold mr-4">
+                    2</div>
+                <h2 class="text-2xl font-bold">Vector Transformation</h2>
             </div>
-            <p class="text-slate-600 mb-6">각 기술 컴포넌트 간의 상호 작용 및 데이터 파이프라인 구조입니다.</p>
 
-            <div class="diagram-container">
-                <pre class="mermaid">
+            <div class="hybrid-container">
+                <!-- Left: Analogy -->
+                <div class="analogy-card border-emerald-500">
+                    <div class="text-5xl mb-4">🗣️</div>
+                    <h3 class="text-xl font-bold text-emerald-600 mb-2">The "Instant Translator"</h3>
+                    <p class="text-slate-600 leading-relaxed">
+                        정부 지도(GRS80)와 구글 지도(WGS84)는 서로 언어가 다릅니다.
+                        <br><br>
+                        이 엔진은 <strong>"AI 동시 통역기"</strong>입니다.
+                        10만 개의 문장을 한 줄씩 번역하지 않고,
+                        <strong>0.1초 만에 책 한 권을 통째로 번역(Vectorizing)</strong>합니다.
+                    </p>
+                </div>
+
+                <!-- Right: Diagram -->
+                <div class="diagram-card">
+                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 border-b pb-2">Vector
+                        Operation Diagram</h4>
+                    <pre class="mermaid">
+sequenceDiagram
+    participant Gov as epds:5174 (Old)
+    participant Engine as ⚡ Vector Engine
+    participant Map as epsg:4326 (New)
+    
+    Gov->>Engine: Input 100,000 Coordinates (Batch)
+    Note over Engine: Vector Matrix Operation (No Loop)
+    Engine->>Map: Output 100,000 Lat/Lon (0.1ms)
+    
+    Note right of Map: Ready to Visualize
+                    </pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Mapping -->
+        <section>
+            <div class="flex items-center mb-6">
+                <div
+                    class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold mr-4">
+                    3</div>
+                <h2 class="text-2xl font-bold">Actionable Mapping</h2>
+            </div>
+
+            <div class="hybrid-container">
+                <!-- Left: Analogy -->
+                <div class="analogy-card border-red-500">
+                    <div class="text-5xl mb-4">🎯</div>
+                    <h3 class="text-xl font-bold text-red-600 mb-2">The "Missile Radar"</h3>
+                    <p class="text-slate-600 leading-relaxed">
+                        일반 지도가 그냥 '땅'만 보여준다면,
+                        이 시스템은 <strong>"전술 레이더"</strong>입니다.
+                        <br><br>
+                        모든 건물을 보여주는 게 아니라,
+                        <strong>지금 당장 공략해야 할 타겟(영업처)</strong>만
+                        빨간 점으로 찍어줍니다.
+                    </p>
+                </div>
+
+                <!-- Right: Diagram -->
+                <div class="diagram-card">
+                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 border-b pb-2">System
+                        Interaction Graph</h4>
+                    <pre class="mermaid">
 graph TD
-    subgraph DataLayer [Data Layer]
-        Raw[Public Data Portal]
-        CSV[Local CSV Files]
+    User((Sales User))
+    
+    subgraph MapInterface [Tactical Map Layer]
+        Target[🔴 Target (Construction)]
+        Normal[⚪ Normal (Ignore)]
     end
-
-    subgraph Backend [Python ETL Engine]
-        PD[Pandas DataFrame]
-        Numpy[NumPy Vector Ops]
-        PyProj[PyProj Projection]
-        
-        Raw --> PD
-        CSV --> PD
-        PD --> Numpy
-        Numpy --> PyProj
-    end
-
-    subgraph Frontend [Presentation Layer]
-        Folium[Folium Map Engine]
-        Streamlit[Streamlit UI]
-        Mobile[Mobile Responsive CSR]
-        
-        PyProj --> Folium
-        Folium --> Streamlit
-        Streamlit --> Mobile
-    end
-
-    style Backend fill:#f8fafc,stroke:#475569,stroke-width:2px
-    style PyProj fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px
-                </pre>
+    
+    User -->|Open App| MapInterface
+    MapInterface -->|Highlight| Target
+    MapInterface -.->|Fade Out| Normal
+    
+    Target -->|Click| Action[📝 Sales Action]
+    
+    style Target fill:#fecaca,stroke:#dc2626
+    style Action fill:#bbf7d0,stroke:#16a34a,stroke-width:2px
+                    </pre>
+                </div>
             </div>
         </section>
 
     </main>
 
-    <footer class="bg-indigo-900 text-indigo-200 py-8 text-center text-sm">
-        <p>Copyright © 2026 Sales Opportunity System. All Architecture Rights Reserved.</p>
+    <footer class="bg-white border-t border-slate-200 py-10 text-center text-slate-400 text-sm">
+        <p>Hybrid Architecture Report: Combining Concept & Code.</p>
     </footer>
 
 </body>
