@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Architecture & Logic Diagrams</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Mermaid.js for Diagrams -->
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .diagram-container {
+            background-color: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            color: #1e293b;
+        }
+    </style>
+</head>
+
+<body class="text-slate-800">
+
+    <!-- Header -->
+    <header class="bg-indigo-900 text-white py-12 px-6">
+        <div class="container mx-auto max-w-5xl">
+            <h1 class="text-3xl md:text-4xl font-bold mb-2">시스템 기술 적용 및 논리 구조도</h1>
+            <p class="text-indigo-200 text-sm">Visual Architecture Report for General, Patent, and Expert Audiences</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto max-w-5xl px-6 py-12">
+
+        <!-- 1. General Public Concept (Level 1) -->
+        <section class="mb-16">
+            <div class="section-title">
+                <span class="bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full mr-3">Level 1
+                    (일반인)</span>
+                <h2 class="text-2xl font-bold">개념적 구성도 (Conceptual Model)</h2>
+            </div>
+            <p class="text-slate-600 mb-6">복잡한 데이터가 시스템을 통과하여 "가치 있는 영업 기회"로 변환되는 과정을 직관적으로 표현합니다.</p>
+
+            <div class="diagram-container">
+                <pre class="mermaid">
+graph LR
+    A[🪨 원시 데이터 (Raw Data)<br/>공공데이터포털] -->|수집 & 정제| B(⚙️ 영업 기회 발굴 엔진<br/>AI Optimization)
+    B -->|분석 & 시각화| C[💎 영업 기회 지도 (Value)<br/>Actionable Leads]
+    
+    style A fill:#f1f5f9,stroke:#94a3b8,stroke-width:2px
+    style B fill:#dbeafe,stroke:#3b82f6,stroke-width:2px
+    style C fill:#dcfce7,stroke:#22c55e,stroke-width:2px
+                </pre>
+            </div>
+        </section>
+
+        <!-- 2. Patent Process Flow (Level 2) -->
+        <section class="mb-16">
+            <div class="section-title">
+                <span class="bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1 rounded-full mr-3">Level 2
+                    (특허청)</span>
+                <h2 class="text-2xl font-bold">데이터 처리 프로세스 (Logical Flowchart)</h2>
+            </div>
+            <p class="text-slate-600 mb-6">특허 청구항의 근거가 되는 데이터 전처리 및 상태 판단, 좌표 변환의 상세 논리 흐름입니다.</p>
+
+            <div class="diagram-container">
+                <pre class="mermaid">
+flowchart TD
+    Start([Start System]) --> Load[📥 데이터 로드 (API/CSV)]
+    Load --> Filter1{인허가 상태 확인?}
+    
+    Filter1 -- "정상/영업중" --> Ignore[제외 (기존 업체)]
+    Filter1 -- "폐업 (Closed)" --> CheckDate{폐업일 1년 이내?}
+    Filter1 -- "신축/허가" --> Const[🏗️ 공사 현장 (High Value)]
+    
+    CheckDate -- Yes --> Vacancy[🏚️ 공실/재임대 후보 (Mid Value)]
+    CheckDate -- No --> Ignore
+    
+    Const --> VectorTrans[🔄 좌표계 변환 수행]
+    Vacancy --> VectorTrans
+    
+    subgraph CoreLogic [특허 청구 핵심 기술]
+        VectorTrans -->|Vectorization| WGS84[표준 좌표계 (WGS84)]
+        WGS84 --> MapMapping[📍 지도 매핑 (Mapping)]
+    end
+    
+    MapMapping --> End([서비스 표출])
+    
+    style VectorTrans fill:#fef3c7,stroke:#d97706,stroke-width:2px
+    style CoreLogic fill:#fffbeb,stroke:#d97706,stroke-dasharray: 5 5
+                </pre>
+            </div>
+        </section>
+
+        <!-- 3. Technical Stack (Level 3) -->
+        <section class="mb-16">
+            <div class="section-title">
+                <span class="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full mr-3">Level 3
+                    (전문가)</span>
+                <h2 class="text-2xl font-bold">시스템 구성 아키텍처 (Tech Stack)</h2>
+            </div>
+            <p class="text-slate-600 mb-6">각 기술 컴포넌트 간의 상호 작용 및 데이터 파이프라인 구조입니다.</p>
+
+            <div class="diagram-container">
+                <pre class="mermaid">
+graph TD
+    subgraph DataLayer [Data Layer]
+        Raw[Public Data Portal]
+        CSV[Local CSV Files]
+    end
+
+    subgraph Backend [Python ETL Engine]
+        PD[Pandas DataFrame]
+        Numpy[NumPy Vector Ops]
+        PyProj[PyProj Projection]
+        
+        Raw --> PD
+        CSV --> PD
+        PD --> Numpy
+        Numpy --> PyProj
+    end
+
+    subgraph Frontend [Presentation Layer]
+        Folium[Folium Map Engine]
+        Streamlit[Streamlit UI]
+        Mobile[Mobile Responsive CSR]
+        
+        PyProj --> Folium
+        Folium --> Streamlit
+        Streamlit --> Mobile
+    end
+
+    style Backend fill:#f8fafc,stroke:#475569,stroke-width:2px
+    style PyProj fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px
+                </pre>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-indigo-900 text-indigo-200 py-8 text-center text-sm">
+        <p>Copyright © 2026 Sales Opportunity System. All Architecture Rights Reserved.</p>
+    </footer>
+
+</body>
+
+</html>
