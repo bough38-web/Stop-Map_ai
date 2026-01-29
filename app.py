@@ -1803,204 +1803,189 @@ if raw_df is not None:
 
     with tab1:
         with st.expander("🗺️ 지사/담당자 조회", expanded=True):
-            # st.subheader("🗺️ 지사/담당자 조회") # Removed subheader as it's now the expander title
-        
-        
-        # [FEATURE] Local AI Activity Guide
-        # Only show for Manager/Branch roles to provide personalized insight
-        if st.session_state.user_role in ['manager', 'branch']:
-            
-            # Calculate stats (Last 15 days)
-            ai_now = pd.Timestamp.now()
-            ai_cutoff = ai_now - pd.Timedelta(days=15)
-            
-            # Use df (which is already filtered for the user in base_df logic, and tab1 inherits valid df)
-            # Ensure we are using the base data relevant to the user
-            ai_df = df.copy() 
-            
-            # Helper to count recent events
-            def count_recent_events(col_name):
-                if col_name in ai_df.columns:
-                    # Convert only if not already datetime
-                    series = ai_df[col_name]
-                    if not pd.api.types.is_datetime64_any_dtype(series):
-                        series = pd.to_datetime(series, errors='coerce')
-                    return len(series[series >= ai_cutoff])
-                return 0
+            # st.subheader("🗺️ 지사/담당자 조회")
 
-            cnt_new = count_recent_events('인허가일자')
-            cnt_closed = count_recent_events('폐업일자')
-            cnt_mod = count_recent_events('최종수정시점')
-            
-            user_display_name = st.session_state.user_manager_name or st.session_state.user_branch or "담당자"
-            
-            # Generate Message
-            guide_msg = f"**{user_display_name}**님, 최근 15일간 데이터 분석 결과입니다.\n\n"
-            stats_msg = []
-            if cnt_new > 0: stats_msg.append(f"🆕 **신규 인허가 {cnt_new}건**")
-            if cnt_closed > 0: stats_msg.append(f"🚫 **폐업 {cnt_closed}건**")
-            if cnt_mod > 0: stats_msg.append(f"🔄 **정보 수정 {cnt_mod}건**")
-            
-            if not stats_msg:
-                guide_msg += "최근 15일간 감지된 주요 변동 사항(신규/폐업/수정)이 없습니다."
-            else:
-                guide_msg += ", ".join(stats_msg) + "이(가) 감지되었습니다."
+            # [FEATURE] Local AI Activity Guide
+            # Only show for Manager/Branch roles to provide personalized insight
+            if st.session_state.user_role in ['manager', 'branch']:
 
-            # Recommend Strategy
-            recommendation = ""
-            if cnt_new > 0:
-                recommendation = "💡 **AI 추천**: 신규 인허가 업체는 초기 진입 선점이 가장 중요합니다. 최근 등록된 업체를 **최우선 방문**하여 경쟁사보다 먼저 컨택하세요."
-            elif cnt_closed > 0 and cnt_closed >= cnt_mod:
-                recommendation = "💡 **AI 추천**: 폐업이 발생하는 구역은 시장 변화의 신호일 수 있습니다. **자산 회수** 기회를 점검하거나, 해당 상권의 경쟁 구도 변화를 분석해보세요."
-            elif cnt_mod > 0:
-                recommendation = "💡 **AI 추천**: 정보가 수정된 업체는 영업 환경이나 담당자가 변경되었을 가능성이 높습니다. **재컨택**을 통해 변동 사항을 확인하고 관계를 강화하세요."
-            else:
-                recommendation = "💡 **AI 추천**: 특이사항이 없는 안정적인 시기입니다. **기존 우수 고객(Key Account)** 관리와 잠재 고객 발굴을 위한 정기 순회 활동을 권장합니다."
-            
-            st.info(guide_msg + "\n\n" + recommendation, icon="🤖")
+                # Calculate stats (Last 15 days)
+                ai_now = pd.Timestamp.now()
+                ai_cutoff = ai_now - pd.Timedelta(days=15)
 
-        
-        # [FEATURE] Condition View Toolbar (Quick Filters)
-        st.caption("조건별 빠른 조회 (지도 위에 표시됩니다)")
-        
-        # [ADMIN] Unassigned Filter
-        q_unassigned = False
-        if st.session_state.get('user_role') == 'admin':
-            q_unassigned = st.checkbox("🔍 미지정만 보기", value=False, help="지사 또는 담당자가 배정되지 않은 건만 조회")
-        
-        # [UX] Mobile-Friendly Layout: 2x2 Grid for Checkboxes
-        c_q_r1_1, c_q_r1_2 = st.columns(2)
-        with c_q_r1_1: q_new = st.checkbox("🆕 신규(7일)", value=False, help="최근 7일 이내 개업(인허가)된 건")
-        with c_q_r1_2: q_closed = st.checkbox("🚫 폐업(7일)", value=False, help="최근 7일 이내 폐업된 건")
-        
-        c_q_r2_1, c_q_r2_2 = st.columns(2)
-        with c_q_r2_1: q_hosp = st.checkbox("🏥 병원만", value=False)
-        with c_q_r2_2: q_large = st.checkbox("🏗️ 100평↑", value=False)
-        
-        # Remove divider to save space
-        
-        map_df_base = df.dropna(subset=['lat', 'lon']).copy()
-        
-        # [ADMIN] Filter Unassigned
-        if q_unassigned:
-            map_df_base = map_df_base[
-                (map_df_base['관리지사'] == '미지정') | 
-                (map_df_base['관리지사'].isna()) | 
-                (map_df_base['SP담당'] == '미지정') | 
-                (map_df_base['SP담당'].isna())
-            ]
-        
-        # [FEATURE] Apply Quick Filters (Pre-Filtering for Dynamic Dropdowns)
-        # 1. Date Filters (OR Logic: New OR Closed)
-        date_mask = pd.Series([False] * len(map_df_base), index=map_df_base.index)
-        has_date_filter = False
-        
-        if q_new:
-             has_date_filter = True
-             if '인허가일자' in map_df_base.columns:
-                 map_df_base['인허가일자'] = pd.to_datetime(map_df_base['인허가일자'], errors='coerce')
-                 # [FIX] Changed to 7 days
-                 cutoff_new = pd.Timestamp.now() - pd.Timedelta(days=7)
-                 date_mask = date_mask | (map_df_base['인허가일자'] >= cutoff_new)
-                 
-        if q_closed:
-             has_date_filter = True
-             if '폐업일자' in map_df_base.columns:
-                 map_df_base['폐업일자'] = pd.to_datetime(map_df_base['폐업일자'], errors='coerce')
-                 # [FIX] Changed to 7 days
-                 cutoff_closed = pd.Timestamp.now() - pd.Timedelta(days=7)
-                 date_mask = date_mask | (map_df_base['폐업일자'] >= cutoff_closed)
-        
-        if has_date_filter:
-            map_df_base = map_df_base[date_mask]
-                 
-        # 2. Property Filters (AND Logic)
-        if q_hosp:
-             if '업태구분명' in map_df_base.columns:
-                 map_df_base = map_df_base[map_df_base['업태구분명'].astype(str).str.contains('병원|의원', na=False)]
-                 
-        if q_large:
-             if '소재지면적' in map_df_base.columns:
-                 map_df_base['소재지면적_ad'] = pd.to_numeric(map_df_base['소재지면적'], errors='coerce').fillna(0)
-                 map_df_base = map_df_base[map_df_base['소재지면적_ad'] >= 330.0]
-        
-        # Reduced spacing here
-        
-        # [UX] Mobile-Friendly Layout: 2x2 Grid for Selectboxes
-        c_f_r1_1, c_f_r1_2 = st.columns(2)
-        
-        # [Dynamic Dropdowns]
-        # Logic: Type Selection should filter Region/Manager lists.
-        # We need to peek at the current 'map_biz_type' from session state if available
-        current_map_type = st.session_state.get('map_biz_type', "전체")
-        
-        # Filter base for options based on Type (if selected)
-        options_source_df = map_df_base.copy()
-        if current_map_type != "전체" and '업태구분명' in options_source_df.columns:
-            options_source_df = options_source_df[options_source_df['업태구분명'] == current_map_type]
-            
-        with c_f_r1_1:
-            # Dropdowns use filtered data for options
-            map_region_opts = ["전체"] + sorted(list(options_source_df['관리지사'].dropna().unique()))
-            sel_map_region = st.selectbox("관리지사", map_region_opts, key="map_region")
-        with c_f_r1_2:
-            # Filter Sales options based on Region (if selected) + Type (already applied to options_source_df)
-            temp_sales_source = options_source_df
-            if sel_map_region != "전체": 
-                temp_sales_source = temp_sales_source[temp_sales_source['관리지사'] == sel_map_region]
-                
-            map_sales_opts = ["전체"] + sorted(list(temp_sales_source['SP담당'].dropna().unique()))
-            sel_map_sales = st.selectbox("담당자", map_sales_opts, key="map_sales")
-            
-        c_f_r2_1, c_f_r2_2 = st.columns(2)
-        with c_f_r2_1:
-            # Business Type Options - Should these be filtered by Region?
-            # User asked for "Type selection -> Dynamic".
-            # Usually, Type list comes from the Quick-filtered Base.
-            map_type_col = '업태구분명' if '업태구분명' in map_df_base.columns else map_df_base.columns[0]
-            try:
-                # Type options come from the filters BEFORE Type selection (to allow changing type)
-                # But should reflect Region selection? "Dynamic" implies full cross-filtering.
-                # Let's try to filter Type options by Region if Region is selected.
-                type_source_df = map_df_base
-                if sel_map_region != "전체":
-                    type_source_df = type_source_df[type_source_df['관리지사'] == sel_map_region]
-                    
-                map_type_opts = ["전체"] + sorted(list(type_source_df[map_type_col].dropna().unique()))
-            except:
-                map_type_opts = ["전체"]
-            sel_map_type = st.selectbox("업종(업태)", map_type_opts, key="map_biz_type")
-        
-        with c_f_r2_2:
-             # Status Dropdown
-             # Usually "Active" vs "Closed".
-             map_status_opts = ["전체", "영업/정상", "폐업"]
-             sel_map_status = st.selectbox("영업상태", map_status_opts, key="map_status_filter")
-            
-        # Final Filtering
-        map_df = map_df_base.copy()
-        if sel_map_region != "전체": map_df = map_df[map_df['관리지사'] == sel_map_region]
-        if sel_map_sales != "전체": map_df = map_df[map_df['SP담당'] == sel_map_sales]
-        if sel_map_type != "전체": map_df = map_df[map_df['업태구분명'] == sel_map_type]
-        if sel_map_status != "전체": map_df = map_df[map_df['영업상태명'] == sel_map_status]
-            
-        st.markdown(f"**📍 조회된 업체**: {len(map_df):,} 개")
-        
-        # [FEATURE] Visible Filter Summary for Verification
-        filter_summary = []
-        if sel_map_region != "전체": filter_summary.append(f"지사:{sel_map_region}")
-        if sel_map_sales != "전체": filter_summary.append(f"담당:{sel_map_sales}")
-        if sel_map_type != "전체": filter_summary.append(f"업종:{sel_map_type}")
-        if sel_status != "전체": filter_summary.append(f"상태:{sel_status}")
-        
-        if filter_summary:
-            st.caption(f"ℹ️ 적용된 필터: {', '.join(filter_summary)}")
-        
-        # Reduced Spacing
-        
+                # Use df (which is already filtered for the user in base_df logic, and tab1 inherits valid df)
+                # Ensure we are using the base data relevant to the user
+                ai_df = df.copy() 
+
+                # Helper to count recent events
+                def count_recent_events(col_name):
+                    if col_name in ai_df.columns:
+                        # Convert only if not already datetime
+                        series = ai_df[col_name]
+                        if not pd.api.types.is_datetime64_any_dtype(series):
+                            series = pd.to_datetime(series, errors='coerce')
+                        return len(series[series >= ai_cutoff])
+                    return 0
+
+                cnt_new = count_recent_events('인허가일자')
+                cnt_closed = count_recent_events('폐업일자')
+                cnt_mod = count_recent_events('최종수정시점')
+
+                user_display_name = st.session_state.user_manager_name or st.session_state.user_branch or "담당자"
+
+                # Generate Message
+                guide_msg = f"**{user_display_name}**님, 최근 15일간 데이터 분석 결과입니다.\n\n"
+                stats_msg = []
+                if cnt_new > 0: stats_msg.append(f"🆕 **신규 인허가 {cnt_new}건**")
+                if cnt_closed > 0: stats_msg.append(f"🚫 **폐업 {cnt_closed}건**")
+                if cnt_mod > 0: stats_msg.append(f"🔄 **정보 수정 {cnt_mod}건**")
+
+                if not stats_msg:
+                    guide_msg += "최근 15일간 감지된 주요 변동 사항(신규/폐업/수정)이 없습니다."
+                else:
+                    guide_msg += ", ".join(stats_msg) + "이(가) 감지되었습니다."
+
+                # Recommend Strategy
+                recommendation = ""
+                if cnt_new > 0:
+                    recommendation = "💡 **AI 추천**: 신규 인허가 업체는 초기 진입 선점이 가장 중요합니다. 최근 등록된 업체를 **최우선 방문**하여 경쟁사보다 먼저 컨택하세요."
+                elif cnt_closed > 0 and cnt_closed >= cnt_mod:
+                    recommendation = "💡 **AI 추천**: 폐업이 발생하는 구역은 시장 변화의 신호일 수 있습니다. **자산 회수** 기회를 점검하거나, 해당 상권의 경쟁 구도 변화를 분석해보세요."
+                elif cnt_mod > 0:
+                    recommendation = "💡 **AI 추천**: 정보가 수정된 업체는 영업 환경이나 담당자가 변경되었을 가능성이 높습니다. **재컨택**을 통해 변동 사항을 확인하고 관계를 강화하세요."
+                else:
+                    recommendation = "💡 **AI 추천**: 특이사항이 없는 안정적인 시기입니다. **기존 우수 고객(Key Account)** 관리와 잠재 고객 발굴을 위한 정기 순회 활동을 권장합니다."
+
+                st.info(guide_msg + "\n\n" + recommendation, icon="🤖")
+
+
+            # [FEATURE] Condition View Toolbar (Quick Filters)
+            st.caption("조건별 빠른 조회 (지도 위에 표시됩니다)")
+
+            # [UX] Mobile-Friendly Layout: 2x2 Grid for Checkboxes
+            c_q_r1_1, c_q_r1_2 = st.columns(2)
+            with c_q_r1_1: q_new = st.checkbox("🆕 신규(7일)", value=False, help="최근 7일 이내 개업(인허가)된 건")
+            with c_q_r1_2: q_closed = st.checkbox("🚫 폐업(7일)", value=False, help="최근 7일 이내 폐업된 건")
+
+            c_q_r2_1, c_q_r2_2 = st.columns(2)
+            with c_q_r2_1: q_hosp = st.checkbox("🏥 병원만", value=False)
+            with c_q_r2_2: q_large = st.checkbox("🏗️ 100평↑", value=False)
+
+            # Remove divider to save space
+
+            map_df_base = df.dropna(subset=['lat', 'lon']).copy()
+
+            # [FEATURE] Apply Quick Filters (Pre-Filtering for Dynamic Dropdowns)
+            # 1. Date Filters (OR Logic: New OR Closed)
+            date_mask = pd.Series([False] * len(map_df_base), index=map_df_base.index)
+            has_date_filter = False
+
+            if q_new:
+                 has_date_filter = True
+                 if '인허가일자' in map_df_base.columns:
+                     map_df_base['인허가일자'] = pd.to_datetime(map_df_base['인허가일자'], errors='coerce')
+                     # [FIX] Changed to 7 days
+                     cutoff_new = pd.Timestamp.now() - pd.Timedelta(days=7)
+                     date_mask = date_mask | (map_df_base['인허가일자'] >= cutoff_new)
+
+            if q_closed:
+                 has_date_filter = True
+                 if '폐업일자' in map_df_base.columns:
+                     map_df_base['폐업일자'] = pd.to_datetime(map_df_base['폐업일자'], errors='coerce')
+                     # [FIX] Changed to 7 days
+                     cutoff_closed = pd.Timestamp.now() - pd.Timedelta(days=7)
+                     date_mask = date_mask | (map_df_base['폐업일자'] >= cutoff_closed)
+
+            if has_date_filter:
+                map_df_base = map_df_base[date_mask]
+
+            # 2. Property Filters (AND Logic)
+            if q_hosp:
+                 if '업태구분명' in map_df_base.columns:
+                     map_df_base = map_df_base[map_df_base['업태구분명'].astype(str).str.contains('병원|의원', na=False)]
+
+            if q_large:
+                 if '소재지면적' in map_df_base.columns:
+                     map_df_base['소재지면적_ad'] = pd.to_numeric(map_df_base['소재지면적'], errors='coerce').fillna(0)
+                     map_df_base = map_df_base[map_df_base['소재지면적_ad'] >= 330.0]
+
+            # Reduced spacing here
+
+            # [UX] Mobile-Friendly Layout: 2x2 Grid for Selectboxes
+            c_f_r1_1, c_f_r1_2 = st.columns(2)
+
+            # [Dynamic Dropdowns]
+            # Logic: Type Selection should filter Region/Manager lists.
+            # We need to peek at the current 'map_biz_type' from session state if available
+            current_map_type = st.session_state.get('map_biz_type', "전체")
+
+            # Filter base for options based on Type (if selected)
+            options_source_df = map_df_base.copy()
+            if current_map_type != "전체" and '업태구분명' in options_source_df.columns:
+                options_source_df = options_source_df[options_source_df['업태구분명'] == current_map_type]
+
+            with c_f_r1_1:
+                # Dropdowns use filtered data for options
+                map_region_opts = ["전체"] + sorted(list(options_source_df['관리지사'].dropna().unique()))
+                sel_map_region = st.selectbox("관리지사", map_region_opts, key="map_region")
+            with c_f_r1_2:
+                # Filter Sales options based on Region (if selected) + Type (already applied to options_source_df)
+                temp_sales_source = options_source_df
+                if sel_map_region != "전체": 
+                    temp_sales_source = temp_sales_source[temp_sales_source['관리지사'] == sel_map_region]
+
+                map_sales_opts = ["전체"] + sorted(list(temp_sales_source['SP담당'].dropna().unique()))
+                sel_map_sales = st.selectbox("담당자", map_sales_opts, key="map_sales")
+
+            c_f_r2_1, c_f_r2_2 = st.columns(2)
+            with c_f_r2_1:
+                # Business Type Options - Should these be filtered by Region?
+                # User asked for "Type selection -> Dynamic".
+                # Usually, Type list comes from the Quick-filtered Base.
+                map_type_col = '업태구분명' if '업태구분명' in map_df_base.columns else map_df_base.columns[0]
+                try:
+                    # Type options come from the filters BEFORE Type selection (to allow changing type)
+                    # But should reflect Region selection? "Dynamic" implies full cross-filtering.
+                    # Let's try to filter Type options by Region if Region is selected.
+                    type_source_df = map_df_base
+                    if sel_map_region != "전체":
+                        type_source_df = type_source_df[type_source_df['관리지사'] == sel_map_region]
+
+                    map_type_opts = ["전체"] + sorted(list(type_source_df[map_type_col].dropna().unique()))
+                except:
+                    map_type_opts = ["전체"]
+                sel_map_type = st.selectbox("업종(업태)", map_type_opts, key="map_biz_type")
+
+            with c_f_r2_2:
+                 # Status Dropdown
+                 # Usually "Active" vs "Closed".
+                 map_status_opts = ["전체", "영업/정상", "폐업"]
+                 sel_map_status = st.selectbox("영업상태", map_status_opts, key="map_status_filter")
+
+            # Final Filtering
+            map_df = map_df_base.copy()
+            if sel_map_region != "전체": map_df = map_df[map_df['관리지사'] == sel_map_region]
+            if sel_map_sales != "전체": map_df = map_df[map_df['SP담당'] == sel_map_sales]
+            if sel_map_type != "전체": map_df = map_df[map_df['업태구분명'] == sel_map_type]
+            if sel_map_status != "전체": map_df = map_df[map_df['영업상태명'] == sel_map_status]
+
+            st.markdown(f"**📍 조회된 업체**: {len(map_df):,} 개")
+
+            # [FEATURE] Visible Filter Summary for Verification
+            filter_summary = []
+            if sel_map_region != "전체": filter_summary.append(f"지사:{sel_map_region}")
+            if sel_map_sales != "전체": filter_summary.append(f"담당:{sel_map_sales}")
+            if sel_map_type != "전체": filter_summary.append(f"업종:{sel_map_type}")
+            if sel_status != "전체": filter_summary.append(f"상태:{sel_status}")
+
+            if filter_summary:
+                st.caption(f"ℹ️ 적용된 필터: {', '.join(filter_summary)}")
+
+            # Reduced Spacing
+
             if len(map_df) > 5000:
                 st.info(f"ℹ️ 데이터가 많아({len(map_df):,}건) 클러스터링되어 표시됩니다. 지도를 확대하면 개별 마커가 보입니다.")
-                    
+
         st.markdown("#### 🗺️ 지도")
         if not map_df.empty:
             if kakao_key:
