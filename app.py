@@ -1618,7 +1618,7 @@ if raw_df is not None:
         sorted_branches = []
     
     # [FEATURE] Usage Guide Section
-    with st.expander("📖 사용안내 (클릭하여 접기/펼치기)", expanded=True):
+    with st.expander("📖 사용안내 (클릭하여 접기/펼치기)", expanded=False):
         st.markdown("""
         <div style="background-color: #f8f9fa; border-left: 4px solid #4CAF50; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
             <p style="font-size: 0.95rem; line-height: 1.6; color: #333;">

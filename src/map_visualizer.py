@@ -576,7 +576,7 @@ def render_kakao_map(map_df, kakao_key):
                      listHtml += '<a href="javascript:void(0);" onclick="triggerVisit(\'' + item.title + '\', \'' + item.addr + '\')" style="font-size:11px; color:#4CAF50; font-weight:bold; margin-right:10px; text-decoration:none;">✅ 방문처리</a>';
                      listHtml += '<a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="font-size:11px; color:#1976D2; font-weight:bold; text-decoration:none;">🚗 길안내</a>';
                      listHtml += '</div></div>';
-                });
+                }});
                 
                 listHtml += '</div>';
                 document.getElementById('info-panel').innerHTML = listHtml;
