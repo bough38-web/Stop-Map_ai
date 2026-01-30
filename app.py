@@ -2288,7 +2288,8 @@ if raw_df is not None:
             "상담불가": "🔴 상담불가",
             "계약완료": "🟢 계약완료",
             "진행중": "🟡 상담중", # Handle legacy '진행중' map to '상담중'
-            "활동불가대상": "🔴 상담불가" # Legacy map
+            "활동불가대상": "🔴 상담불가", # Legacy map
+            "방문": "✅ 방문" # [FEATURE] Map Visit status
         }
         
         # Apply mapping to grid_df['활동진행상태']
@@ -2309,7 +2310,7 @@ if raw_df is not None:
         # Layout: Filter & Search
         c_filter, c_search = st.columns([1, 1])
         
-        status_filter_opts = ["🟡 상담중", "🔴 상담불가", "🟢 계약완료"]
+        status_filter_opts = ["✅ 방문", "🟡 상담중", "🔴 상담불가", "🟢 계약완료"]
         
         with c_filter:
             sel_grid_status = st.multiselect("진행상태 필터", status_filter_opts, placeholder="전체 보기 (미선택 시)")
