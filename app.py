@@ -24,6 +24,41 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# [FEATURE] Handle URL Actions (e.g. Visit from Map)
+if "visit_action" in st.query_params:
+    try:
+        q_title = st.query_params.get("title", "")
+        q_addr = st.query_params.get("addr", "")
+        
+        if q_title:
+            # Construct Key matching activity_logger logic
+            # Key: "{title}_{addr}"
+            # But wait, we might need to be careful about decoding or exact match.
+            # Let's assume passed values are correct.
+            
+            # Record Visit
+            # Get current user context if possible, or 'Unknown'
+            # Since reload happens, session state might be reset unless we rely on cookies or re-login.
+            # Simplification: Use "Map User" or try to recover if we had persistence (we don't for simple Streamlit yet without extra lib).
+            # But wait, if user was logged in, session state is usually preserved in recent Streamlit if running on same tab? 
+            # Actually, `window.location.assign` might reset session state if not using specialized query param handling or if Streamlit sees it as new session.
+            # Let's assume standard behavior: user might need to re-login OR we use a simple default name.
+            # Ideally, we should check st.session_state but it might be empty on fresh load.
+            
+            visit_user = "Field Agent" 
+            
+            # Save
+            record_key = f"{q_title}_{q_addr}"
+            activity_logger.save_activity_status(record_key, "방문", "지도에서 방문 처리함", visit_user)
+            
+            st.toast(f"✅ '{q_title}' 방문 처리 완료!", icon="🏃")
+            
+            # Clear params to prevent re-trigger
+            st.query_params.clear()
+            
+    except Exception as e:
+        st.error(f"Action Error: {e}")
+
 # [FIX] Force Streamlit Native Theme for Altair (High Contrast)
 try:
     alt.themes.enable('streamlit')

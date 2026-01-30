@@ -135,6 +135,39 @@ def _process_and_merge_district_data(target_df: pd.DataFrame, district_file_path
         mgr_info = df_district[['SP담당', '영업구역 수정', '관리지사']].drop_duplicates().to_dict(orient='records')
     else:
         mgr_info = df_district[['SP담당', '관리지사']].drop_duplicates().to_dict(orient='records')
+
+    # 8. Merge Persistent Activity Status
+    # [FEATURE] Load saved activity status (e.g. Visit) and merge
+    try:
+        from src import activity_logger
+        # Load all statuses once
+        saved_statuses = activity_logger.load_json_file(activity_logger.ACTIVITY_STATUS_FILE)
+        
+        if saved_statuses:
+            # Helper to match key: "store_name_address"
+            def get_saved_status(row):
+                key = activity_logger.get_record_key(row)
+                record = saved_statuses.get(key)
+                if record and record.get('활동진행상태'):
+                    return record.get('활동진행상태')
+                return row['영업상태명'] if '영업상태명' in row else '' # Default fall back
+
+            # Create '활동진행상태' column if not exists, or update it
+            # We want to PRIORITIZE saved status over raw status if "Activity Status" concept is separate.
+            # But usually '영업상태명' is Open/Closed (Public Data).
+            # '활동진행상태' is Internal Sales Status (Visit, Consulting, etc).
+            
+            # Apply to new column '활동진행상태'
+            final_df['활동진행상태'] = final_df.apply(get_saved_status, axis=1)
+            
+            # If nothing found, it might be empty string. Fill with '-' or keep empty?
+            # Let's fill NaNs with empty string
+            final_df['활동진행상태'] = final_df['활동진행상태'].fillna('')
+            
+    except Exception as e:
+        print(f"Failed to merge activity status: {e}")
+        if '활동진행상태' not in final_df.columns:
+             final_df['활동진행상태'] = ''
         
     return final_df, mgr_info, None
 

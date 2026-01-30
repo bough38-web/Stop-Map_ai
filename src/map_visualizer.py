@@ -282,13 +282,28 @@ def render_kakao_map(map_df, kakao_key):
                     if(item.modified_date) html += '<tr><td class="info-label">정보수정</td><td class="info-value">' + item.modified_date + '</td></tr>';
                     html += '</table>';
                     
-                    html += '<a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" class="navi-btn">🚗 카카오내비 길찾기</a>';
+                    html += '<div style="display:flex; gap:10px; margin-top:20px;">';
+                    html += '<a href="javascript:void(0);" onclick="triggerVisit(\'' + item.title + '\', \'' + item.addr + '\')" class="navi-btn" style="background-color:#4CAF50; color:white;">✅ 방문 처리</a>';
+                    html += '<a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" class="navi-btn">🚗 길찾기</a>';
+                    html += '</div>';
                     
                     document.getElementById('info-content').innerHTML = html;
                 }});
                 
                 markers.push(marker);
             }});
+            
+            // [FEATURE] Visit Trigger Function
+            window.triggerVisit = function(title, addr) {{
+                if(confirm("'" + title + "' 업체를 [방문] 상태로 변경하시겠습니까? (페이지가 새로고침됩니다)")) {{
+                    // Normalize for URL
+                    var url = window.parent.location.href; // Access parent Streamlit URL
+                    // Check if already has query params
+                    var separator = url.includes('?') ? '&' : '?';
+                    var newUrl = url + separator + 'visit_action=true&title=' + encodeURIComponent(title) + '&addr=' + encodeURIComponent(addr);
+                    window.parent.location.assign(newUrl);
+                }}
+            }};
             
             clusterer.addMarkers(markers);
             
@@ -303,7 +318,7 @@ def render_kakao_map(map_df, kakao_key):
             // Location Button (Left Map Only)
             var locBtn = document.createElement('div');
             locBtn.innerHTML = '🎯 내 위치';
-            locBtn.style.cssText = 'position:absolute;bottom:30px;right:10px;z-index:999;background:white;padding:8px 12px;border-radius:4px;border:1px solid #ccc;cursor:pointer;font-weight:bold;box-shadow:0 1px 3px rgba(0,0,0,0.2);';
+            locBtn.style.cssText = 'position:absolute;top:10px;left:10px;z-index:999;background:white;padding:8px 12px;border-radius:4px;border:1px solid #ccc;cursor:pointer;font-weight:bold;box-shadow:0 1px 3px rgba(0,0,0,0.2);';
             locBtn.onclick = function() {{
                 if (navigator.geolocation) {{
                     navigator.geolocation.getCurrentPosition(function(position) {{
@@ -707,7 +722,10 @@ def render_folium_map(display_df):
                             최종수정: ${{item.modified_date}}
                         </div>
                         
-                        <a href="https://map.kakao.com/link/to/${{item.title}},${{item.lat}},${{item.lon}}" target="_blank" class="navi-btn">🚗 카카오내비 길찾기</a>
+                        <div style="display:flex; gap:10px; margin-top:20px;">
+                            <a href="javascript:void(0);" onclick="triggerVisit('${{item.title}}', '${{item.addr}}')" class="navi-btn" style="background-color:#4CAF50; color:white;">✅ 방문 처리</a>
+                            <a href="https://map.kakao.com/link/to/${{item.title}},${{item.lat}},${{item.lon}}" target="_blank" class="navi-btn">🚗 길찾기</a>
+                        </div>
                     </div>
                     `;
                     document.getElementById('detail-content').innerHTML = html;
@@ -715,6 +733,17 @@ def render_folium_map(display_df):
                 
                 markers.addLayer(marker);
             }});
+            
+            // [FEATURE] Visit Trigger Function
+            window.triggerVisit = function(title, addr) {{
+                if(confirm("'" + title + "' 업체를 [방문] 상태로 변경하시겠습니까? (페이지가 새로고침됩니다)")) {{
+                     // Normalize for URL
+                    var url = window.parent.location.href; // Access parent Streamlit URL
+                    var separator = url.includes('?') ? '&' : '?';
+                    var newUrl = url + separator + 'visit_action=true&title=' + encodeURIComponent(title) + '&addr=' + encodeURIComponent(addr);
+                    window.parent.location.assign(newUrl);
+                }}
+            }};
             
             map.addLayer(markers);
             
@@ -726,7 +755,7 @@ def render_folium_map(display_df):
             // Current Location Button
             var locBtn = document.createElement('div');
             locBtn.innerHTML = '🎯 내 위치';
-            locBtn.style.cssText = 'position:absolute;bottom:30px;left:10px;z-index:1000;background:white;padding:8px 12px;border-radius:4px;border:1px solid #ccc;cursor:pointer;font-weight:bold;box-shadow:0 1px 3px rgba(0,0,0,0.2);';
+            locBtn.style.cssText = 'position:absolute;top:10px;left:10px;z-index:1000;background:white;padding:8px 12px;border-radius:4px;border:1px solid #ccc;cursor:pointer;font-weight:bold;box-shadow:0 1px 3px rgba(0,0,0,0.2);';
             locBtn.onclick = function() {{
                 if (navigator.geolocation) {{
                     navigator.geolocation.getCurrentPosition(function(position) {{
