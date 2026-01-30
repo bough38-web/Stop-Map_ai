@@ -1230,6 +1230,9 @@ if raw_df is not None:
             with c_h2:
                 only_large_area = st.toggle("🏗️ 100평 이상만 보기", value=False)
             
+            # [FEATURE] Medium Area Filter
+            only_medium_area = st.toggle("🏗️ 10평 ~ 100평 미만", value=False)
+            
             try:
                 available_types = sorted(list(filter_df[type_col].dropna().unique()))
             except:
@@ -1528,6 +1531,15 @@ if raw_df is not None:
                  st.sidebar.caption(f"🗓️ 기간 필터: {g_start} ~ {g_end} ({len(base_df)}건)")
 
     
+    # [FEATURE] Area Filter Logic
+    if only_large_area:
+         if '평수' in base_df.columns:
+             base_df = base_df[base_df['평수'] >= 100]
+             
+    if only_medium_area:
+         if '평수' in base_df.columns:
+             base_df = base_df[(base_df['평수'] >= 10) & (base_df['평수'] < 100)]
+
     # [FEATURE] Address search filter - simplified with OR logic
     if address_search:
         # Split search keywords by / or space
@@ -2075,6 +2087,64 @@ if raw_df is not None:
             
     with tab_stats:
         st.subheader("📈 다차원 상세 분석")
+        
+        # [FEATURE] 7-Day Daily Trend Chart
+        st.markdown("##### 📅 최근 7일 영업/폐업 추이")
+        try:
+            # 1. Prepare Data
+            trend_end_date = pd.Timestamp.now().normalize()
+            trend_start_date = trend_end_date - pd.Timedelta(days=7)
+            
+            trend_data = []
+            
+            # Open (In-license)
+            if '인허가일자' in raw_df.columns:
+                 open_7d = raw_df[
+                     (raw_df['인허가일자'] >= trend_start_date) & 
+                     (raw_df['인허가일자'] <= trend_end_date + pd.Timedelta(days=1)) # Include today
+                 ].copy()
+                 if not open_7d.empty:
+                     daily_open = open_7d.groupby(open_7d['인허가일자'].dt.date).size().reset_index(name='count')
+                     daily_open['status'] = '영업'
+                     daily_open.rename(columns={'인허가일자': 'date'}, inplace=True)
+                     trend_data.append(daily_open)
+            
+            # Closed
+            if '폐업일자' in raw_df.columns:
+                 close_7d = raw_df[
+                     (raw_df['폐업일자'] >= trend_start_date) & 
+                     (raw_df['폐업일자'] <= trend_end_date + pd.Timedelta(days=1))
+                 ].copy()
+                 if not close_7d.empty:
+                     daily_close = close_7d.groupby(close_7d['폐업일자'].dt.date).size().reset_index(name='count')
+                     daily_close['status'] = '폐업'
+                     daily_close.rename(columns={'폐업일자': 'date'}, inplace=True)
+                     trend_data.append(daily_close)
+            
+            if trend_data:
+                trend_df = pd.concat(trend_data, ignore_index=True)
+                trend_df['date'] = pd.to_datetime(trend_df['date'])
+                
+                # 2. Visualize
+                trend_chart = alt.Chart(trend_df).mark_bar().encode(
+                    x=alt.X('date:T', axis=alt.Axis(format='%m-%d', title='날짜')),
+                    y=alt.Y('count:Q', title='건수'),
+                    color=alt.Color('status:N', 
+                                    scale=alt.Scale(domain=['영업', '폐업'], range=['#AED581', '#EF9A9A']), 
+                                    legend=alt.Legend(title="구분")),
+                    tooltip=[alt.Tooltip('date:T', format='%Y-%m-%d', title='날짜'), 'status', 'count']
+                ).properties(
+                    height=200
+                ).interactive()
+                
+                st.altair_chart(trend_chart, use_container_width=True)
+            else:
+                st.info("최근 7일간 변동 데이터가 없습니다.")
+                
+        except Exception as e:
+            st.error(f"차트 생성 중 오류가 발생했습니다: {e}")
+            
+        st.markdown("---")
         
         now = datetime.now()
         if '인허가일자' in df.columns:
