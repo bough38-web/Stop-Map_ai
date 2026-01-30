@@ -259,7 +259,10 @@ def render_kakao_map(map_df, kakao_key):
                                     '<b>📞 전화:</b> ' + (item.tel || '-') + '<br>' +
                                     '<b>🏢 업태:</b> ' + (item.biz_type || '-') + '<br>' +
                                     '<b>📏 면적:</b> ' + (item.is_large ? '대형' : '일반') + '<br>' + 
-                                    '<b>📍 주소:</b> ' + item.addr + 
+                                    '<b>📍 주소:</b> ' + item.addr + '<br>' +
+                                    '<span style="color:#777; font-size:12px;">📅 인허가: ' + (item.permit_date || '-') + '</span><br>' +
+                                    '<span style="color:#777; font-size:12px;">📅 최종수정: ' + (item.modified_date || '-') + '</span><br>' +
+                                    (item.close_date ? '<span style="color:#D32F2F; font-size:12px;">❌ 폐업일: ' + item.close_date + '</span>' : '') +
                                     '</div>' +
                                     '<div style="margin-top:10px; display:flex; gap:5px;">' +
                                     '<a href="javascript:void(0);" onclick="triggerVisit(\'' + item.title + '\', \'' + item.addr + '\')" style="flex:1; background:#4CAF50; color:white; text-decoration:none; padding:8px 0; border-radius:4px; text-align:center; font-size:12px; font-weight:bold;">✅ 방문</a>' +
@@ -752,7 +755,10 @@ def render_folium_map(display_df):
                             <b>📞 전화:</b> ${{item.tel || '-'}}<br>
                             <b>🏢 업태:</b> ${{item.biz_type || '-'}}<br>
                             <b>📏 면적:</b> ${{item.area_py}}평 (${{item.is_large ? '대형' : '일반'}})<br> 
-                            <b>📍 주소:</b> ${{item.addr}}
+                            <b>📍 주소:</b> ${{item.addr}}<br>
+                            <span style="color:#777; font-size:11px;">📅 인허가: ${{item.permit_date || '-'}}</span><br>
+                            <span style="color:#777; font-size:11px;">📅 최종수정: ${{item.modified_date || '-'}}</span><br>
+                            ${{item.close_date ? '<span style="color:#D32F2F; font-size:11px;">❌ 폐업일: ' + item.close_date + '</span>' : ''}}
                         </div>
                         <div style="display:flex; gap:5px;">
                             <a href="javascript:void(0);" onclick="triggerVisit('${{item.title}}', '${{item.addr}}')" style="flex:1; background:#4CAF50; color:white; text-decoration:none; padding:6px 0; border-radius:4px; text-align:center; font-size:11px; font-weight:bold; display:block;">✅ 방문</a>
