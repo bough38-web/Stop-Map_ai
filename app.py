@@ -1342,6 +1342,7 @@ if raw_df is not None:
             selected_area_code = None # Default for area code
             only_hospitals = False
             only_large_area = False
+            only_medium_area = False
             sel_types = []
             sel_permit_ym = "전체"
             sel_close_ym = "전체"
