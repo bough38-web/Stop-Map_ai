@@ -2098,10 +2098,10 @@ if raw_df is not None:
             trend_data = []
             
             # Open (In-license)
-            if '인허가일자' in raw_df.columns:
-                 open_7d = raw_df[
-                     (raw_df['인허가일자'] >= trend_start_date) & 
-                     (raw_df['인허가일자'] <= trend_end_date + pd.Timedelta(days=1)) 
+            if '인허가일자' in base_df.columns:
+                 open_7d = base_df[
+                     (base_df['인허가일자'] >= trend_start_date) & 
+                     (base_df['인허가일자'] <= trend_end_date + pd.Timedelta(days=1)) 
                  ].copy()
                  if not open_7d.empty:
                      daily_open = open_7d.groupby(open_7d['인허가일자'].dt.date).size().reset_index(name='count')
@@ -2110,10 +2110,10 @@ if raw_df is not None:
                      trend_data.append(daily_open)
             
             # Closed
-            if '폐업일자' in raw_df.columns:
-                 close_7d = raw_df[
-                     (raw_df['폐업일자'] >= trend_start_date) & 
-                     (raw_df['폐업일자'] <= trend_end_date + pd.Timedelta(days=1))
+            if '폐업일자' in base_df.columns:
+                 close_7d = base_df[
+                     (base_df['폐업일자'] >= trend_start_date) & 
+                     (base_df['폐업일자'] <= trend_end_date + pd.Timedelta(days=1))
                  ].copy()
                  if not close_7d.empty:
                      daily_close = close_7d.groupby(close_7d['폐업일자'].dt.date).size().reset_index(name='count')
