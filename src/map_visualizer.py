@@ -232,6 +232,19 @@ def render_kakao_map(map_df, kakao_key):
                     image: markerImage
                 }});
                 
+                // [FEATURE] Permanent Label
+                var content = '<div class ="marker_label" style="display:block;">' + item.title + '</div>';
+                
+                var customOverlay = new kakao.maps.CustomOverlay({{
+                    position: markerPos,
+                    content: content,
+                    yAnchor: 2.2 // Position above marker
+                }});
+                
+                customOverlay.setMap(mapOverview);
+                // Can toggle based on zoom level if needed, but 'immediately visible' implies always.
+
+                
                 bounds.extend(markerPos);
                 
                 // Click Event
@@ -696,8 +709,13 @@ def render_folium_map(display_df):
                 
                 var marker = L.marker([item.lat, item.lon], {{ icon: myIcon }});
                 
-                // Tooltip
-                marker.bindTooltip(item.title, {{ direction: 'top', offset: [0, -18], className: 'marker_label' }});
+                // Tooltip (Permanent Label)
+                marker.bindTooltip(item.title, {{ 
+                    permanent: true, 
+                    direction: 'top', 
+                    offset: [0, -18], 
+                    className: 'marker_label' 
+                }});
                 
                 // Click Event
                 marker.on('click', function(e) {{
