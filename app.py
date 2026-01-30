@@ -2559,7 +2559,7 @@ if raw_df is not None:
                     st.info("변경된 항목이 없습니다.")
         
         with col2:
-            csv = df_display.drop(columns=['record_key']).to_csv(index=False, encoding='cp949').encode('cp949')
+            csv = df_display.drop(columns=['record_key']).to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
             st.download_button("📥 CSV 다운로드", csv, "영업기회_처리결과.csv", "text/csv")
     
     # [TAB] VOC Request (Only for Non-Admin Users)
