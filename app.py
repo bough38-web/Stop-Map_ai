@@ -245,13 +245,13 @@ def inject_button_color_script():
                 buttons.forEach(btn => {
                     const txt = btn.innerText.trim(); // [FIX] Trim whitespace
                     if (txt === '영업') {
-                        btn.style.backgroundColor = '#AED581';
-                        btn.style.color = '#1B5E20';
-                        btn.style.borderColor = '#AED581';
+                        btn.style.backgroundColor = '#AED581 !important';
+                        btn.style.color = '#1B5E20 !important';
+                        btn.style.borderColor = '#AED581 !important';
                     } else if (txt === '폐업') {
-                        btn.style.backgroundColor = '#EF9A9A';
-                        btn.style.color = '#B71C1C';
-                        btn.style.borderColor = '#EF9A9A';
+                        btn.style.backgroundColor = '#EF9A9A !important';
+                        btn.style.color = '#B71C1C !important';
+                        btn.style.borderColor = '#EF9A9A !important';
                     }
                 });
             } catch(e) {}
@@ -1732,11 +1732,13 @@ if raw_df is not None:
                         branch_html = f'<div style="background-color: {bg_color}; border: 2px solid {border_color}; border-radius: 8px; padding: 10px; text-align: center;"><div style="font-weight:bold; font-size:0.9rem; margin-bottom:5px; color:#333;">{b_name}</div><div style="font-size:1.2rem; font-weight:bold; color:#000;">{b_total:,}</div><div style="font-size:0.8rem; margin-top:4px;">{status_text}</div></div>'
                         st.markdown(branch_html, unsafe_allow_html=True)
                         
-                        b_c1, b_c2 = st.columns(2)
-                        with b_c1:
-                            st.button("영업", key=f"btn_br_active_{b_name}", on_click=update_branch_with_status, args=(b_name, '영업/정상'), use_container_width=True)
-                        with b_c2:
-                            st.button("폐업", key=f"btn_br_closed_{b_name}", on_click=update_branch_with_status, args=(b_name, '폐업'), use_container_width=True)
+                        # [UX] Only show Action Buttons if Selected
+                        if b_name == sel_dashboard_branch:
+                            b_c1, b_c2 = st.columns(2)
+                            with b_c1:
+                                st.button("영업", key=f"btn_br_active_{b_name}", on_click=update_branch_with_status, args=(b_name, '영업/정상'), use_container_width=True)
+                            with b_c2:
+                                st.button("폐업", key=f"btn_br_closed_{b_name}", on_click=update_branch_with_status, args=(b_name, '폐업'), use_container_width=True)
     
     st.markdown("---")
     
@@ -1860,12 +1862,13 @@ if raw_df is not None:
                       manager_card_html = f'<div class="metric-card" style="margin-top:-5px; margin-bottom:4px; padding: 10px 5px; text-align: center; border: 2px solid {border_color_mgr}; border-top: none; border-radius: 0 0 8px 8px; background-color: {bg_color_mgr};"><div class="metric-value" style="color:#333; font-size: 1.1rem; font-weight:bold;">{m_total:,}</div><div class="metric-sub" style="font-size:0.75rem; margin-top:4px;"><span style="color:#2E7D32">영업 {m_active}</span> / <span style="color:#d32f2f">폐업 {m_closed}</span></div></div>'
                       st.markdown(manager_card_html, unsafe_allow_html=True)
                       
-
-                      m_c1, m_c2 = st.columns(2)
-                      with m_c1:
-                          st.button("영업", key=f"btn_mgr_active_{unique_key_suffix}", on_click=update_manager_with_status, args=(mgr_label, '영업/정상'), use_container_width=True)
-                      with m_c2:
-                          st.button("폐업", key=f"btn_mgr_closed_{unique_key_suffix}", on_click=update_manager_with_status, args=(mgr_label, '폐업'), use_container_width=True)
+                      # [UX] Only show Action Buttons if Selected
+                      if is_selected:
+                          m_c1, m_c2 = st.columns(2)
+                          with m_c1:
+                              st.button("영업", key=f"btn_mgr_active_{unique_key_suffix}", on_click=update_manager_with_status, args=(mgr_label, '영업/정상'), use_container_width=True)
+                          with m_c2:
+                              st.button("폐업", key=f"btn_mgr_closed_{unique_key_suffix}", on_click=update_manager_with_status, args=(mgr_label, '폐업'), use_container_width=True)
 
 
     st.markdown("---")
