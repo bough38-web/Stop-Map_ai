@@ -1252,7 +1252,7 @@ if raw_df is not None:
             # 4. Date
             st.markdown("##### 📅 날짜 필터 (연-월)")
 
-            # [FEATURE] Quick Filters (New/Closed 7 Days)
+            # [FEATURE] Quick Filters (New/Closed 9 Days)
             # Initialize Session State for Quick Filter
             if 'admin_quick_filter' not in st.session_state:
                 st.session_state.admin_quick_filter = None
@@ -1260,28 +1260,28 @@ if raw_df is not None:
             qf_col1, qf_col2 = st.columns(2)
             # Use pandas for robust date handling
             today_ref = pd.Timestamp.now().date()
-            target_date = (pd.Timestamp.now() - pd.Timedelta(days=7)).date()
+            target_date = (pd.Timestamp.now() - pd.Timedelta(days=9)).date()
             
             with qf_col1:
                 # Toggle logic
                 is_active_new = st.session_state.admin_quick_filter == 'new_7d'
-                if st.button(f"✨ 신규 (7일){' ✅' if is_active_new else ''}", use_container_width=True, help="최근 7일 이내 개업(인허가)된 건만 봅니다."):
+                if st.button(f"✨ 신규 (9일){' ✅' if is_active_new else ''}", use_container_width=True, help="최근 9일 이내 개업(인허가)된 건만 봅니다."):
                     st.session_state.admin_quick_filter = None if is_active_new else 'new_7d'
                     st.rerun()
             with qf_col2:
                 is_active_closed = st.session_state.admin_quick_filter == 'closed_7d'
-                if st.button(f"🚪 폐업 (7일){' ✅' if is_active_closed else ''}", use_container_width=True, help="최근 7일 이내 폐업된 건만 봅니다."):
+                if st.button(f"🚪 폐업 (9일){' ✅' if is_active_closed else ''}", use_container_width=True, help="최근 9일 이내 폐업된 건만 봅니다."):
                     st.session_state.admin_quick_filter = None if is_active_closed else 'closed_7d'
                     st.rerun()
 
             # Apply Quick Filter Logic
             if st.session_state.admin_quick_filter == 'new_7d':
-                 st.info(f"✨ 최근 7일 ({target_date} ~) 신규 인허가 건")
+                 st.info(f"✨ 최근 9일 ({target_date} ~) 신규 인허가 건")
                  if '인허가일자' in filter_df.columns:
                      filter_df = filter_df[filter_df['인허가일자'].dt.date >= target_date]
                  
             elif st.session_state.admin_quick_filter == 'closed_7d':
-                 st.info(f"🚪 최근 7일 ({target_date} ~) 폐업 건")
+                 st.info(f"🚪 최근 9일 ({target_date} ~) 폐업 건")
                  if '폐업일자' in filter_df.columns:
                      filter_df = filter_df[filter_df['폐업일자'].dt.date >= target_date]
 
