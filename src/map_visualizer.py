@@ -249,7 +249,32 @@ def render_kakao_map(map_df, kakao_key):
                 
                 // Click Event
                 kakao.maps.event.addListener(marker, 'click', function() {{
-                    // Sync Detail Map
+                    // [FEATURE] Rich InfoWindow on Map
+                    var badgeColor = item.is_large ? "#9C27B0" : (isOpen ? "#2196F3" : "#F44336");
+                    
+                    var iwContent = '<div style="padding:15px; width:250px;">' + 
+                                    '<h4 style="margin:0 0 5px 0; font-size:16px;">' + item.title + '</h4>' +
+                                    '<div style="margin-bottom:10px;"><span class="status-badge" style="background-color:' + badgeColor + ';">' + item.status + '</span></div>' +
+                                    '<div style="font-size:13px; line-height:1.6; color:#555;">' +
+                                    '<b>📞 전화:</b> ' + (item.tel || '-') + '<br>' +
+                                    '<b>🏢 업태:</b> ' + (item.biz_type || '-') + '<br>' +
+                                    '<b>📏 면적:</b> ' + (item.is_large ? '대형' : '일반') + '<br>' + 
+                                    '<b>📍 주소:</b> ' + item.addr + 
+                                    '</div>' +
+                                    '<div style="margin-top:10px; display:flex; gap:5px;">' +
+                                    '<a href="javascript:void(0);" onclick="triggerVisit(\'' + item.title + '\', \'' + item.addr + '\')" style="flex:1; background:#4CAF50; color:white; text-decoration:none; padding:8px 0; border-radius:4px; text-align:center; font-size:12px; font-weight:bold;">✅ 방문</a>' +
+                                    '<a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="flex:1; background:#FEE500; color:black; text-decoration:none; padding:8px 0; border-radius:4px; text-align:center; font-size:12px; font-weight:bold;">🚗 길찾기</a>' +
+                                    '</div>' +
+                                    '</div>';
+                                    
+                    var infowindow = new kakao.maps.InfoWindow({{
+                        content: iwContent,
+                        removable: true
+                    }});
+                    
+                    infowindow.open(mapOverview, marker);
+
+
                     var moveLatLon = new kakao.maps.LatLng(item.lat, item.lon);
                     
                     // 1. Pan Overview slightly? No, keep context.
@@ -716,6 +741,26 @@ def render_folium_map(display_df):
                     offset: [0, -18], 
                     className: 'marker_label' 
                 }});
+                
+                // [FEATURE] Rich Popup on Map
+                var badgeColor = item.is_large ? "#9C27B0" : (isOpen ? "#2196F3" : "#F44336");
+                var popupContent = `
+                    <div style="width:220px; font-family:'Pretendard';">
+                        <h4 style="margin:0 0 5px 0; font-size:15px;">${{item.title}}</h4>
+                        <div style="margin-bottom:8px;"><span class="detail-badge" style="background-color:${{badgeColor}}; font-size:11px;">${{item.status}}</span></div>
+                        <div style="font-size:12px; line-height:1.5; color:#444; margin-bottom:10px;">
+                            <b>📞 전화:</b> ${{item.tel || '-'}}<br>
+                            <b>🏢 업태:</b> ${{item.biz_type || '-'}}<br>
+                            <b>📏 면적:</b> ${{item.area_py}}평 (${{item.is_large ? '대형' : '일반'}})<br> 
+                            <b>📍 주소:</b> ${{item.addr}}
+                        </div>
+                        <div style="display:flex; gap:5px;">
+                            <a href="javascript:void(0);" onclick="triggerVisit('${{item.title}}', '${{item.addr}}')" style="flex:1; background:#4CAF50; color:white; text-decoration:none; padding:6px 0; border-radius:4px; text-align:center; font-size:11px; font-weight:bold; display:block;">✅ 방문</a>
+                            <a href="https://map.kakao.com/link/to/${{item.title}},${{item.lat}},${{item.lon}}" target="_blank" style="flex:1; background:#FEE500; color:black; text-decoration:none; padding:6px 0; border-radius:4px; text-align:center; font-size:11px; font-weight:bold; display:block;">🚗 길찾기</a>
+                        </div>
+                    </div>
+                `;
+                marker.bindPopup(popupContent);
                 
                 // Click Event
                 marker.on('click', function(e) {{

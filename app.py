@@ -2391,7 +2391,7 @@ if raw_df is not None:
                 "평수": st.column_config.NumberColumn(format="%.1f평"),
                 "활동진행상태": st.column_config.SelectboxColumn(
                     "활동상태",
-                    options=["", "🟡 상담중", "🔴 상담불가", "🟢 계약완료"],
+                    options=["", "✅ 방문", "🟡 상담중", "🔴 상담불가", "🟢 계약완료"],
                     required=False
                 ),
                 "특이사항": st.column_config.TextColumn(
