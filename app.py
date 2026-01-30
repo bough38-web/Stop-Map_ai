@@ -2551,3 +2551,10 @@ if raw_df is not None:
 else:
     st.info("👈 사이드바에서 데이터를 업로드하거나, '자동 감지' 기능을 확인하세요.")
     st.markdown("### 🚀 시작하기\n1. **자동 모드**: `data/` 폴더에 파일이 있으면 자동으로 불러옵니다.\n2. **수동 모드**: 언제든지 사이드바에서 파일을 직접 업로드할 수 있습니다.\n\n> **Tip**: 모바일 접속 시 '홈 화면에 추가'하여 앱처럼 사용하세요!", unsafe_allow_html=True)
+
+    # [FIX] Global Injection of Button Status Colors
+    # Calling it at the end ensures all UI elements are rendered and observer is attached.
+    inject_button_color_script()
+
+if __name__ == '__main__':
+    main()
