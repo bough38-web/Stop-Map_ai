@@ -263,7 +263,7 @@ def render_kakao_map(map_df, kakao_key):
                 // Click Event
                 kakao.maps.event.addListener(marker, 'click', function() {{
                     // [FEATURE] Rich InfoWindow on Map
-                    var badgeColor = item.is_large ? "#9C27B0" : (isOpen ? "#2196F3" : "#F44336");
+                    var badgeColor = item.is_large ? "#9C27B0" : (isOpen ? "#AED581" : "#EF9A9A");
                     
                     var iwContent = '<div style="padding:15px; width:250px;">' + 
                                     '<h4 style="margin:0 0 5px 0; font-size:16px;">' + item.title + '</h4>' +
@@ -979,7 +979,7 @@ def render_folium_map(display_df):
                 
                 // Click Event
                 marker.on('click', function(e) {{
-                    var statusColor = (item.is_large) ? "#9C27B0" : (isOpen ? "#2196F3" : "#F44336");
+                    var statusColor = (item.is_large) ? "#9C27B0" : (isOpen ? "#AED581" : "#EF9A9A");
                     
                     var html = `
                     <div class="detail-card">

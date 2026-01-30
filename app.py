@@ -154,8 +154,8 @@ st.markdown("""
         font-size: 0.75rem;
         font-weight: 600;
     }
-    .status-open { background-color: #e8f5e9; color: #2e7d32; }
-    .status-closed { background-color: #ffebee; color: #c62828; }
+    .status-open { background-color: #AED581; color: #1B5E20; }
+    .status-closed { background-color: #EF9A9A; color: #B71C1C; }
     
     .card-meta {
         font-size: 0.85rem;
