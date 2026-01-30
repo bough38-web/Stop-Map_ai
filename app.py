@@ -2093,7 +2093,7 @@ if raw_df is not None:
         try:
             # 1. Prepare Data
             trend_end_date = pd.Timestamp.now().normalize()
-            trend_start_date = trend_end_date - pd.Timedelta(days=7)
+            trend_start_date = trend_end_date - pd.Timedelta(days=6) # 7 days inclusive: [Today-6, Today]
             
             trend_data = []
             
@@ -2101,7 +2101,7 @@ if raw_df is not None:
             if '인허가일자' in raw_df.columns:
                  open_7d = raw_df[
                      (raw_df['인허가일자'] >= trend_start_date) & 
-                     (raw_df['인허가일자'] <= trend_end_date + pd.Timedelta(days=1)) # Include today
+                     (raw_df['인허가일자'] <= trend_end_date + pd.Timedelta(days=1)) 
                  ].copy()
                  if not open_7d.empty:
                      daily_open = open_7d.groupby(open_7d['인허가일자'].dt.date).size().reset_index(name='count')
@@ -2124,15 +2124,17 @@ if raw_df is not None:
             if trend_data:
                 trend_df = pd.concat(trend_data, ignore_index=True)
                 trend_df['date'] = pd.to_datetime(trend_df['date'])
+                # [FIX] Create formatted string for x-axis to prevent duplicates (Altair Ordinal Issue)
+                trend_df['date_str'] = trend_df['date'].dt.strftime('%m-%d')
                 
                 # 2. Visualize
                 trend_chart = alt.Chart(trend_df).mark_bar().encode(
-                    x=alt.X('date:T', axis=alt.Axis(format='%m-%d', title='날짜')),
+                    x=alt.X('date_str:O', sort='date', axis=alt.Axis(title='날짜 (2026)')), # Ordinal axis with sort
                     y=alt.Y('count:Q', title='건수'),
                     color=alt.Color('status:N', 
                                     scale=alt.Scale(domain=['영업', '폐업'], range=['#AED581', '#EF9A9A']), 
                                     legend=alt.Legend(title="구분")),
-                    tooltip=[alt.Tooltip('date:T', format='%Y-%m-%d', title='날짜'), 'status', 'count']
+                    tooltip=['date_str', 'status', 'count']
                 ).properties(
                     height=200
                 ).interactive()
@@ -2629,5 +2631,5 @@ else:
     # Calling it at the end ensures all UI elements are rendered and observer is attached.
     inject_button_color_script()
 
-if __name__ == '__main__':
-    main()
+# Main execution completed by top-level script
+pass
