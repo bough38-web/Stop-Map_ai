@@ -2416,9 +2416,16 @@ if raw_df is not None:
                     orig_row = df_display.iloc[idx]
                     if (row['활동진행상태'] != orig_row['활동진행상태'] or 
                         row['특이사항'] != orig_row['특이사항']):
+                        
+                        # [FIX] Sanitize status: remove emojis for consistent storage
+                        # "✅ 방문" -> "방문", "🟡 상담중" -> "상담중"
+                        raw_status = row['활동진행상태']
+                        for emoji in ["✅ ", "🟡 ", "🔴 ", "🟢 "]:
+                            raw_status = raw_status.replace(emoji, "")
+                            
                         activity_logger.save_activity_status(
                             row['record_key'],
-                            row['활동진행상태'],
+                            raw_status,
                             row['특이사항'],
                             current_user
                         )
