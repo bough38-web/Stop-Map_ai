@@ -76,7 +76,20 @@ def render_kakao_map(map_df, kakao_key):
         
     display_df['is_large'] = display_df.apply(check_large, axis=1)
     
-    map_data = display_df[['lat', 'lon', 'title', 'status', 'addr', 'tel', 'close_date', 'permit_date', 'reopen_date', 'modified_date', 'biz_type', 'branch', 'manager', 'is_large']].to_dict(orient='records')
+    # [FEATURE] Area (Py) for display
+    def calc_py(row):
+        try:
+            val = float(row.get('소재지면적', 0))
+            return round(val / 3.3058, 1)
+        except:
+            return 0.0
+            
+    if '평수' in display_df.columns:
+        display_df['area_py'] = display_df['평수'].fillna(0).astype(float).round(1)
+    else:
+        display_df['area_py'] = display_df.apply(calc_py, axis=1)
+
+    map_data = display_df[['lat', 'lon', 'title', 'status', 'addr', 'tel', 'close_date', 'permit_date', 'reopen_date', 'modified_date', 'biz_type', 'branch', 'manager', 'is_large', 'area_py']].to_dict(orient='records')
     json_data = json.dumps(map_data, ensure_ascii=False)
     
     st.markdown('<div style="background-color: #e3f2fd; border-left: 5px solid #2196F3; padding: 10px; margin-bottom: 10px; border-radius: 4px;"><small><b>Tip:</b> 왼쪽 지도에서 마커를 선택하면 오른쪽에서 <b>상세 위치</b>와 <b>정보</b>를 확인할 수 있습니다.</small></div>', unsafe_allow_html=True)
@@ -550,16 +563,24 @@ def render_kakao_map(map_df, kakao_key):
                     // List Item
                      listHtml += '<div style="background:white; border:1px solid #eee; border-left:4px solid #E65100; padding:10px; margin-bottom:8px; border-radius:4px;">';
                      listHtml += '<div style="font-weight:bold; color:#E65100; margin-bottom:4px;">#' + seq + '. ' + item.title + '</div>';
-                     listHtml += '<div style="font-size:12px; color:#555;">' + item.addr + '</div>';
+                     listHtml += '<div style="font-size:12px; color:#555; margin-bottom:6px;">' + item.addr + '</div>';
+                     
+                     // Extra Info (Area, Dates)
+                     listHtml += '<div style="font-size:11px; color:#777; line-height:1.4; margin-bottom:8px; background:#f9f9f9; padding:6px; border-radius:4px;">';
+                     listHtml += '📏 면적: ' + (item.area_py || 0) + '평' + (item.is_large ? ' <span style="color:#673AB7; font-weight:bold;">(대형)</span>' : '') + '<br>';
+                     listHtml += '📅 인허가: ' + (item.permit_date || '-') + ' / 수정: ' + (item.modified_date || '-') + '<br>';
+                     if(item.close_date) listHtml += '<span style="color:#D32F2F;">❌ 폐업일: ' + item.close_date + '</span>';
+                     listHtml += '</div>';
+
                      listHtml += '<div style="margin-top:5px; text-align:right;">';
                      listHtml += '<a href="javascript:void(0);" onclick="triggerVisit(\'' + item.title + '\', \'' + item.addr + '\')" style="font-size:11px; color:#4CAF50; font-weight:bold; margin-right:10px; text-decoration:none;">✅ 방문처리</a>';
                      listHtml += '<a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="font-size:11px; color:#1976D2; font-weight:bold; text-decoration:none;">🚗 길안내</a>';
                      listHtml += '</div></div>';
-                }});
+                });
                 
                 listHtml += '</div>';
                 document.getElementById('info-panel').innerHTML = listHtml;
-                document.getElementById('map-detail').innerHTML = '<div class="detail-label">⚡ 추천 동선 모드</div><div style="width:100%; height:100%; display:flex; justify-content:center; align-items:center; color:#E65100; font-weight:bold; background:#fafafa;">지도에 표시된 순서대로<br>방문하세요</div>';
+                document.getElementById('map-detail').innerHTML = '<div class="detail-label">⚡ 추천 동선 모드</div><div style="width:100%; height:100%; display:flex; justify-content:center; align-items:center; color:#E65100; font-weight:bold; background:#fafafa; text-align:center;">지도에 표시된 순서대로<br>방문하세요</div>';
                 
                 // Draw Polyline
                 var polyline = new kakao.maps.Polyline({{
@@ -1160,7 +1181,14 @@ def render_folium_map(display_df):
                     listHtml += `
                         <div class="detail-card" style="margin:10px 0; padding:15px; border-left:4px solid #E65100;">
                             <div style="font-weight:bold; color:#E65100; margin-bottom:5px;">#${{seq}}. ${{item.title}}</div>
-                            <div style="font-size:12px; color:#555; margin-bottom:10px;">${{item.addr}}</div>
+                            <div style="font-size:12px; color:#555; margin-bottom:8px;">${{item.addr}}</div>
+                            
+                            <div style="font-size:11px; color:#777; line-height:1.4; margin-bottom:10px; background:#f9f9f9; padding:8px; border-radius:4px;">
+                                📏 면적: ${{item.area_py || 0}}평 ${{item.is_large ? '<span style="color:#673AB7; font-weight:bold;">(대형)</span>' : ''}}<br>
+                                📅 인허가: ${{item.permit_date || '-'}} / 수정: ${{item.modified_date || '-'}}<br>
+                                ${{item.close_date ? '<span style="color:#D32F2F;">❌ 폐업일: ' + item.close_date + '</span>' : ''}}
+                            </div>
+
                             <div style="display:flex; gap:5px;">
                                 <a href="javascript:void(0);" onclick="triggerVisit('${{item.title}}', '${{item.addr}}')" style="flex:1; background:#4CAF50; color:white; text-decoration:none; padding:5px 0; border-radius:4px; text-align:center; font-size:11px; font-weight:bold;">✅ 방문</a>
                                 <a href="https://map.kakao.com/link/to/${{item.title}},${{item.lat}},${{item.lon}}" target="_blank" style="flex:1; background:#FEE500; color:black; text-decoration:none; padding:5px 0; border-radius:4px; text-align:center; font-size:11px; font-weight:bold;">🚗 길안내</a>
