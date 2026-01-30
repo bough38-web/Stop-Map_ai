@@ -256,6 +256,7 @@ def render_kakao_map(map_df, kakao_key):
                                     '<h4 style="margin:0 0 5px 0; font-size:16px;">' + item.title + '</h4>' +
                                     '<div style="margin-bottom:10px;"><span class="status-badge" style="background-color:' + badgeColor + ';">' + item.status + '</span></div>' +
                                     '<div style="font-size:13px; line-height:1.6; color:#555;">' +
+                                    '<b>👤 담당:</b> ' + (item.branch || '-') + ' / ' + (item.manager || '-') + '<br>' +
                                     '<b>📞 전화:</b> ' + (item.tel || '-') + '<br>' +
                                     '<b>🏢 업태:</b> ' + (item.biz_type || '-') + '<br>' +
                                     '<b>📏 면적:</b> ' + (item.is_large ? '대형' : '일반') + '<br>' + 
@@ -752,6 +753,7 @@ def render_folium_map(display_df):
                         <h4 style="margin:0 0 5px 0; font-size:15px;">${{item.title}}</h4>
                         <div style="margin-bottom:8px;"><span class="detail-badge" style="background-color:${{badgeColor}}; font-size:11px;">${{item.status}}</span></div>
                         <div style="font-size:12px; line-height:1.5; color:#444; margin-bottom:10px;">
+                            <b>👤 담당:</b> ${{item.branch || '-'}} / ${{item.manager || '-'}}<br>
                             <b>📞 전화:</b> ${{item.tel || '-'}}<br>
                             <b>🏢 업태:</b> ${{item.biz_type || '-'}}<br>
                             <b>📏 면적:</b> ${{item.area_py}}평 (${{item.is_large ? '대형' : '일반'}})<br> 
