@@ -243,7 +243,7 @@ def inject_button_color_script():
             try {
                 const buttons = window.parent.document.querySelectorAll('button');
                 buttons.forEach(btn => {
-                    const txt = btn.innerText;
+                    const txt = btn.innerText.trim(); // [FIX] Trim whitespace
                     if (txt === '영업') {
                         btn.style.backgroundColor = '#AED581';
                         btn.style.color = '#1B5E20';
@@ -1867,8 +1867,6 @@ if raw_df is not None:
                       with m_c2:
                           st.button("폐업", key=f"btn_mgr_closed_{unique_key_suffix}", on_click=update_manager_with_status, args=(mgr_label, '폐업'), use_container_width=True)
 
-            # [FIX] Apply styles to these buttons
-            inject_button_color_script()
 
     st.markdown("---")
 
