@@ -153,7 +153,31 @@ def render_kakao_map(map_df, kakao_key):
         .navi-btn { display:block; width:100%; padding:12px 0; background-color:#FEE500; color:#3C1E1E; text-decoration:none; border-radius:6px; font-weight:bold; font-size:14px; text-align:center; margin-top:20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .navi-btn:hover { background-color:#FDD835; }
         
-        .detail-label { position: absolute; top: 10px; left: 10px; z-index: 10; background: rgba(255,255,255,0.9); padding: 5px 10px; font-size: 12px; font-weight: bold; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); pointer-events: none; }
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+        ::-webkit-scrollbar-track { background: #f0f0f0; }
+        
+        /* Mobile Responsive Layout */
+        @media (max-width: 768px) {
+            #container { 
+                grid-template-columns: 1fr !important; 
+                grid-template-rows: 60% 40%; /* Map top, Info bottom */
+            }
+            #map-overview { 
+                border-right: none; 
+                border-bottom: 2px solid #ddd; 
+            }
+            #right-panel {
+                grid-template-rows: 1fr; /* Unified panel or keep split? Let's just scroll */
+                display: block; 
+                overflow-y: auto;
+            }
+            #map-detail { display: none; } /* Hide detail map on mobile to save space/perf */
+            #info-panel { height: 100% !important; }
+            
+            .navi-btn { padding: 15px 0; font-size: 16px; } /* Larger touch target */
+        }
     '''
 
     html_content = f'''
@@ -373,7 +397,8 @@ def render_kakao_map(map_df, kakao_key):
             // Location Button (Left Map Only)
             var locBtn = document.createElement('div');
             locBtn.innerHTML = '🎯 내 위치';
-            locBtn.style.cssText = 'position:absolute;top:10px;left:10px;z-index:999;background:white;padding:8px 12px;border-radius:4px;border:1px solid #ccc;cursor:pointer;font-weight:bold;box-shadow:0 1px 3px rgba(0,0,0,0.2);';
+            locBtn.innerHTML = '🎯 내 위치';
+            locBtn.style.cssText = 'position:absolute; top:10px; left:10px; z-index:999; background:white; padding:12px 16px; border-radius:8px; border:1px solid #ccc; cursor:pointer; font-weight:bold; font-size:14px; box-shadow:0 2px 6px rgba(0,0,0,0.2);';
             locBtn.onclick = function() {{
                 if (navigator.geolocation) {{
                     navigator.geolocation.getCurrentPosition(function(position) {{
@@ -408,7 +433,8 @@ def render_kakao_map(map_df, kakao_key):
             // [FEATURE] Route Optimization Button
             var routeBtn = document.createElement('div');
             routeBtn.innerHTML = '⚡ 추천 동선 (5곳)';
-            routeBtn.style.cssText = 'position:absolute;top:50px;left:10px;z-index:999;background:white;padding:8px 12px;border-radius:4px;border:1px solid #ccc;cursor:pointer;font-weight:bold;box-shadow:0 1px 3px rgba(0,0,0,0.2); color:#E65100;';
+            routeBtn.innerHTML = '⚡ 추천 동선 (5곳)';
+            routeBtn.style.cssText = 'position:absolute; top:60px; left:10px; z-index:999; background:white; padding:12px 16px; border-radius:8px; border:1px solid #ccc; cursor:pointer; font-weight:bold; font-size:14px; box-shadow:0 2px 6px rgba(0,0,0,0.2); color:#E65100;';
             routeBtn.onclick = function() {{
                 if (navigator.geolocation) {{
                     // Show loading state
@@ -1033,7 +1059,8 @@ def render_folium_map(display_df):
             // Current Location Button
             var locBtn = document.createElement('div');
             locBtn.innerHTML = '🎯 내 위치';
-            locBtn.style.cssText = 'position:absolute;top:10px;left:10px;z-index:1000;background:white;padding:8px 12px;border-radius:4px;border:1px solid #ccc;cursor:pointer;font-weight:bold;box-shadow:0 1px 3px rgba(0,0,0,0.2);';
+            locBtn.innerHTML = '🎯 내 위치';
+            locBtn.style.cssText = 'position:absolute; top:10px; left:10px; z-index:1000; background:white; padding:12px 16px; border-radius:8px; border:1px solid #ccc; cursor:pointer; font-weight:bold; font-size:14px; box-shadow:0 2px 6px rgba(0,0,0,0.2);';
             locBtn.onclick = function() {{
                 if (navigator.geolocation) {{
                     navigator.geolocation.getCurrentPosition(function(position) {{
@@ -1066,7 +1093,8 @@ def render_folium_map(display_df):
             // [FEATURE] Route Optimization Button (Leaflet)
             var routeBtn = document.createElement('div');
             routeBtn.innerHTML = '⚡ 추천 동선 (5곳)';
-            routeBtn.style.cssText = 'position:absolute;top:50px;left:10px;z-index:1000;background:white;padding:8px 12px;border-radius:4px;border:1px solid #ccc;cursor:pointer;font-weight:bold;box-shadow:0 1px 3px rgba(0,0,0,0.2); color:#E65100;';
+            routeBtn.innerHTML = '⚡ 추천 동선 (5곳)';
+            routeBtn.style.cssText = 'position:absolute; top:60px; left:10px; z-index:1000; background:white; padding:12px 16px; border-radius:8px; border:1px solid #ccc; cursor:pointer; font-weight:bold; font-size:14px; box-shadow:0 2px 6px rgba(0,0,0,0.2); color:#E65100;';
             routeBtn.onclick = function() {{
                 if (navigator.geolocation) {{
                     routeBtn.innerHTML = '⏳ 계산중...';
