@@ -2127,9 +2127,15 @@ if raw_df is not None:
                 # [FIX] Create formatted string for x-axis to prevent duplicates (Altair Ordinal Issue)
                 trend_df['date_str'] = trend_df['date'].dt.strftime('%m-%d')
                 
+                # [FIX] Explicitly define sort order using a list for Ordinal Axis
+                # 'sort="date"' caused an error because "date" is not an encoding channel or "ascending"/"descending".
+                # Providing the sorted array of strings guarantees correct order.
+                sorted_date_strs = sorted(trend_df['date'].unique())
+                sorted_date_strs = [pd.Timestamp(d).strftime('%m-%d') for d in sorted_date_strs]
+
                 # 2. Visualize
                 trend_chart = alt.Chart(trend_df).mark_bar().encode(
-                    x=alt.X('date_str:O', sort='date', axis=alt.Axis(title='날짜 (2026)')), # Ordinal axis with sort
+                    x=alt.X('date_str:O', sort=sorted_date_strs, axis=alt.Axis(title='날짜 (2026)')), # Explicit sort list
                     y=alt.Y('count:Q', title='건수'),
                     color=alt.Color('status:N', 
                                     scale=alt.Scale(domain=['영업', '폐업'], range=['#AED581', '#EF9A9A']), 
