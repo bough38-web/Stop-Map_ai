@@ -236,6 +236,44 @@ def get_manager_password(manager_name):
         return f"{prefix}1234"
     return "user1234"
 
+def inject_button_color_script():
+    js = """
+    <script>
+        function applyStatusColors() {
+            try {
+                const buttons = window.parent.document.querySelectorAll('button');
+                buttons.forEach(btn => {
+                    const txt = btn.innerText;
+                    if (txt === '영업') {
+                        btn.style.backgroundColor = '#AED581';
+                        btn.style.color = '#1B5E20';
+                        btn.style.borderColor = '#AED581';
+                    } else if (txt === '폐업') {
+                        btn.style.backgroundColor = '#EF9A9A';
+                        btn.style.color = '#B71C1C';
+                        btn.style.borderColor = '#EF9A9A';
+                    }
+                });
+            } catch(e) {}
+        }
+        
+        // Initial Apply
+        applyStatusColors();
+        
+        // Use a global variable on parent to track observer and prevent duplicates
+        if (window.parent.statusButtonObserver) {
+            window.parent.statusButtonObserver.disconnect();
+        }
+        
+        window.parent.statusButtonObserver = new MutationObserver(() => {
+            applyStatusColors();
+        });
+        
+        window.parent.statusButtonObserver.observe(window.parent.document.body, { childList: true, subtree: true });
+    </script>
+    """
+    components.html(js, height=0, width=0)
+
 def mask_name(name):
     """
     Masks Korean names: 홍길동 -> 홍**, 이철 -> 이*
@@ -1822,11 +1860,15 @@ if raw_df is not None:
                       manager_card_html = f'<div class="metric-card" style="margin-top:-5px; margin-bottom:4px; padding: 10px 5px; text-align: center; border: 2px solid {border_color_mgr}; border-top: none; border-radius: 0 0 8px 8px; background-color: {bg_color_mgr};"><div class="metric-value" style="color:#333; font-size: 1.1rem; font-weight:bold;">{m_total:,}</div><div class="metric-sub" style="font-size:0.75rem; margin-top:4px;"><span style="color:#2E7D32">영업 {m_active}</span> / <span style="color:#d32f2f">폐업 {m_closed}</span></div></div>'
                       st.markdown(manager_card_html, unsafe_allow_html=True)
                       
+
                       m_c1, m_c2 = st.columns(2)
                       with m_c1:
                           st.button("영업", key=f"btn_mgr_active_{unique_key_suffix}", on_click=update_manager_with_status, args=(mgr_label, '영업/정상'), use_container_width=True)
                       with m_c2:
                           st.button("폐업", key=f"btn_mgr_closed_{unique_key_suffix}", on_click=update_manager_with_status, args=(mgr_label, '폐업'), use_container_width=True)
+
+            # [FIX] Apply styles to these buttons
+            inject_button_color_script()
 
     st.markdown("---")
 
