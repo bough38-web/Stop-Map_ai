@@ -391,8 +391,207 @@ def render_kakao_map(map_df, kakao_key):
                 }}
             }};
             document.getElementById('map-overview').appendChild(locBtn);
+
+            // [FEATURE] Route Optimization Button
+            var routeBtn = document.createElement('div');
+            routeBtn.innerHTML = '⚡ 추천 동선 (5곳)';
+            routeBtn.style.cssText = 'position:absolute;top:50px;left:10px;z-index:999;background:white;padding:8px 12px;border-radius:4px;border:1px solid #ccc;cursor:pointer;font-weight:bold;box-shadow:0 1px 3px rgba(0,0,0,0.2); color:#E65100;';
+            routeBtn.onclick = function() {{
+                if (navigator.geolocation) {{
+                    // Show loading state
+                    routeBtn.innerHTML = '⏳ 계산중...';
+                    
+                    navigator.geolocation.getCurrentPosition(function(position) {{
+                        var lat = position.coords.latitude; 
+                        var lon = position.coords.longitude; 
+                        var startPos = new kakao.maps.LatLng(lat, lon); 
+                        
+                        // 1. My Location Marker
+                        mapOverview.setCenter(startPos);
+                        mapOverview.setLevel(5);
+                        
+                        var imageSrc = 'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_red.png', 
+                            imageSize = new kakao.maps.Size(64, 69), 
+                            imageOption = {{offset: new kakao.maps.Point(27, 69)}}; 
+                        var myMarker = new kakao.maps.Marker({{ position: startPos, image: new kakao.maps.MarkerImage(imageSrc, imageSize, imageOption) }}); 
+                        myMarker.setMap(mapOverview); 
+                        
+                        // 2. Find Optimized Route (Greedy Nearest Neighbor)
+                        findOptimizedRoute(startPos);
+                        
+                        routeBtn.innerHTML = '⚡ 추천 동선 (5곳)';
+                        
+                    }}, function(err) {{
+                        alert('위치 정보를 가져올 수 없습니다: ' + err.message);
+                        routeBtn.innerHTML = '⚡ 추천 동선 (5곳)';
+                    }});
+                }} else {{
+                    alert('이 브라우저는 위치 정보를 지원하지 않습니다.');
+                }}
+            }};
+            document.getElementById('map-overview').appendChild(routeBtn);
             
-        </script>
+            // Route Variables
+            var routePolylines = [];
+            var routeMarkers = [];
+            var routeOverlays = [];
+
+            function findOptimizedRoute(startPos) {{
+                // Get all valid markers data
+                // We use 'data' variable which is already available
+                var candidates = data.filter(function(item) {{
+                    return item.lat && item.lon;
+                }});
+                
+                if (candidates.length === 0) {{
+                    alert('방문할 대상이 없습니다.');
+                    return;
+                }}
+                
+                var route = [];
+                var currentPos = startPos;
+                var visitedIndices = new Set();
+                var maxStops = 5;
+                
+                for (var i = 0; i < maxStops; i++) {{
+                    if (visitedIndices.size >= candidates.length) break;
+                    
+                    var nearestIdx = -1;
+                    var minDist = Infinity;
+                    
+                    for (var j = 0; j < candidates.length; j++) {{
+                        if (visitedIndices.has(j)) continue;
+                        
+                        var item = candidates[j];
+                        var dist = getDistance(currentPos.getLat(), currentPos.getLng(), item.lat, item.lon);
+                        
+                        if (dist < minDist) {{
+                            minDist = dist;
+                            nearestIdx = j;
+                        }}
+                    }}
+                    
+                    if (nearestIdx !== -1) {{
+                        visitedIndices.add(nearestIdx);
+                        var nearestItem = candidates[nearestIdx];
+                        route.push(nearestItem);
+                        currentPos = new kakao.maps.LatLng(nearestItem.lat, nearestItem.lon);
+                    }}
+                }}
+                
+                drawRoute(startPos, route);
+            }}
+            
+            // Simple distance
+            function getDistance(lat1, lon1, lat2, lon2) {{
+                var R = 6371; // Radius of the earth in km
+                var dLat = deg2rad(lat2-lat1);  
+                var dLon = deg2rad(lon2-lon1); 
+                var a = 
+                    Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+                    Math.sin(dLon/2) * Math.sin(dLon/2)
+                    ; 
+                var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+                var d = R * c; // Distance in km
+                return d;
+            }}
+
+            function deg2rad(deg) {{
+                return deg * (Math.PI/180)
+            }}
+            
+            function drawRoute(startPos, routeItems) {{
+                // Clear previous route
+                clearRoute();
+                
+                var linePath = [startPos];
+                var bounds = new kakao.maps.LatLngBounds();
+                bounds.extend(startPos);
+                
+                var listHtml = '<div class="sb-header"><h3 class="sb-title">⚡ 추천 방문 코스 (' + routeItems.length + '곳)</h3></div><div class="sb-body">';
+                listHtml += '<div style="margin-bottom:10px; color:#666; font-size:13px;">현재 위치에서 가장 가까운 순서대로<br>최적의 동선을 제안합니다.</div>';
+                
+                routeItems.forEach(function(item, index) {{
+                    var seq = index + 1;
+                    var pos = new kakao.maps.LatLng(item.lat, item.lon);
+                    linePath.push(pos);
+                    bounds.extend(pos);
+                    
+                    // Numbered Marker
+                    var imageSrc = 'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_number_blue.png', 
+                        imageSize = new kakao.maps.Size(36, 37),
+                        imgOptions =  {{
+                            spriteSize : new kakao.maps.Size(36, 691), 
+                            spriteOrigin : new kakao.maps.Point(0, (seq * 46) + 10), 
+                            offset: new kakao.maps.Point(13, 37)
+                        }};
+                        
+                    // Simple Marker + Custom Overlay with Number
+                    var marker = new kakao.maps.Marker({{
+                        position: pos,
+                        map: mapOverview,
+                        zIndex: 1000 + seq
+                    }});
+                    routeMarkers.push(marker);
+                    
+                    var content = '<div style="background:#E65100; color:white; border-radius:50%; width:24px; height:24px; text-align:center; line-height:24px; font-weight:bold; border:2px solid white; box-shadow:0 2px 4px rgba(0,0,0,0.3);">' + seq + '</div>';
+                    
+                    var customOverlay = new kakao.maps.CustomOverlay({{
+                        position: pos,
+                        content: content,
+                        yAnchor: 1.5,
+                        zIndex: 2000 + seq
+                    }});
+                    
+                    customOverlay.setMap(mapOverview);
+                    routeOverlays.push(customOverlay);
+                    
+                    // List Item
+                     listHtml += '<div style="background:white; border:1px solid #eee; border-left:4px solid #E65100; padding:10px; margin-bottom:8px; border-radius:4px;">';
+                     listHtml += '<div style="font-weight:bold; color:#E65100; margin-bottom:4px;">#' + seq + '. ' + item.title + '</div>';
+                     listHtml += '<div style="font-size:12px; color:#555;">' + item.addr + '</div>';
+                     listHtml += '<div style="margin-top:5px; text-align:right;">';
+                     listHtml += '<a href="javascript:void(0);" onclick="triggerVisit(\'' + item.title + '\', \'' + item.addr + '\')" style="font-size:11px; color:#4CAF50; font-weight:bold; margin-right:10px; text-decoration:none;">✅ 방문처리</a>';
+                     listHtml += '<a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="font-size:11px; color:#1976D2; font-weight:bold; text-decoration:none;">🚗 길안내</a>';
+                     listHtml += '</div></div>';
+                }});
+                
+                listHtml += '</div>';
+                document.getElementById('info-panel').innerHTML = listHtml;
+                document.getElementById('map-detail').innerHTML = '<div class="detail-label">⚡ 추천 동선 모드</div><div style="width:100%; height:100%; display:flex; justify-content:center; align-items:center; color:#E65100; font-weight:bold; background:#fafafa;">지도에 표시된 순서대로<br>방문하세요</div>';
+                
+                // Draw Polyline
+                var polyline = new kakao.maps.Polyline({{
+                    path: linePath, 
+                    strokeWeight: 5, 
+                    strokeColor: '#E65100', 
+                    strokeOpacity: 0.8, 
+                    strokeStyle: 'solid' 
+                }});
+                
+                polyline.setMap(mapOverview);
+                routePolylines.push(polyline);
+                
+                mapOverview.setBounds(bounds);
+            }}
+            
+            function clearRoute() {{
+                for (var i = 0; i < routePolylines.length; i++) {{
+                    routePolylines[i].setMap(null);
+                }}
+                routePolylines = [];
+                
+                for (var i = 0; i < routeMarkers.length; i++) {{
+                    routeMarkers[i].setMap(null);
+                }}
+                routeMarkers = [];
+                
+                for (var i = 0; i < routeOverlays.length; i++) {{
+                    routeOverlays[i].setMap(null);
+                }}
+                routeOverlays = [];
+            }}
     </body>
     </html>
     '''
@@ -855,6 +1054,144 @@ def render_folium_map(display_df):
                 }}
             }};
             document.getElementById('map-container').appendChild(locBtn);
+
+            // [FEATURE] Route Optimization Button (Leaflet)
+            var routeBtn = document.createElement('div');
+            routeBtn.innerHTML = '⚡ 추천 동선 (5곳)';
+            routeBtn.style.cssText = 'position:absolute;top:50px;left:10px;z-index:1000;background:white;padding:8px 12px;border-radius:4px;border:1px solid #ccc;cursor:pointer;font-weight:bold;box-shadow:0 1px 3px rgba(0,0,0,0.2); color:#E65100;';
+            routeBtn.onclick = function() {{
+                if (navigator.geolocation) {{
+                    routeBtn.innerHTML = '⏳ 계산중...';
+                    navigator.geolocation.getCurrentPosition(function(position) {{
+                        var lat = position.coords.latitude; 
+                        var lon = position.coords.longitude; 
+                        var startPos = [lat, lon];
+                        
+                        // 1. My Location Marker
+                        map.setView(startPos, 14);
+                        var myMarker = L.marker(startPos).addTo(map);
+                        myMarker.bindTooltip("출발", {{ permanent: true, direction: 'top' }}).openTooltip();
+
+                        // 2. Find Optimized Route
+                        findOptimizedRoute(startPos);
+                        
+                        routeBtn.innerHTML = '⚡ 추천 동선 (5곳)';
+                        
+                    }}, function(err) {{
+                        alert('위치 정보를 가져올 수 없습니다: ' + err.message);
+                        routeBtn.innerHTML = '⚡ 추천 동선 (5곳)';
+                    }});
+                }} else {{
+                    alert('이 브라우저는 위치 정보를 지원하지 않습니다.');
+                }}
+            }};
+            document.getElementById('map-container').appendChild(routeBtn);
+            
+            // Route Variables
+            var routeLayerGroup = L.layerGroup().addTo(map);
+
+            function findOptimizedRoute(startPos) {{
+                 // Filter valid data
+                 var candidates = mapData.filter(function(item) {{
+                    return item.lat && item.lon;
+                }});
+                
+                if (candidates.length === 0) {{
+                    alert('방문할 대상이 없습니다.');
+                    return;
+                }}
+                
+                var route = [];
+                var currentPos = {{ lat: startPos[0], lon: startPos[1] }};
+                var visitedIndices = new Set();
+                var maxStops = 5;
+                
+                for (var i = 0; i < maxStops; i++) {{
+                    if (visitedIndices.size >= candidates.length) break;
+                    
+                    var nearestIdx = -1;
+                    var minDist = Infinity;
+                    
+                    for (var j = 0; j < candidates.length; j++) {{
+                        if (visitedIndices.has(j)) continue;
+                        
+                        var item = candidates[j];
+                        var dist = getDistance(currentPos.lat, currentPos.lon, item.lat, item.lon);
+                        
+                        if (dist < minDist) {{
+                            minDist = dist;
+                            nearestIdx = j;
+                        }}
+                    }}
+                    
+                    if (nearestIdx !== -1) {{
+                        visitedIndices.add(nearestIdx);
+                        var nearestItem = candidates[nearestIdx];
+                        route.push(nearestItem);
+                        currentPos = {{ lat: nearestItem.lat, lon: nearestItem.lon }};
+                    }}
+                }}
+                
+                drawRoute(startPos, route);
+            }}
+            
+            function getDistance(lat1, lon1, lat2, lon2) {{
+                var R = 6371; 
+                var dLat = deg2rad(lat2-lat1);  
+                var dLon = deg2rad(lon2-lon1); 
+                var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+                        Math.sin(dLon/2) * Math.sin(dLon/2); 
+                var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+                return R * c;
+            }}
+
+            function deg2rad(deg) {{ return deg * (Math.PI/180); }}
+            
+            function drawRoute(startPos, routeItems) {{
+                routeLayerGroup.clearLayers();
+                
+                var latlngs = [startPos];
+                var listHtml = '<div class="detail-header"><h3 class="detail-title" style="color:#E65100;">⚡ 추천 방문 코스 (' + routeItems.length + '곳)</h3><div style="font-size:13px; color:#666;">현재 위치에서 가장 가까운 최적 동선입니다.</div></div><div class="detail-body">';
+                
+                routeItems.forEach(function(item, index) {{
+                    var seq = index + 1;
+                    var pos = [item.lat, item.lon];
+                    latlngs.push(pos);
+                    
+                    // Numbered Marker (Custom HTML Icon)
+                    var numIcon = L.divIcon({{
+                        className: '',
+                        html: '<div style="background:#E65100; color:white; border-radius:50%; width:24px; height:24px; text-align:center; line-height:24px; font-weight:bold; border:2px solid white; box-shadow:0 2px 4px rgba(0,0,0,0.3);">' + seq + '</div>',
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12]
+                    }});
+                    
+                    L.marker(pos, {{ icon: numIcon, zIndexOffset: 1000 }}).addTo(routeLayerGroup);
+                    
+                    // Add to list
+                    listHtml += `
+                        <div class="detail-card" style="margin:10px 0; padding:15px; border-left:4px solid #E65100;">
+                            <div style="font-weight:bold; color:#E65100; margin-bottom:5px;">#${{seq}}. ${{item.title}}</div>
+                            <div style="font-size:12px; color:#555; margin-bottom:10px;">${{item.addr}}</div>
+                            <div style="display:flex; gap:5px;">
+                                <a href="javascript:void(0);" onclick="triggerVisit('${{item.title}}', '${{item.addr}}')" style="flex:1; background:#4CAF50; color:white; text-decoration:none; padding:5px 0; border-radius:4px; text-align:center; font-size:11px; font-weight:bold;">✅ 방문</a>
+                                <a href="https://map.kakao.com/link/to/${{item.title}},${{item.lat}},${{item.lon}}" target="_blank" style="flex:1; background:#FEE500; color:black; text-decoration:none; padding:5px 0; border-radius:4px; text-align:center; font-size:11px; font-weight:bold;">🚗 길안내</a>
+                            </div>
+                        </div>
+                    `;
+                }});
+                
+                listHtml += '</div>';
+                document.getElementById('detail-content').innerHTML = listHtml;
+                
+                // Draw Polyline
+                L.polyline(latlngs, {{color: '#E65100', weight: 5, opacity: 0.8}}).addTo(routeLayerGroup);
+                
+                // Bound to route
+                var group = new L.featureGroup(routeItems.map(d => L.marker([d.lat, d.lon])));
+                map.fitBounds(group.getBounds(), {{ padding: [50, 50] }});
+            }}
 
         </script>
     </body>
