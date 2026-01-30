@@ -601,20 +601,7 @@ def render_kakao_map(map_df, kakao_key):
     
     components.html(html_content, height=850, key=f"kakao_map_dual_{data_hash}")
 
-def render_folium_map(map_df):
-    """
-    Renders a Folium Map.
-    """
-    st.info("⚠️ 카카오 키 미설정 -> 기본 지도(OpenStreetMap) 사용")
-    
-    # 1. Ensure Coordinates
-    map_df['lat'] = pd.to_numeric(map_df['lat'], errors='coerce')
-    map_df['lon'] = pd.to_numeric(map_df['lon'], errors='coerce')
-    
-    total_rows = len(map_df)
-    valid_rows = map_df.dropna(subset=['lat', 'lon'])
-    n_valid = len(valid_rows)
-    
+
 def render_folium_map(display_df):
     """
     Render Map using Leaflet (Client-Side) to prevent Streamlit reruns (flashing).
