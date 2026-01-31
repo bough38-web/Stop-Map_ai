@@ -2574,20 +2574,27 @@ if raw_df is not None:
         
         start_row_count = len(grid_df)
         
-        # Add activity status and notes from storage
+        
+        # [OPTIMIZATION] Bulk Load Activity Status
+        # Load the JSON file ONCE to avoid IO for every row
+        try:
+            status_data = activity_logger.load_json_file(activity_logger.ACTIVITY_STATUS_FILE)
+            if not isinstance(status_data, dict):
+                status_data = {}
+        except Exception as e:
+            status_data = {}
+
+        # Add activity status and notes from storage (Optimized)
         grid_df['record_key'] = grid_df.apply(lambda row: activity_logger.get_record_key(row), axis=1)
-        grid_df['활동진행상태'] = grid_df['record_key'].apply(
-            lambda k: activity_logger.get_activity_status(k).get('활동진행상태', '')
-        ).astype(str)  # Convert to string
-        grid_df['특이사항'] = grid_df['record_key'].apply(
-            lambda k: activity_logger.get_activity_status(k).get('특이사항', '')
-        ).astype(str)  # Convert to string
-        grid_df['상태변경일시'] = grid_df['record_key'].apply(
-            lambda k: activity_logger.get_activity_status(k).get('변경일시', '')
-        ).astype(str)  # Convert to string
-        grid_df['상태변경자'] = grid_df['record_key'].apply(
-            lambda k: activity_logger.get_activity_status(k).get('변경자', '')
-        ).astype(str)  # Convert to string
+        
+        # Helper to safely get data from loaded dict
+        def get_status_val(k, field):
+            return status_data.get(k, {}).get(field, '')
+
+        grid_df['활동진행상태'] = grid_df['record_key'].apply(lambda k: get_status_val(k, '활동진행상태')).astype(str)
+        grid_df['특이사항'] = grid_df['record_key'].apply(lambda k: get_status_val(k, '특이사항')).astype(str)
+        grid_df['상태변경일시'] = grid_df['record_key'].apply(lambda k: get_status_val(k, '변경일시')).astype(str)
+        grid_df['상태변경자'] = grid_df['record_key'].apply(lambda k: get_status_val(k, '변경자')).astype(str)
         
         if '인허가일자' in grid_df.columns:
             grid_df['인허가일자'] = grid_df['인허가일자'].apply(lambda x: x.strftime('%Y-%m-%d') if pd.notna(x) else "")
@@ -2597,6 +2604,7 @@ if raw_df is not None:
         
         if '최종수정시점' in grid_df.columns:
             grid_df['최종수정시점'] = grid_df['최종수정시점'].apply(lambda x: x.strftime('%Y-%m-%d') if pd.notna(x) else "")
+
 
         grid_df = grid_df.sort_values(by=['관리지사', 'SP담당', '업태구분명'])
         
@@ -2653,7 +2661,7 @@ if raw_df is not None:
             sel_grid_status = st.multiselect("진행상태 필터", status_filter_opts, placeholder="전체 보기 (미선택 시)")
         
         with c_search:
-            grid_search_kw = st.text_input("검색 (업체명/주소)", placeholder="검색어 입력")
+            grid_search_kw = st.text_input("검색 (업체명/주소/상태/특이사항)", placeholder="검색어 입력")
         
         
         c_chart1, c_chart2 = st.columns([1, 2])
@@ -2698,7 +2706,9 @@ if raw_df is not None:
         if grid_search_kw:
             grid_df = grid_df[
                 grid_df['사업장명'].astype(str).str.contains(grid_search_kw, na=False) | 
-                grid_df['소재지전체주소'].astype(str).str.contains(grid_search_kw, na=False)
+                grid_df['소재지전체주소'].astype(str).str.contains(grid_search_kw, na=False) |
+                grid_df['활동진행상태'].astype(str).str.contains(grid_search_kw, na=False) |
+                grid_df['특이사항'].astype(str).str.contains(grid_search_kw, na=False)
             ]
             
         st.divider()
