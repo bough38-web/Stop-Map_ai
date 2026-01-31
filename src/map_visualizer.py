@@ -437,8 +437,8 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False):
 
             // [FEATURE] Route Optimization Button
             var routeBtn = document.createElement('div');
-            routeBtn.innerHTML = '⚡ 추천 동선 (5곳)';
-            routeBtn.innerHTML = '⚡ 추천 동선 (5곳)';
+            routeBtn.innerHTML = '⚡ 추천 동선 (10곳)';
+            routeBtn.innerHTML = '⚡ 추천 동선 (10곳)';
             routeBtn.style.cssText = 'position:absolute; top:60px; left:10px; z-index:999; background:white; padding:12px 16px; border-radius:8px; border:1px solid #ccc; cursor:pointer; font-weight:bold; font-size:14px; box-shadow:0 2px 6px rgba(0,0,0,0.2); color:#E65100;';
             routeBtn.onclick = function() {{
                 if (navigator.geolocation) {{
@@ -463,11 +463,11 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False):
                         // 2. Find Optimized Route (Greedy Nearest Neighbor)
                         findOptimizedRoute(startPos);
                         
-                        routeBtn.innerHTML = '⚡ 추천 동선 (5곳)';
+                        routeBtn.innerHTML = '⚡ 추천 동선 (10곳)';
                         
                     }}, function(err) {{
                         alert('위치 정보를 가져올 수 없습니다: ' + err.message);
-                        routeBtn.innerHTML = '⚡ 추천 동선 (5곳)';
+                        routeBtn.innerHTML = '⚡ 추천 동선 (10곳)';
                     }});
                 }} else {{
                     alert('이 브라우저는 위치 정보를 지원하지 않습니다.');
@@ -495,7 +495,7 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False):
                 var route = [];
                 var currentPos = startPos;
                 var visitedIndices = new Set();
-                var maxStops = 5;
+                var maxStops = 10;
                 
                 for (var i = 0; i < maxStops; i++) {{
                     if (visitedIndices.size >= candidates.length) break;
@@ -1192,8 +1192,8 @@ def render_folium_map(display_df, use_heatmap=False):
 
             // [FEATURE] Route Optimization Button (Leaflet)
             var routeBtn = document.createElement('div');
-            routeBtn.innerHTML = '⚡ 추천 동선 (5곳)';
-            routeBtn.innerHTML = '⚡ 추천 동선 (5곳)';
+            routeBtn.innerHTML = '⚡ 추천 동선 (10곳)';
+            routeBtn.innerHTML = '⚡ 추천 동선 (10곳)';
             routeBtn.style.cssText = 'position:absolute; top:70px; left:10px; z-index:1000; background:white; padding:12px 16px; border-radius:8px; border:1px solid #ccc; cursor:pointer; font-weight:bold; font-size:14px; box-shadow:0 2px 6px rgba(0,0,0,0.2); color:#E65100;';
             routeBtn.onclick = function() {{
                 if (navigator.geolocation) {{
@@ -1211,11 +1211,11 @@ def render_folium_map(display_df, use_heatmap=False):
                         // 2. Find Optimized Route
                         findOptimizedRoute(startPos);
                         
-                        routeBtn.innerHTML = '⚡ 추천 동선 (5곳)';
+                        routeBtn.innerHTML = '⚡ 추천 동선 (10곳)';
                         
                     }}, function(err) {{
                         alert('위치 정보를 가져올 수 없습니다: ' + err.message);
-                        routeBtn.innerHTML = '⚡ 추천 동선 (5곳)';
+                        routeBtn.innerHTML = '⚡ 추천 동선 (10곳)';
                     }});
                 }} else {{
                     alert('이 브라우저는 위치 정보를 지원하지 않습니다.');
@@ -1240,7 +1240,7 @@ def render_folium_map(display_df, use_heatmap=False):
                 var route = [];
                 var currentPos = {{ lat: startPos[0], lon: startPos[1] }};
                 var visitedIndices = new Set();
-                var maxStops = 5;
+                var maxStops = 10;
                 
                 for (var i = 0; i < maxStops; i++) {{
                     if (visitedIndices.size >= candidates.length) break;
