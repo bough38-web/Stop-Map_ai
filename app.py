@@ -234,6 +234,12 @@ st.markdown("""
             width: 50% !important;
             flex: 1 1 50% !important;
             min-width: 50% !important;
+            padding-left: 2px !important;  /* Reduced Padding */
+            padding-right: 2px !important; /* Reduced Padding */
+        }
+        /* Reduce Gap in Flex Container if possible (Streamlit structure varies) */
+        [data-testid="column"] > div {
+            width: 100% !important;
         }
     }
 </style>
