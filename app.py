@@ -2133,8 +2133,8 @@ if raw_df is not None:
                 # Row 1: Date Filters
                 st.markdown("<div style='margin-bottom: -10px;'></div>", unsafe_allow_html=True) # Spacer
                 c_q_r1_1, c_q_r1_2 = st.columns(2)
-                with c_q_r1_1: q_new = st.checkbox("🆕 신규(7일)", value=False, help="최근 7일 이내 개업(인허가)된 건")
-                with c_q_r1_2: q_closed = st.checkbox("🚫 폐업(7일)", value=False, help="최근 7일 이내 폐업된 건")
+                with c_q_r1_1: q_new = st.checkbox("🆕 신규(15일)", value=False, help="최근 15일 이내 개업(인허가)된 건")
+                with c_q_r1_2: q_closed = st.checkbox("🚫 폐업(15일)", value=False, help="최근 15일 이내 폐업된 건")
 
             # Row 2: Property Filters
             c_q_r2_1, c_q_r2_2 = st.columns(2)
@@ -2172,16 +2172,16 @@ if raw_df is not None:
                      has_date_filter = True
                      if '인허가일자' in map_df_base.columns:
                          map_df_base['인허가일자'] = pd.to_datetime(map_df_base['인허가일자'], errors='coerce')
-                         # [FIX] Changed to 7 days
-                         cutoff_new = pd.Timestamp.now() - pd.Timedelta(days=7)
+                         # [FIX] Changed to 15 days
+                         cutoff_new = pd.Timestamp.now() - pd.Timedelta(days=15)
                          date_mask = date_mask | (map_df_base['인허가일자'] >= cutoff_new)
     
                 if q_closed:
                      has_date_filter = True
                      if '폐업일자' in map_df_base.columns:
                          map_df_base['폐업일자'] = pd.to_datetime(map_df_base['폐업일자'], errors='coerce')
-                         # [FIX] Changed to 7 days
-                         cutoff_closed = pd.Timestamp.now() - pd.Timedelta(days=7)
+                         # [FIX] Changed to 15 days
+                         cutoff_closed = pd.Timestamp.now() - pd.Timedelta(days=15)
                          date_mask = date_mask | (map_df_base['폐업일자'] >= cutoff_closed)
 
             if has_date_filter:
