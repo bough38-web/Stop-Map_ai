@@ -2119,11 +2119,22 @@ if raw_df is not None:
 
             # [FEATURE] Condition View Toolbar (Quick Filters)
             # [UX] Mobile-Friendly Layout: Strict 2x3 Grid
-            # Row 1: Date Filters
-            st.markdown("<div style='margin-bottom: -10px;'></div>", unsafe_allow_html=True) # Spacer
-            c_q_r1_1, c_q_r1_2 = st.columns(2)
-            with c_q_r1_1: q_new = st.checkbox("🆕 신규(7일)", value=False, help="최근 7일 이내 개업(인허가)된 건")
-            with c_q_r1_2: q_closed = st.checkbox("🚫 폐업(7일)", value=False, help="최근 7일 이내 폐업된 건")
+            
+            # [NEW] Expert Feature: Sales Opportunity Discovery Mode
+            st.markdown("<div style='margin-bottom: 5px;'></div>", unsafe_allow_html=True)
+            opp_mode = st.toggle("🚀 영업기회 발굴 모드 (최근 15일 신규/폐업 감지)", value=False, help="최근 15일 이내의 신규 인허가 또는 폐업 리스트만 집중적으로 보여줍니다. 빠른 기회 포착을 위해 사용하세요.")
+            
+            if opp_mode:
+                st.caption("✅ **발굴 모드 활성화됨**: 최근 15일간의 변화(신규/폐업)만 필터링합니다.")
+                # Force flags for logic downstream or calculate mask immediately
+                q_new = False # Ignore manual checkbox visually (or logical override)
+                q_closed = False 
+            else:
+                # Row 1: Date Filters
+                st.markdown("<div style='margin-bottom: -10px;'></div>", unsafe_allow_html=True) # Spacer
+                c_q_r1_1, c_q_r1_2 = st.columns(2)
+                with c_q_r1_1: q_new = st.checkbox("🆕 신규(7일)", value=False, help="최근 7일 이내 개업(인허가)된 건")
+                with c_q_r1_2: q_closed = st.checkbox("🚫 폐업(7일)", value=False, help="최근 7일 이내 폐업된 건")
 
             # Row 2: Property Filters
             c_q_r2_1, c_q_r2_2 = st.columns(2)
@@ -2139,21 +2150,39 @@ if raw_df is not None:
             date_mask = pd.Series([False] * len(map_df_base), index=map_df_base.index)
             has_date_filter = False
 
-            if q_new:
-                 has_date_filter = True
-                 if '인허가일자' in map_df_base.columns:
+            if opp_mode:
+                # [LOGIC] Opportunity Mode: 15 Days New OR Closed
+                has_date_filter = True
+                
+                # New (15 Days)
+                if '인허가일자' in map_df_base.columns:
                      map_df_base['인허가일자'] = pd.to_datetime(map_df_base['인허가일자'], errors='coerce')
-                     # [FIX] Changed to 7 days
-                     cutoff_new = pd.Timestamp.now() - pd.Timedelta(days=7)
-                     date_mask = date_mask | (map_df_base['인허가일자'] >= cutoff_new)
-
-            if q_closed:
-                 has_date_filter = True
-                 if '폐업일자' in map_df_base.columns:
+                     cutoff_opp = pd.Timestamp.now() - pd.Timedelta(days=15)
+                     date_mask = date_mask | (map_df_base['인허가일자'] >= cutoff_opp)
+                     
+                # Closed (15 Days)
+                if '폐업일자' in map_df_base.columns:
                      map_df_base['폐업일자'] = pd.to_datetime(map_df_base['폐업일자'], errors='coerce')
-                     # [FIX] Changed to 7 days
-                     cutoff_closed = pd.Timestamp.now() - pd.Timedelta(days=7)
-                     date_mask = date_mask | (map_df_base['폐업일자'] >= cutoff_closed)
+                     cutoff_opp = pd.Timestamp.now() - pd.Timedelta(days=15)
+                     date_mask = date_mask | (map_df_base['폐업일자'] >= cutoff_opp)
+                     
+            else:
+                # Standard Logic
+                if q_new:
+                     has_date_filter = True
+                     if '인허가일자' in map_df_base.columns:
+                         map_df_base['인허가일자'] = pd.to_datetime(map_df_base['인허가일자'], errors='coerce')
+                         # [FIX] Changed to 7 days
+                         cutoff_new = pd.Timestamp.now() - pd.Timedelta(days=7)
+                         date_mask = date_mask | (map_df_base['인허가일자'] >= cutoff_new)
+    
+                if q_closed:
+                     has_date_filter = True
+                     if '폐업일자' in map_df_base.columns:
+                         map_df_base['폐업일자'] = pd.to_datetime(map_df_base['폐업일자'], errors='coerce')
+                         # [FIX] Changed to 7 days
+                         cutoff_closed = pd.Timestamp.now() - pd.Timedelta(days=7)
+                         date_mask = date_mask | (map_df_base['폐업일자'] >= cutoff_closed)
 
             if has_date_filter:
                 map_df_base = map_df_base[date_mask]
