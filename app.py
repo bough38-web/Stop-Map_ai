@@ -226,20 +226,26 @@ st.markdown("""
         padding: 1rem !important;
     }
     
-    /* [IMPORTANT] Force 2-Column Grid on Mobile for Filters */
-    /* Streamlit automatically stacks columns on mobile < 640px. We override this. */
+    /* [CRITICAL] Aggressive Mobile Grid for Filters */
     @media (max-width: 640px) {
-        /* Target the column containers */
+        /* 1. Reduce Gap between columns in the Row Container */
+        [data-testid="stHorizontalBlock"] {
+            gap: 4px !important;
+        }
+        
+        /* 2. Force Columns to be 50% width and side-by-side */
         [data-testid="column"] {
             width: 50% !important;
-            flex: 1 1 50% !important;
+            flex: 1 1 50% !important; 
             min-width: 50% !important;
-            padding-left: 2px !important;  /* Reduced Padding */
-            padding-right: 2px !important; /* Reduced Padding */
+            max-width: 50% !important;
+            padding: 0px !important; /* Eliminate internal padding */
         }
-        /* Reduce Gap in Flex Container if possible (Streamlit structure varies) */
+        
+        /* 3. Ensure internal widgets take full width but don't overflow */
         [data-testid="column"] > div {
             width: 100% !important;
+            overflow: hidden !important; 
         }
     }
 </style>
