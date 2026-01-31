@@ -2010,23 +2010,20 @@ if raw_df is not None:
             # We need to peek at the current 'map_biz_type' from session state if available
             current_map_type = st.session_state.get('map_biz_type', "전체")
 
+            # [REMOVED] Local Branch/Manager Dropdowns (User Request)
+            # Defaulting to "전체" to maintain logic flow
+            sel_map_region = "전체"
+            sel_map_sales = "전체"
+            
+            # Placeholder for layout if needed, or just remove columns usage
             # Filter base for options based on Type (if selected)
             options_source_df = map_df_base.copy()
             if current_map_type != "전체" and '업태구분명' in options_source_df.columns:
                 options_source_df = options_source_df[options_source_df['업태구분명'] == current_map_type]
 
-            with c_f_r1_1:
-                # Dropdowns use filtered data for options
-                map_region_opts = ["전체"] + sorted(list(options_source_df['관리지사'].dropna().unique()))
-                sel_map_region = st.selectbox("관리지사", map_region_opts, key="map_region")
-            with c_f_r1_2:
-                # Filter Sales options based on Region (if selected) + Type (already applied to options_source_df)
-                temp_sales_source = options_source_df
-                if sel_map_region != "전체": 
-                    temp_sales_source = temp_sales_source[temp_sales_source['관리지사'] == sel_map_region]
-
-                map_sales_opts = ["전체"] + sorted(list(temp_sales_source['SP담당'].dropna().unique()))
-                sel_map_sales = st.selectbox("담당자", map_sales_opts, key="map_sales")
+            # Re-using columns for Type logic or just skipping
+            # with c_f_r1_1: ... removed
+            # with c_f_r1_2: ... removed
 
             c_f_r2_1, c_f_r2_2 = st.columns(2)
             with c_f_r2_1:

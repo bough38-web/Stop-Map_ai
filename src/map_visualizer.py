@@ -578,13 +578,13 @@ def render_kakao_map(map_df, kakao_key):
                         
                         var distText = formatDistance(dist);
                         // Overlay Style: White pill with border
-                        var distContent = '<div style="padding:2px 6px; background:white; border:1px solid #E65100; color:#E65100; font-size:11px; border-radius:12px; font-weight:bold; box-shadow:0 1px 3px rgba(0,0,0,0.2); white-space:nowrap;">' + distText + '</div>';
+                        var distContent = '<div style="padding:2px 6px; background:white; border:1px solid #E65100; color:#E65100; font-size:11px; border-radius:12px; font-weight:bold; box-shadow:0 1px 3px rgba(0,0,0,0.2); white-space:nowrap; z-index:9999;">' + distText + '</div>';
                         
                         var distOverlay = new kakao.maps.CustomOverlay({{
                             position: midPos,
                             content: distContent,
                             yAnchor: 0.5,
-                            zIndex: 3000 // Above lines
+                            zIndex: 9999 // Ensure visibility above line (z-indices: markers=1000+, polygons=?)
                         }});
                         distOverlay.setMap(mapOverview);
                         routeOverlays.push(distOverlay);
@@ -1269,7 +1269,7 @@ def render_folium_map(display_df):
                              iconSize: [40, 20], // Approx
                              iconAnchor: [20, 10]
                          }});
-                         L.marker([midLat, midLon], {{ icon: distIcon, zIndexOffset: 2000 }}).addTo(routeLayerGroup);
+                         L.marker([midLat, midLon], {{ icon: distIcon, zIndexOffset: 9999 }}).addTo(routeLayerGroup);
                     }}
                     
                     latlngs.push(pos);
