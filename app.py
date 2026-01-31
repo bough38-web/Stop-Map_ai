@@ -1978,13 +1978,14 @@ if raw_df is not None:
 
 
             # [FEATURE] Condition View Toolbar (Quick Filters)
-            st.caption("조건별 빠른 조회 (지도 위에 표시됩니다)")
-
-            # [UX] Mobile-Friendly Layout: 2x2 Grid for Checkboxes
+            # [UX] Mobile-Friendly Layout: Strict 2x3 Grid
+            # Row 1: Date Filters
+            st.markdown("<div style='margin-bottom: -10px;'></div>", unsafe_allow_html=True) # Spacer
             c_q_r1_1, c_q_r1_2 = st.columns(2)
             with c_q_r1_1: q_new = st.checkbox("🆕 신규(7일)", value=False, help="최근 7일 이내 개업(인허가)된 건")
             with c_q_r1_2: q_closed = st.checkbox("🚫 폐업(7일)", value=False, help="최근 7일 이내 폐업된 건")
 
+            # Row 2: Property Filters
             c_q_r2_1, c_q_r2_2 = st.columns(2)
             with c_q_r2_1: q_hosp = st.checkbox("🏥 병원만", value=False)
             with c_q_r2_2: q_large = st.checkbox("🏗️ 100평↑", value=False)
