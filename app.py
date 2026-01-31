@@ -225,6 +225,17 @@ st.markdown("""
     .streamlit-expanderHeader {
         padding: 1rem !important;
     }
+    
+    /* [IMPORTANT] Force 2-Column Grid on Mobile for Filters */
+    /* Streamlit automatically stacks columns on mobile < 640px. We override this. */
+    @media (max-width: 640px) {
+        /* Target the column containers */
+        [data-testid="column"] {
+            width: 50% !important;
+            flex: 1 1 50% !important;
+            min-width: 50% !important;
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
 
