@@ -225,6 +225,8 @@ def get_visit_reports(record_key=None, user_name=None, limit=100):
     Get visit reports filtered by key or user.
     """
     reports = load_json_file(VISIT_REPORT_FILE)
+    if not isinstance(reports, list):
+        reports = []
     
     if record_key:
         reports = [r for r in reports if r.get("record_key") == record_key]
