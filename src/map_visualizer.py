@@ -4,9 +4,9 @@ import json
 import streamlit.components.v1 as components
 import folium
 from streamlit_folium import st_folium
-from folium.plugins import MarkerCluster
+from folium.plugins import MarkerCluster, HeatMap
 
-def render_kakao_map(map_df, kakao_key):
+def render_kakao_map(map_df, kakao_key, use_heatmap=False):
     """
     Renders a Kakao Map using HTML/JS injection.
     """
@@ -89,7 +89,12 @@ def render_kakao_map(map_df, kakao_key):
     else:
         display_df['area_py'] = display_df.apply(calc_py, axis=1)
 
-    map_data = display_df[['lat', 'lon', 'title', 'status', 'addr', 'tel', 'close_date', 'permit_date', 'reopen_date', 'modified_date', 'biz_type', 'branch', 'manager', 'is_large', 'area_py']].to_dict(orient='records')
+    # [NEW] AI Score & Comment
+    if 'AI_Score' not in display_df.columns:
+        display_df['AI_Score'] = 0
+        display_df['AI_Comment'] = ''
+        
+    map_data = display_df[['lat', 'lon', 'title', 'status', 'addr', 'tel', 'close_date', 'permit_date', 'reopen_date', 'modified_date', 'biz_type', 'branch', 'manager', 'is_large', 'area_py', 'AI_Score', 'AI_Comment']].to_dict(orient='records')
     json_data = json.dumps(map_data, ensure_ascii=False)
     
     st.markdown('<div style="background-color: #e3f2fd; border-left: 5px solid #2196F3; padding: 10px; margin-bottom: 10px; border-radius: 4px;"><small><b>Tip:</b> 왼쪽 지도에서 마커를 선택하면 오른쪽에서 <b>상세 위치</b>와 <b>정보</b>를 확인할 수 있습니다.</small></div>', unsafe_allow_html=True)
@@ -210,7 +215,7 @@ def render_kakao_map(map_df, kakao_key):
             </div>
         </div>
         
-        <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey={kakao_key}&libraries=services,clusterer,drawing"></script>
+        <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey={kakao_key}&libraries=services,clusterer,drawing,visualization"></script>
         <script>
             // --- 1. Map Overview ---
             var mapContainer1 = document.getElementById('map-overview'), 
@@ -696,7 +701,8 @@ def render_kakao_map(map_df, kakao_key):
     components.html(html_content, height=850, key=f"kakao_map_dual_{data_hash}")
 
 
-def render_folium_map(display_df):
+
+def render_folium_map(display_df, use_heatmap=False):
     """
     Render Map using Leaflet (Client-Side) to prevent Streamlit reruns (flashing).
     Layout: Split View (65% Map, 35% Detail)
@@ -945,9 +951,12 @@ def render_folium_map(display_df):
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
         <!-- Marker Cluster JS -->
         <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+        <!-- Heatmap JS -->
+        <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
         <script>
             // Data
             var mapData = {json_data};
+            var useHeatmap = {str(use_heatmap).lower()};
             
             // Map Layers
             var osm = L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
@@ -990,9 +999,53 @@ def render_folium_map(display_df):
                 chunkedLoading: true
             }});
             
+            // [NEW] EXPERT FEATURE 2: HEATMAP
+            if (useHeatmap) {{
+                try {{
+                    var heatPoints = mapData.map(function(p) {{ 
+                        // Weighted by Score
+                        return [p.lat, p.lon, (p.AI_Score || 0)]; 
+                    }});
+                    // Heatmap Layer
+                    var heat = L.heatLayer(heatPoints, {{
+                        radius: 25,
+                        blur: 15,
+                        maxZoom: 10,
+                        max: 100,
+                        gradient: {{0.4: 'blue', 0.65: 'lime', 1: 'red'}}
+                    }}).addTo(map);
+                    
+                    // If heatmap is on, maybe don't cluster? Or keep clustering but heatmap underneath.
+                    // Usually heatmap is standalone. Let's keep clusters but they might obscure heatmap.
+                    // Let's make cluster markers toggleable or just show both.
+                }} catch(e) {{
+                    console.log("Heatmap error:", e);
+                }}
+            }}
+            
             // Markers
             mapData.forEach(function(item) {{
                 var isOpen = (item.status && (item.status.includes('영업') || item.status.includes('정상')));
+                
+                // [NEW] AI Score Logic
+                var scoreHtml = '';
+                if (item.AI_Score && item.AI_Score >= 80) {{
+                     scoreHtml = '<div style="background:#FFD700; color:black; font-size:10px; font-weight:bold; border-radius:4px; padding:0 3px; position:absolute; top:-10px; right:-10px; border:1px solid white; box-shadow:0 1px 2px rgba(0,0,0,0.2);">⭐' + item.AI_Score + '</div>';
+                }}
+                
+                // DivIcon for Custom Marker Appearance
+                var markerColor = item.is_large ? '#673AB7' : (isOpen ? '#2E7D32' : '#d32f2f');
+                var iconHtml = '<div style="position:relative; width:30px; height:30px; background:' + markerColor + '; border-radius:50%; border:2px solid white; box-shadow:0 2px 4px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center; color:white;">' +
+                               '<i class="fas fa-map-marker-alt"></i>' + scoreHtml + '</div>';
+                               
+                var customIcon = L.divIcon({{
+                    html: iconHtml,
+                    className: '',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 30]
+                }});
+                
+                var marker = L.marker([item.lat, item.lon], {{ icon: customIcon }});
                 var className, iconHtml;
                 
                 if (item.is_large) {{

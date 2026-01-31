@@ -15,6 +15,7 @@ from src import map_visualizer
 from src import report_generator
 from src import activity_logger  # Activity logging and status tracking
 from src import voc_manager  # VOC / Request Manager
+from src.ai_scoring import calculate_ai_scores # [NEW] Expert Feat 1: AI Scoring
 
 # --- Configuration & Theme ---
 st.set_page_config(
@@ -2129,11 +2130,20 @@ if raw_df is not None:
                 st.info(f"ℹ️ 데이터가 많아({len(map_df):,}건) 클러스터링되어 표시됩니다. 지도를 확대하면 개별 마커가 보입니다.")
 
         st.markdown("#### 🗺️ 지도")
+        
+        # [NEW] Expert Feat 1: AI Scoring
+        if not map_df.empty:
+            map_df = calculate_ai_scores(map_df)
+            
+        # [NEW] Expert Feat 2: Heatmap Toggle
+        use_heatmap = st.checkbox("🌡️ 상권 밀집도(히트맵) 보기", value=False)
+        
         if not map_df.empty:
             if kakao_key:
-                map_visualizer.render_kakao_map(map_df, kakao_key)
+                # Pass heatmap flag to visualizer
+                map_visualizer.render_kakao_map(map_df, kakao_key, use_heatmap=use_heatmap)
             else:
-                map_visualizer.render_folium_map(map_df) # [FIX] Correct function name
+                map_visualizer.render_folium_map(map_df, use_heatmap=use_heatmap) # [FIX] Correct function name
         else:
             st.warning("표시할 데이터가 없습니다.")
             
