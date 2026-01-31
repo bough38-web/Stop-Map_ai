@@ -788,13 +788,25 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False):
                 if(walkCount >= items.length / 2) strategy = '🏃 <b>도보 이동 추천</b> (대부분 1km 이내)';
                 else strategy = '🚗 <b>차량 이동 효율적</b> (거리가 멉니다)';
                 
+                var telListHtml = '';
+                if(telCount > 0) {{
+                    telListHtml = '<div style="margin-top:5px; background:rgba(255,255,255,0.7); padding:5px; border-radius:4px; max-height:80px; overflow-y:auto;">';
+                    items.forEach(function(item) {{
+                        if(item.tel && item.tel != '-') {{
+                             telListHtml += '<div style="font-size:11px; color:#555;">📞 ' + item.title + ' (' + item.tel + ')</div>';
+                        }}
+                    }});
+                    telListHtml += '</div>';
+                }}
+                
                 var html = '<div style="margin:10px 15px; padding:15px; background:linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%); border-radius:8px; border-left:5px solid #1976D2; box-shadow:0 2px 5px rgba(0,0,0,0.05);">';
                 html += '<div style="font-weight:bold; color:#0D47A1; margin-bottom:8px; display:flex; align-items:center;"><span style="font-size:18px; margin-right:5px;">🤖</span> AI 전략 분석 리포트</div>';
                 
                 html += '<div style="font-size:13px; color:#333; line-height:1.6;">';
                 html += '1️⃣ <b>이동 전략:</b> ' + strategy + '<br>';
                 html += '2️⃣ <b>우선 타겟:</b> ' + (maxAreaItem ? maxAreaItem.title + ' (' + maxAreaItem.area_py + '평, 대형)' : '없음') + '<br>';
-                html += '3️⃣ <b>컨택 준비:</b> 대상 중 <b>' + telCount + '곳</b> 전화번호 보유<br>';
+                html += '3️⃣ <b>컨택 준비:</b> 대상 중 <b>' + telCount + '곳</b> 전화번호 보유';
+                html += telListHtml + '<br>'; // Add list here
                 html += '</div>';
                 
                 html += '<div style="margin-top:8px; font-size:12px; color:#555; background:rgba(255,255,255,0.5); padding:5px; border-radius:4px;">';
@@ -1365,13 +1377,25 @@ def render_folium_map(display_df, use_heatmap=False):
                 if(walkCount >= items.length / 2) strategy = '🏃 <b>도보 이동 추천</b> (대부분 1km 이내)';
                 else strategy = '🚗 <b>차량 이동 효율적</b> (거리가 멉니다)';
                 
+                var telListHtml = '';
+                if(telCount > 0) {{
+                    telListHtml = '<div style="margin-top:5px; background:rgba(255,255,255,0.7); padding:5px; border-radius:4px; max-height:80px; overflow-y:auto;">';
+                    items.forEach(function(item) {{
+                        if(item.tel && item.tel != '-') {{
+                             telListHtml += '<div style="font-size:11px; color:#555;">📞 ' + item.title + ' (' + item.tel + ')</div>';
+                        }}
+                    }});
+                    telListHtml += '</div>';
+                }}
+                
                 var html = '<div style="margin-bottom:15px; padding:15px; background:linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%); border-radius:8px; border-left:5px solid #1976D2; box-shadow:0 2px 5px rgba(0,0,0,0.05);">';
                 html += '<div style="font-weight:bold; color:#0D47A1; margin-bottom:8px; display:flex; align-items:center;"><span style="font-size:18px; margin-right:5px;">🤖</span> AI 전략 분석 리포트</div>';
                 
                 html += '<div style="font-size:13px; color:#333; line-height:1.6;">';
                 html += '1️⃣ <b>이동 전략:</b> ' + strategy + '<br>';
                 html += '2️⃣ <b>우선 타겟:</b> ' + (maxAreaItem ? maxAreaItem.title + ' (' + maxAreaItem.area_py + '평, 대형)' : '없음') + '<br>';
-                html += '3️⃣ <b>컨택 준비:</b> 대상 중 <b>' + telCount + '곳</b> 전화번호 보유<br>';
+                html += '3️⃣ <b>컨택 준비:</b> 대상 중 <b>' + telCount + '곳</b> 전화번호 보유';
+                html += telListHtml + '<br>';
                 html += '</div>';
                 html += '<div style="margin-top:8px; font-size:12px; color:#555; background:rgba(255,255,255,0.5); padding:5px; border-radius:4px;">';
                 html += '💡 <b>Tip:</b> ' + (maxAreaItem ? maxAreaItem.title + '부터 방문하여 효율을 높이세요!' : '동선 낭비를 최소화하세요.') ;
