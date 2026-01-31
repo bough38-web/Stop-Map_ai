@@ -799,18 +799,30 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False):
                     telListHtml += '</div>';
                 }}
                 
+                // [FIX] Priority Logic for Missing Area
+                var priorityHtml = '';
+                var tipHtml = '';
+                
+                if (maxArea > 0) {{
+                     priorityHtml = '2️⃣ <b>우선 타겟:</b> ' + maxAreaItem.title + ' (' + maxAreaItem.area_py + '평, 대형)';
+                     tipHtml = '💡 <b>Tip:</b> ' + maxAreaItem.title + '부터 공략하여 대형 계약을 노리세요!';
+                }} else {{
+                     priorityHtml = '2️⃣ <b>우선 타겟:</b> 면적 정보 없음 (판단 유보)';
+                     tipHtml = '💡 <b>Tip:</b> 데이터상 면적 정보가 없습니다. 현장 규모를 눈으로 직접 확인 후 방문 순서를 정하세요.';
+                }}
+                
                 var html = '<div style="margin:10px 15px; padding:15px; background:linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%); border-radius:8px; border-left:5px solid #1976D2; box-shadow:0 2px 5px rgba(0,0,0,0.05);">';
                 html += '<div style="font-weight:bold; color:#0D47A1; margin-bottom:8px; display:flex; align-items:center;"><span style="font-size:18px; margin-right:5px;">🤖</span> AI 전략 분석 리포트</div>';
                 
                 html += '<div style="font-size:13px; color:#333; line-height:1.6;">';
                 html += '1️⃣ <b>이동 전략:</b> ' + strategy + '<br>';
-                html += '2️⃣ <b>우선 타겟:</b> ' + (maxAreaItem ? maxAreaItem.title + ' (' + maxAreaItem.area_py + '평, 대형)' : '없음') + '<br>';
+                html += priorityHtml + '<br>';
                 html += '3️⃣ <b>컨택 준비:</b> 대상 중 <b>' + telCount + '곳</b> 전화번호 보유';
                 html += telListHtml + '<br>'; // Add list here
                 html += '</div>';
                 
                 html += '<div style="margin-top:8px; font-size:12px; color:#555; background:rgba(255,255,255,0.5); padding:5px; border-radius:4px;">';
-                html += '💡 <b>Tip:</b> ' + (maxAreaItem ? maxAreaItem.title + '부터 공략하여 대형 계약을 노리세요!' : '가까운 곳부터 빠르게 훑는 것이 좋습니다.') ;
+                html += tipHtml;
                 html += '</div>';
                 html += '</div>';
                 
@@ -1388,17 +1400,29 @@ def render_folium_map(display_df, use_heatmap=False):
                     telListHtml += '</div>';
                 }}
                 
+                // [FIX] Priority Logic for Missing Area
+                var priorityHtml = '';
+                var tipHtml = '';
+                
+                if (maxArea > 0) {{
+                     priorityHtml = '2️⃣ <b>우선 타겟:</b> ' + maxAreaItem.title + ' (' + maxAreaItem.area_py + '평, 대형)';
+                     tipHtml = '💡 <b>Tip:</b> ' + maxAreaItem.title + '부터 방문하여 효율을 높이세요!';
+                }} else {{
+                     priorityHtml = '2️⃣ <b>우선 타겟:</b> 면적 정보 없음 (판단 유보)';
+                     tipHtml = '💡 <b>Tip:</b> 면적 정보가 불충분합니다. 현장 확인 후 방문 순서를 정하는 것을 추천합니다.';
+                }}
+                
                 var html = '<div style="margin-bottom:15px; padding:15px; background:linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%); border-radius:8px; border-left:5px solid #1976D2; box-shadow:0 2px 5px rgba(0,0,0,0.05);">';
                 html += '<div style="font-weight:bold; color:#0D47A1; margin-bottom:8px; display:flex; align-items:center;"><span style="font-size:18px; margin-right:5px;">🤖</span> AI 전략 분석 리포트</div>';
                 
                 html += '<div style="font-size:13px; color:#333; line-height:1.6;">';
                 html += '1️⃣ <b>이동 전략:</b> ' + strategy + '<br>';
-                html += '2️⃣ <b>우선 타겟:</b> ' + (maxAreaItem ? maxAreaItem.title + ' (' + maxAreaItem.area_py + '평, 대형)' : '없음') + '<br>';
+                html += priorityHtml + '<br>';
                 html += '3️⃣ <b>컨택 준비:</b> 대상 중 <b>' + telCount + '곳</b> 전화번호 보유';
                 html += telListHtml + '<br>';
                 html += '</div>';
                 html += '<div style="margin-top:8px; font-size:12px; color:#555; background:rgba(255,255,255,0.5); padding:5px; border-radius:4px;">';
-                html += '💡 <b>Tip:</b> ' + (maxAreaItem ? maxAreaItem.title + '부터 방문하여 효율을 높이세요!' : '동선 낭비를 최소화하세요.') ;
+                html += tipHtml ;
                 html += '</div></div>';
                 
                 return html;
