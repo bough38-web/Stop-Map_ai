@@ -692,7 +692,14 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False):
                 
                 // [FEATURE] Update Header with Total Distance
                 var totalDistStr = formatDistance(totalDist);
+                
+                // [NEW] AI Analysis Review Generation
+                var aiReview = generateAIAnalysis(routeItems, totalDist);
+                
                 var headerHtml = '<div class="sb-header"><h3 class="sb-title">⚡ 추천 방문 코스 (' + routeItems.length + '곳 / 총 ' + totalDistStr + ')</h3></div>';
+                
+                // Insert AI Review after Header
+                headerHtml += aiReview;
                 
                 // Re-assemble content with new header
                 var bodyContent = listHtml.substring(listHtml.indexOf('<div class="sb-body">'));
@@ -753,6 +760,49 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False):
                     routeOverlays[i].setMap(null);
                 }}
                 routeOverlays = [];
+            }}
+            
+            // [NEW] AI Analysis Logic
+            function generateAIAnalysis(items, totalDistKm) {{
+                if(!items || items.length === 0) return '';
+                
+                var walkCount = 0;
+                var telCount = 0;
+                var maxArea = 0;
+                var maxAreaItem = null;
+                
+                items.forEach(function(item, idx) {{
+                    if(idx > 0) {{ // Check distance from prev
+                       var prev = items[idx-1];
+                       var d = getDistance(prev.lat, prev.lon, item.lat, item.lon);
+                       if(d < 1.0) walkCount++;
+                    }}
+                    if(item.tel && item.tel != '-') telCount++;
+                    if(item.area_py > maxArea) {{
+                        maxArea = item.area_py;
+                        maxAreaItem = item;
+                    }}
+                }});
+                
+                var strategy = '';
+                if(walkCount >= items.length / 2) strategy = '🏃 <b>도보 이동 추천</b> (대부분 1km 이내)';
+                else strategy = '🚗 <b>차량 이동 효율적</b> (거리가 멉니다)';
+                
+                var html = '<div style="margin:10px 15px; padding:15px; background:linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%); border-radius:8px; border-left:5px solid #1976D2; box-shadow:0 2px 5px rgba(0,0,0,0.05);">';
+                html += '<div style="font-weight:bold; color:#0D47A1; margin-bottom:8px; display:flex; align-items:center;"><span style="font-size:18px; margin-right:5px;">🤖</span> AI 전략 분석 리포트</div>';
+                
+                html += '<div style="font-size:13px; color:#333; line-height:1.6;">';
+                html += '1️⃣ <b>이동 전략:</b> ' + strategy + '<br>';
+                html += '2️⃣ <b>우선 타겟:</b> ' + (maxAreaItem ? maxAreaItem.title + ' (' + maxAreaItem.area_py + '평, 대형)' : '없음') + '<br>';
+                html += '3️⃣ <b>컨택 준비:</b> 대상 중 <b>' + telCount + '곳</b> 전화번호 보유<br>';
+                html += '</div>';
+                
+                html += '<div style="margin-top:8px; font-size:12px; color:#555; background:rgba(255,255,255,0.5); padding:5px; border-radius:4px;">';
+                html += '💡 <b>Tip:</b> ' + (maxAreaItem ? maxAreaItem.title + '부터 공략하여 대형 계약을 노리세요!' : '가까운 곳부터 빠르게 훑는 것이 좋습니다.') ;
+                html += '</div>';
+                html += '</div>';
+                
+                return html;
             }}
     </body>
     </html>
@@ -1289,6 +1339,47 @@ def render_folium_map(display_df, use_heatmap=False):
             // Route Variables
             var routeLayerGroup = L.layerGroup().addTo(map);
 
+            // [NEW] AI Analysis Logic (Leaflet)
+            function generateAIAnalysisLeaflet(items, totalDistKm) {{
+                if(!items || items.length === 0) return '';
+                
+                var walkCount = 0;
+                var telCount = 0;
+                var maxArea = 0;
+                var maxAreaItem = null;
+                
+                items.forEach(function(item, idx) {{
+                    if(idx > 0) {{
+                       var prev = items[idx-1];
+                       var d = getDistance(prev.lat, prev.lon, item.lat, item.lon);
+                       if(d < 1.0) walkCount++;
+                    }}
+                    if(item.tel && item.tel != '-') telCount++;
+                    if(item.area_py > maxArea) {{
+                        maxArea = item.area_py;
+                        maxAreaItem = item;
+                    }}
+                }});
+                
+                var strategy = '';
+                if(walkCount >= items.length / 2) strategy = '🏃 <b>도보 이동 추천</b> (대부분 1km 이내)';
+                else strategy = '🚗 <b>차량 이동 효율적</b> (거리가 멉니다)';
+                
+                var html = '<div style="margin-bottom:15px; padding:15px; background:linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%); border-radius:8px; border-left:5px solid #1976D2; box-shadow:0 2px 5px rgba(0,0,0,0.05);">';
+                html += '<div style="font-weight:bold; color:#0D47A1; margin-bottom:8px; display:flex; align-items:center;"><span style="font-size:18px; margin-right:5px;">🤖</span> AI 전략 분석 리포트</div>';
+                
+                html += '<div style="font-size:13px; color:#333; line-height:1.6;">';
+                html += '1️⃣ <b>이동 전략:</b> ' + strategy + '<br>';
+                html += '2️⃣ <b>우선 타겟:</b> ' + (maxAreaItem ? maxAreaItem.title + ' (' + maxAreaItem.area_py + '평, 대형)' : '없음') + '<br>';
+                html += '3️⃣ <b>컨택 준비:</b> 대상 중 <b>' + telCount + '곳</b> 전화번호 보유<br>';
+                html += '</div>';
+                html += '<div style="margin-top:8px; font-size:12px; color:#555; background:rgba(255,255,255,0.5); padding:5px; border-radius:4px;">';
+                html += '💡 <b>Tip:</b> ' + (maxAreaItem ? maxAreaItem.title + '부터 방문하여 효율을 높이세요!' : '동선 낭비를 최소화하세요.') ;
+                html += '</div></div>';
+                
+                return html;
+            }}
+
             function findOptimizedRoute(startPos) {{
                  // Filter valid data
                  var candidates = mapData.filter(function(item) {{
@@ -1429,9 +1520,14 @@ def render_folium_map(display_df, use_heatmap=False):
                 
                 listHtml += '</div>';
                 
-                // Update Header
                 var totalDistStr = formatDistance(totalDist);
-                var headerHtml = '<div class="detail-header"><h3 class="detail-title" style="color:#E65100;">⚡ 추천 방문 코스 (' + routeItems.length + '곳 / 총 ' + totalDistStr + ')</h3><div style="font-size:13px; color:#666;">현재 위치에서 가장 가까운 최적 동선입니다. (총 ' + totalDistStr + ')</div></div>';
+                // [NEW] AI Analysis Review
+                var aiReview = generateAIAnalysisLeaflet(routeItems, totalDist);
+                
+                var headerHtml = '<div class="detail-header" style="background:#fafafa; border-bottom:1px solid #ddd; padding:15px;"><h3 class="detail-title" style="font-size:18px;">⚡ 추천 방문 코스 (' + routeItems.length + '곳 / 총 ' + totalDistStr + ')</h3></div>';
+                
+                // Insert AI Review
+                headerHtml += aiReview;
                 
                 // Hackily replace the header part of listHtml or just reconstruct.
                 // Reconstruct is cleaner but listHtml already has body.
