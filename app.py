@@ -2143,6 +2143,8 @@ if raw_df is not None:
                 # Pass heatmap flag to visualizer
                 map_visualizer.render_kakao_map(map_df, kakao_key, use_heatmap=use_heatmap)
             else:
+                import importlib
+                importlib.reload(map_visualizer)
                 map_visualizer.render_folium_map(map_df, use_heatmap=use_heatmap) # [FIX] Correct function name
         else:
             st.warning("표시할 데이터가 없습니다.")
