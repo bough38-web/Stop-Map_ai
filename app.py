@@ -231,15 +231,18 @@ st.markdown("""
         /* 1. Reduce Gap between columns in the Row Container */
         [data-testid="stHorizontalBlock"] {
             gap: 4px !important;
+            flex-wrap: wrap !important;
         }
         
-        /* 2. Force Columns to be 50% width and side-by-side */
+        /* 2. Force Columns to be 'Almost' 50% width to fit side-by-side with gap */
+        /* Calculation: (100% / 2) - (Gap / 2) - Safety Margin */
         [data-testid="column"] {
-            width: 50% !important;
-            flex: 1 1 50% !important; 
-            min-width: 50% !important;
-            max-width: 50% !important;
+            width: calc(50% - 4px) !important;
+            flex: 1 1 calc(50% - 4px) !important; 
+            min-width: calc(50% - 4px) !important;
+            max-width: calc(50% - 4px) !important;
             padding: 0px !important; /* Eliminate internal padding */
+            margin: 0px !important;
         }
         
         /* 3. Ensure internal widgets take full width but don't overflow */
