@@ -540,6 +540,14 @@ def render_kakao_map(map_df, kakao_key):
                 return deg * (Math.PI/180)
             }}
             
+            function formatDistance(distKm) {{
+                if (distKm < 1) {{
+                    return Math.round(distKm * 1000) + 'm';
+                }} else {{
+                    return distKm.toFixed(1) + 'km';
+                }}
+            }}
+            
             function drawRoute(startPos, routeItems) {{
                 // Clear previous route
                 clearRoute();
@@ -551,9 +559,37 @@ def render_kakao_map(map_df, kakao_key):
                 var listHtml = '<div class="sb-header"><h3 class="sb-title">⚡ 추천 방문 코스 (' + routeItems.length + '곳)</h3></div><div class="sb-body">';
                 listHtml += '<div style="margin-bottom:10px; color:#666; font-size:13px;">현재 위치에서 가장 가까운 순서대로<br>최적의 동선을 제안합니다.</div>';
                 
+                // Distance Tracking
+                var totalDist = 0;
+                
                 routeItems.forEach(function(item, index) {{
                     var seq = index + 1;
                     var pos = new kakao.maps.LatLng(item.lat, item.lon);
+                    
+                    // [FEATURE] Calculate Segment Distance & Add Overlay
+                    var prevPos = linePath[linePath.length - 1]; // Last added point (start or prev item)
+                    var dist = getDistance(prevPos.getLat(), prevPos.getLng(), pos.getLat(), pos.getLng());
+                    totalDist += dist;
+                    
+                    if (dist > 0) {{
+                        var midLat = (prevPos.getLat() + pos.getLat()) / 2;
+                        var midLon = (prevPos.getLng() + pos.getLng()) / 2;
+                        var midPos = new kakao.maps.LatLng(midLat, midLon);
+                        
+                        var distText = formatDistance(dist);
+                        // Overlay Style: White pill with border
+                        var distContent = '<div style="padding:2px 6px; background:white; border:1px solid #E65100; color:#E65100; font-size:11px; border-radius:12px; font-weight:bold; box-shadow:0 1px 3px rgba(0,0,0,0.2); white-space:nowrap;">' + distText + '</div>';
+                        
+                        var distOverlay = new kakao.maps.CustomOverlay({{
+                            position: midPos,
+                            content: distContent,
+                            yAnchor: 0.5,
+                            zIndex: 3000 // Above lines
+                        }});
+                        distOverlay.setMap(mapOverview);
+                        routeOverlays.push(distOverlay);
+                    }}
+                    
                     linePath.push(pos);
                     bounds.extend(pos);
                     
@@ -588,7 +624,10 @@ def render_kakao_map(map_df, kakao_key):
                     
                     // List Item
                      listHtml += '<div style="background:white; border:1px solid #eee; border-left:4px solid #E65100; padding:10px; margin-bottom:8px; border-radius:4px;">';
-                     listHtml += '<div style="font-weight:bold; color:#E65100; margin-bottom:4px;">#' + seq + '. ' + item.title + '</div>';
+                     listHtml += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">';
+                     listHtml += '<div style="font-weight:bold; color:#E65100;">#' + seq + '. ' + item.title + '</div>';
+                     listHtml += '<div style="font-size:11px; color:#E65100; font-weight:bold;">+' + formatDistance(dist) + '</div>';
+                     listHtml += '</div>';
                      listHtml += '<div style="font-size:12px; color:#555; margin-bottom:6px;">' + item.addr + '</div>';
                      
                      // Extra Info (Area, Dates)
@@ -605,8 +644,16 @@ def render_kakao_map(map_df, kakao_key):
                 }});
                 
                 listHtml += '</div>';
-                document.getElementById('info-panel').innerHTML = listHtml;
-                document.getElementById('map-detail').innerHTML = '<div class="detail-label">⚡ 추천 동선 모드</div><div style="width:100%; height:100%; display:flex; justify-content:center; align-items:center; color:#E65100; font-weight:bold; background:#fafafa; text-align:center;">지도에 표시된 순서대로<br>방문하세요</div>';
+                
+                // [FEATURE] Update Header with Total Distance
+                var totalDistStr = formatDistance(totalDist);
+                var headerHtml = '<div class="sb-header"><h3 class="sb-title">⚡ 추천 방문 코스 (' + routeItems.length + '곳 / 총 ' + totalDistStr + ')</h3></div>';
+                
+                // Re-assemble content with new header
+                var bodyContent = listHtml.substring(listHtml.indexOf('<div class="sb-body">'));
+                document.getElementById('info-panel').innerHTML = headerHtml + bodyContent;
+                
+                document.getElementById('map-detail').innerHTML = '<div class="detail-label">⚡ 추천 동선 모드</div><div style="width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; color:#E65100; font-weight:bold; background:#fafafa; text-align:center;"><div>총 예상 이동거리</div><div style="font-size:24px; color:#E65100; margin:5px 0 15px 0;">' + totalDistStr + '</div><div style="font-size:13px; color:#777;">지도에 표시된 순서대로<br>방문하세요</div></div>';
                 
                 // Draw Polyline
                 var polyline = new kakao.maps.Polyline({{
@@ -1184,15 +1231,47 @@ def render_folium_map(display_df):
 
             function deg2rad(deg) {{ return deg * (Math.PI/180); }}
             
+            function formatDistance(distKm) {{
+                if (distKm < 1) {{
+                    return Math.round(distKm * 1000) + 'm';
+                }} else {{
+                    return distKm.toFixed(1) + 'km';
+                }}
+            }}
+            
             function drawRoute(startPos, routeItems) {{
                 routeLayerGroup.clearLayers();
                 
                 var latlngs = [startPos];
+                // [FEATURE] Distance Variable
+                var totalDist = 0;
+                
                 var listHtml = '<div class="detail-header"><h3 class="detail-title" style="color:#E65100;">⚡ 추천 방문 코스 (' + routeItems.length + '곳)</h3><div style="font-size:13px; color:#666;">현재 위치에서 가장 가까운 최적 동선입니다.</div></div><div class="detail-body">';
                 
                 routeItems.forEach(function(item, index) {{
                     var seq = index + 1;
                     var pos = [item.lat, item.lon];
+                    
+                    // [FEATURE] Calculate Distance
+                    var prevPos = latlngs[latlngs.length - 1]; // [lat, lon] array
+                    var dist = getDistance(prevPos[0], prevPos[1], pos[0], pos[1]);
+                    totalDist += dist;
+                    
+                    // [FEATURE] Distance Badge on Map
+                    if (dist > 0) {{
+                         var midLat = (prevPos[0] + pos[0]) / 2;
+                         var midLon = (prevPos[1] + pos[1]) / 2;
+                         var distText = formatDistance(dist);
+                         
+                         var distIcon = L.divIcon({{
+                             className: '',
+                             html: '<div style="padding:2px 6px; background:white; border:1px solid #E65100; color:#E65100; font-size:11px; border-radius:12px; font-weight:bold; box-shadow:0 1px 3px rgba(0,0,0,0.2); white-space:nowrap;">' + distText + '</div>',
+                             iconSize: [40, 20], // Approx
+                             iconAnchor: [20, 10]
+                         }});
+                         L.marker([midLat, midLon], {{ icon: distIcon, zIndexOffset: 2000 }}).addTo(routeLayerGroup);
+                    }}
+                    
                     latlngs.push(pos);
                     
                     // Numbered Marker (Custom HTML Icon)
@@ -1208,7 +1287,10 @@ def render_folium_map(display_df):
                     // Add to list
                     listHtml += `
                         <div class="detail-card" style="margin:10px 0; padding:15px; border-left:4px solid #E65100;">
-                            <div style="font-weight:bold; color:#E65100; margin-bottom:5px;">#${{seq}}. ${{item.title}}</div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                                <div style="font-weight:bold; color:#E65100;">#${{seq}}. ${{item.title}}</div>
+                                <div style="font-size:11px; color:#E65100; font-weight:bold;">+${{formatDistance(dist)}}</div>
+                            </div>
                             <div style="font-size:12px; color:#555; margin-bottom:8px;">${{item.addr}}</div>
                             
                             <div style="font-size:11px; color:#777; line-height:1.4; margin-bottom:10px; background:#f9f9f9; padding:8px; border-radius:4px;">
@@ -1226,7 +1308,16 @@ def render_folium_map(display_df):
                 }});
                 
                 listHtml += '</div>';
-                document.getElementById('detail-content').innerHTML = listHtml;
+                
+                // Update Header
+                var totalDistStr = formatDistance(totalDist);
+                var headerHtml = '<div class="detail-header"><h3 class="detail-title" style="color:#E65100;">⚡ 추천 방문 코스 (' + routeItems.length + '곳 / 총 ' + totalDistStr + ')</h3><div style="font-size:13px; color:#666;">현재 위치에서 가장 가까운 최적 동선입니다. (총 ' + totalDistStr + ')</div></div>';
+                
+                // Hackily replace the header part of listHtml or just reconstruct.
+                // Reconstruct is cleaner but listHtml already has body.
+                // Replace strategy:
+                var bodyPart = listHtml.substring(listHtml.indexOf('<div class="detail-body">'));
+                document.getElementById('detail-content').innerHTML = headerHtml + bodyPart;
                 
                 // Draw Polyline
                 L.polyline(latlngs, {{color: '#E65100', weight: 5, opacity: 0.8}}).addTo(routeLayerGroup);
