@@ -818,7 +818,8 @@ if raw_df is not None:
             except Exception as e:
                 print(f"Notice Error: {e}")
 
-            st.markdown("<p style='text-align: center; color: #666; margin-bottom: 20px;'>행정안전부 공공DATA 기반 고객 및 시장의 변화 신호(신규,폐업 징후)를 조기에 감지하여<br>영업기회 발굴</p>", unsafe_allow_html=True)
+            with st.expander("ℹ️ 서비스 소개 (클릭)", expanded=False):
+                st.markdown("<p style='text-align: center; color: #666; margin-bottom: 20px;'>행정안전부 공공DATA 기반 고객 및 시장의 변화 신호(신규,폐업 징후)를 조기에 감지하여<br>영업기회 발굴</p>", unsafe_allow_html=True)
             
             # [FEATURE] Manual Button
             c_man1, c_man2, c_man3 = st.columns([1, 2, 1])
