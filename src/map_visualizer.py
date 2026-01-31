@@ -1141,7 +1141,7 @@ def render_folium_map(display_df):
             var routeBtn = document.createElement('div');
             routeBtn.innerHTML = '⚡ 추천 동선 (5곳)';
             routeBtn.innerHTML = '⚡ 추천 동선 (5곳)';
-            routeBtn.style.cssText = 'position:absolute; top:60px; left:10px; z-index:1000; background:white; padding:12px 16px; border-radius:8px; border:1px solid #ccc; cursor:pointer; font-weight:bold; font-size:14px; box-shadow:0 2px 6px rgba(0,0,0,0.2); color:#E65100;';
+            routeBtn.style.cssText = 'position:absolute; top:70px; left:10px; z-index:1000; background:white; padding:12px 16px; border-radius:8px; border:1px solid #ccc; cursor:pointer; font-weight:bold; font-size:14px; box-shadow:0 2px 6px rgba(0,0,0,0.2); color:#E65100;';
             routeBtn.onclick = function() {{
                 if (navigator.geolocation) {{
                     routeBtn.innerHTML = '⏳ 계산중...';

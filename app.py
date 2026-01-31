@@ -180,7 +180,7 @@ st.markdown("""
         padding-top: 10px;
     }
     
-    /* Tabs Customization */
+    /* TABS Customization */
     .stTabs [data-baseweb="tab-list"] {
         gap: 20px;
     }
@@ -197,6 +197,33 @@ st.markdown("""
         background-color: transparent;
         border-bottom: 2px solid #2E7D32;
         color: #2E7D32;
+    }
+
+    /* [MOBILE APP] Optimization CSS */
+    /* Hide Streamlit Native Elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .stDeployButton {display:none;}
+    
+    /* Maximize Screen Real Estate */
+    .main .block-container {
+        padding-top: 0.5rem !important;
+        padding-bottom: 5rem !important; /* Increase bottom padding for scrolling past content */
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+        max-width: 100% !important;
+    }
+    
+    /* Larger Touch Targets */
+    button, .stButton>button {
+        min-height: 48px !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+    }
+    /* Expander click area */
+    .streamlit-expanderHeader {
+        padding: 1rem !important;
     }
 </style>
 """, unsafe_allow_html=True)
