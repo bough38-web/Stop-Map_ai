@@ -750,7 +750,7 @@ if raw_df is not None:
              
         
         with main_col:
-            st.markdown("<h1 style='text-align: center; margin-top: -30px; margin-bottom: 5px;'>영업기회 포착 대시보드</h1>", unsafe_allow_html=True)
+            st.markdown("<h1 style='text-align: center; margin-top: -30px; margin-bottom: 5px;'>영업기회 비서</h1>", unsafe_allow_html=True)
             
             # [FEATURE] System Notice
             try:
