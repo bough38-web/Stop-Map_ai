@@ -644,7 +644,13 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False):
 
                      listHtml += '<div style="margin-top:5px; text-align:right;">';
                      listHtml += '<a href="javascript:void(0);" onclick="triggerVisit(\'' + item.title + '\', \'' + item.addr + '\')" style="font-size:11px; color:#4CAF50; font-weight:bold; margin-right:10px; text-decoration:none;">✅ 방문처리</a>';
-                     listHtml += '<a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="font-size:11px; color:#1976D2; font-weight:bold; text-decoration:none;">🚗 길안내</a>';
+                     
+                     // [FEATURE] Smart Navigation Link
+                     if (dist < 1.0) {{
+                         listHtml += '<a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="font-size:11px; color:#2E7D32; font-weight:bold; text-decoration:none;">🚶 도보 길내 (' + Math.ceil(dist*15) + '분)</a>';
+                     }} else {{
+                         listHtml += '<a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="font-size:11px; color:#E65100; font-weight:bold; text-decoration:none;">🚗 차량 길안내 (' + Math.ceil(dist*3) + '분)</a>';
+                     }}
                      listHtml += '</div></div>';
                 }});
                 
@@ -660,17 +666,40 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False):
                 
                 document.getElementById('map-detail').innerHTML = '<div class="detail-label">⚡ 추천 동선 모드</div><div style="width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; color:#E65100; font-weight:bold; background:#fafafa; text-align:center;"><div>총 예상 이동거리</div><div style="font-size:24px; color:#E65100; margin:5px 0 15px 0;">' + totalDistStr + '</div><div style="font-size:13px; color:#777;">지도에 표시된 순서대로<br>방문하세요</div></div>';
                 
-                // Draw Polyline
-                var polyline = new kakao.maps.Polyline({{
-                    path: linePath, 
-                    strokeWeight: 5, 
-                    strokeColor: '#E65100', 
-                    strokeOpacity: 0.8, 
-                    strokeStyle: 'solid' 
-                }});
+                // Draw Polyline (Segment by Segment)
                 
-                polyline.setMap(mapOverview);
-                routePolylines.push(polyline);
+                // Clear existing
+                linePath = []; 
+                
+                // Re-iterate to draw segments with specific styles
+                var prev = startPos;
+                
+                routeItems.forEach(function(item) {{
+                    var curr = new kakao.maps.LatLng(item.lat, item.lon);
+                    var dist = getDistance(prev.getLat(), prev.getLng(), curr.getLat(), curr.getLng());
+                    
+                    var strokeColor = '#E65100'; // Default Car (Orange)
+                    var strokeStyle = 'solid';
+                    
+                    // [FEATURE] Walking Route (< 1km)
+                    if (dist < 1.0) {{
+                        strokeColor = '#2E7D32'; // Green
+                        strokeStyle = 'shortdash';
+                    }}
+                    
+                    var polyline = new kakao.maps.Polyline({{
+                        path: [prev, curr], 
+                        strokeWeight: 6, 
+                        strokeColor: strokeColor, 
+                        strokeOpacity: 0.8, 
+                        strokeStyle: strokeStyle
+                    }});
+                    
+                    polyline.setMap(mapOverview);
+                    routePolylines.push(polyline);
+                    
+                    prev = curr;
+                }});
                 
                 mapOverview.setBounds(bounds);
             }}
@@ -1354,7 +1383,11 @@ def render_folium_map(display_df, use_heatmap=False):
 
                             <div style="display:flex; gap:5px;">
                                 <a href="javascript:void(0);" onclick="triggerVisit('${{item.title}}', '${{item.addr}}')" style="flex:1; background:#4CAF50; color:white; text-decoration:none; padding:5px 0; border-radius:4px; text-align:center; font-size:11px; font-weight:bold;">✅ 방문</a>
-                                <a href="https://map.kakao.com/link/to/${{item.title}},${{item.lat}},${{item.lon}}" target="_blank" style="flex:1; background:#FEE500; color:black; text-decoration:none; padding:5px 0; border-radius:4px; text-align:center; font-size:11px; font-weight:bold;">🚗 길안내</a>
+                                
+                                ${{ (dist < 1.0) 
+                                    ? `<a href="https://map.kakao.com/link/to/${{item.title}},${{item.lat}},${{item.lon}}" target="_blank" style="flex:1; background:#C8E6C9; color:#1B5E20; text-decoration:none; padding:5px 0; border-radius:4px; text-align:center; font-size:11px; font-weight:bold;">🚶 도보 (${{Math.ceil(dist*15)}}분)</a>` 
+                                    : `<a href="https://map.kakao.com/link/to/${{item.title}},${{item.lat}},${{item.lon}}" target="_blank" style="flex:1; background:#FFCCBC; color:#BF360C; text-decoration:none; padding:5px 0; border-radius:4px; text-align:center; font-size:11px; font-weight:bold;">🚗 차량 (${{Math.ceil(dist*3)}}분)</a>` 
+                                }}
                             </div>
                         </div>
                     `;
@@ -1372,8 +1405,18 @@ def render_folium_map(display_df, use_heatmap=False):
                 var bodyPart = listHtml.substring(listHtml.indexOf('<div class="detail-body">'));
                 document.getElementById('detail-content').innerHTML = headerHtml + bodyPart;
                 
-                // Draw Polyline
-                L.polyline(latlngs, {{color: '#E65100', weight: 5, opacity: 0.8}}).addTo(routeLayerGroup);
+                // Draw Polyline (Segment by Segment for Smart Styles)
+                var prev = startPos;
+                routeItems.forEach(function(item) {{
+                    var curr = [item.lat, item.lon];
+                    var d = getDistance(prev[0], prev[1], curr[0], curr[1]);
+                    
+                    var color = (d < 1.0) ? '#2E7D32' : '#E65100';
+                    var dashArray = (d < 1.0) ? '5, 10' : null;
+                    
+                    L.polyline([prev, curr], {{color: color, weight: 6, opacity: 0.8, dashArray: dashArray}}).addTo(routeLayerGroup);
+                    prev = curr;
+                }});
                 
                 // Bound to route
                 var group = new L.featureGroup(routeItems.map(d => L.marker([d.lat, d.lon])));
