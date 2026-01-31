@@ -131,6 +131,7 @@ def get_change_history(record_key=None, limit=100):
     return history[-limit:] if history else []
 
 
+
 # ===== VIEW LOGGING =====
 
 VIEW_LOG_FILE = STORAGE_DIR / "view_logs.json"
@@ -159,3 +160,84 @@ def get_view_logs(limit=100):
     """Get recent view logs"""
     logs = load_json_file(VIEW_LOG_FILE)
     return logs[-limit:] if logs else []
+
+
+# ===== VISIT REPORTS (Text, Voice, Photo) =====
+
+VISIT_REPORT_FILE = STORAGE_DIR / "visit_reports.json"
+VISIT_MEDIA_DIR = STORAGE_DIR / "visits"
+VISIT_MEDIA_DIR.mkdir(exist_ok=True)
+
+def save_visit_report(record_key, content, audio_file, photo_file, user_info):
+    """
+    Save a comprehensive visit report.
+    - record_key: Unique ID of the place
+    - content: Text notes
+    - audio_file: Streamlit UploadedFile object (Audio)
+    - photo_file: Streamlit UploadedFile object (Image)
+    - user_info: Dict with user details
+    """
+    reports = load_json_file(VISIT_REPORT_FILE)
+    
+    timestamp = datetime.now()
+    ts_str = timestamp.strftime("%Y-%m-%d %H:%M:%S")
+    file_prefix = f"{timestamp.strftime('%Y%m%d_%H%M%S')}_{user_info.get('name', 'unknown')}"
+    
+    # Save Media Files
+    audio_path = None
+    photo_path = None
+    
+    if audio_file:
+        # Determine extension (usually wav or webm depending on browser/streamlit version)
+        ext = audio_file.name.split('.')[-1] if '.' in audio_file.name else "wav"
+        fname = f"{file_prefix}_audio.{ext}"
+        save_path = VISIT_MEDIA_DIR / fname
+        with open(save_path, "wb") as f:
+            f.write(audio_file.getvalue())
+        audio_path = str(fname) # Store relative filename
+        
+    if photo_file:
+        ext = photo_file.name.split('.')[-1] if '.' in photo_file.name else "jpg"
+        fname = f"{file_prefix}_photo.{ext}"
+        save_path = VISIT_MEDIA_DIR / fname
+        with open(save_path, "wb") as f:
+            f.write(photo_file.getvalue())
+        photo_path = str(fname)
+
+    report_entry = {
+        "id": f"rep_{timestamp.timestamp()}",
+        "timestamp": ts_str,
+        "record_key": record_key,
+        "content": content,
+        "audio_path": audio_path,
+        "photo_path": photo_path,
+        "user_name": user_info.get("name"),
+        "user_role": user_info.get("role"),
+        "user_branch": user_info.get("branch")
+    }
+    
+    reports.append(report_entry)
+    save_json_file(VISIT_REPORT_FILE, reports)
+    return True
+
+def get_visit_reports(record_key=None, user_name=None, limit=100):
+    """
+    Get visit reports filtered by key or user.
+    """
+    reports = load_json_file(VISIT_REPORT_FILE)
+    
+    if record_key:
+        reports = [r for r in reports if r.get("record_key") == record_key]
+        
+    if user_name:
+        reports = [r for r in reports if r.get("user_name") == user_name]
+        
+    # Sort by timestamp desc
+    reports.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+    
+    return reports[:limit]
+
+def get_media_path(filename):
+    """Return absolute path to media file"""
+    if not filename: return None
+    return str(VISIT_MEDIA_DIR / filename)

@@ -6,7 +6,7 @@ import folium
 from streamlit_folium import st_folium
 from folium.plugins import MarkerCluster, HeatMap
 
-def render_kakao_map(map_df, kakao_key, use_heatmap=False):
+def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
     """
     Renders a Kakao Map using HTML/JS injection.
     """
@@ -248,7 +248,29 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False):
                 map: mapOverview, 
                 averageCenter: true, 
                 minLevel: 10 
-            }});
+            
+            // [NEW] Heatmap Layer (Kakao)
+            var useHeatmap = {str(use_heatmap).lower()};
+            if (useHeatmap && kakao.maps.visualization) {{
+                // Prepare data for Heatmap (Weighted by AI Score or default)
+                var heatData = [];
+                data.forEach(function(item) {{
+                    if (item.lat && item.lon) {{
+                        var w = (item.AI_Score) ? item.AI_Score : 10;
+                        heatData.push({{x: item.lon, y: item.lat, v: w}}); 
+                    }}
+                }});
+                
+                var heatmap = new kakao.maps.visualization.HeatmapLayer({{
+                    data: heatData,
+                    opacity: 0.8, // Slightly higher opacity
+                    radius: 25 // Readable radius
+                }});
+                
+                heatmap.setMap(mapOverview);
+                // Hint: hide clusterer if heatmap is on?
+                // clusterer.clear(); 
+            }}
             
             // [FEATURE] Places Service for Auto-Phone Search
             var ps = new kakao.maps.services.Places();
@@ -412,6 +434,7 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False):
             }};
             
             // [FEATURE] Visit Trigger Function
+            // [FEATURE] Visit Trigger Function (with Session Persistence)
             window.triggerVisit = function(title, addr) {{
                 if(confirm("'" + title + "' 업체를 [방문] 상태로 변경하시겠습니까? (페이지가 새로고침됩니다)")) {{
                     // Normalize for URL
@@ -419,6 +442,23 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False):
                     // Check if already has query params
                     var separator = url.includes('?') ? '&' : '?';
                     var newUrl = url + separator + 'visit_action=true&title=' + encodeURIComponent(title) + '&addr=' + encodeURIComponent(addr);
+                    
+                    // [FIX] Append User Context to URL to restore session
+                    var u_role = "{user_context.get('user_role', '')}";
+                    if(u_role) newUrl += '&user_role=' + encodeURIComponent(u_role);
+                    
+                    var u_branch = "{user_context.get('user_branch', '')}";
+                    if(u_branch && u_branch != 'None') newUrl += '&user_branch=' + encodeURIComponent(u_branch);
+                    
+                    var u_mgr = "{user_context.get('user_manager_name', '')}";
+                    if(u_mgr && u_mgr != 'None') newUrl += '&user_manager_name=' + encodeURIComponent(u_mgr);
+                    
+                    var u_code = "{user_context.get('user_manager_code', '')}";
+                    if(u_code && u_code != 'None') newUrl += '&user_manager_code=' + encodeURIComponent(u_code);
+                    
+                    var u_auth = "{user_context.get('admin_auth', 'false')}";
+                    newUrl += '&admin_auth=' + u_auth;
+
                     window.parent.location.assign(newUrl);
                 }}
             }};
@@ -839,7 +879,7 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False):
 
 
 
-def render_folium_map(display_df, use_heatmap=False):
+def render_folium_map(display_df, use_heatmap=False, user_context={}):
     """
     Render Map using Leaflet (Client-Side) to prevent Streamlit reruns (flashing).
     Layout: Split View (65% Map, 35% Detail)
@@ -1145,11 +1185,11 @@ def render_folium_map(display_df, use_heatmap=False):
                     }});
                     // Heatmap Layer
                     var heat = L.heatLayer(heatPoints, {{
-                        radius: 25,
-                        blur: 15,
-                        maxZoom: 10,
+                        radius: 30, // [FIX] Increased radius for visibility
+                        blur: 20, // [FIX] Smoother blur
+                        maxZoom: 12, // Lower max zoom to show density at higher levels
                         max: 100,
-                        gradient: {{0.4: 'blue', 0.65: 'lime', 1: 'red'}}
+                        gradient: {{0.2: 'blue', 0.4: 'cyan', 0.6: 'lime', 0.8: 'yellow', 1.0: 'red'}} // [FIX] Better gradient
                     }}).addTo(map);
                     
                     // If heatmap is on, maybe don't cluster? Or keep clustering but heatmap underneath.
@@ -1276,12 +1316,30 @@ def render_folium_map(display_df, use_heatmap=False):
             }});
             
             // [FEATURE] Visit Trigger Function
+            // [FEATURE] Visit Trigger Function (with Session Persistence)
             window.triggerVisit = function(title, addr) {{
                 if(confirm("'" + title + "' 업체를 [방문] 상태로 변경하시겠습니까? (페이지가 새로고침됩니다)")) {{
                      // Normalize for URL
                     var url = window.parent.location.href; // Access parent Streamlit URL
                     var separator = url.includes('?') ? '&' : '?';
                     var newUrl = url + separator + 'visit_action=true&title=' + encodeURIComponent(title) + '&addr=' + encodeURIComponent(addr);
+
+                    // [FIX] Append User Context to URL to restore session
+                    var u_role = "{user_context.get('user_role', '')}";
+                    if(u_role) newUrl += '&user_role=' + encodeURIComponent(u_role);
+                    
+                    var u_branch = "{user_context.get('user_branch', '')}";
+                    if(u_branch && u_branch != 'None') newUrl += '&user_branch=' + encodeURIComponent(u_branch);
+                    
+                    var u_mgr = "{user_context.get('user_manager_name', '')}";
+                    if(u_mgr && u_mgr != 'None') newUrl += '&user_manager_name=' + encodeURIComponent(u_mgr);
+                    
+                    var u_code = "{user_context.get('user_manager_code', '')}";
+                    if(u_code && u_code != 'None') newUrl += '&user_manager_code=' + encodeURIComponent(u_code);
+                    
+                    var u_auth = "{user_context.get('admin_auth', 'false')}";
+                    newUrl += '&admin_auth=' + u_auth;
+
                     window.parent.location.assign(newUrl);
                 }}
             }};

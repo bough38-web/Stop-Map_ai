@@ -25,28 +25,34 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# [FEATURE] Handle URL Actions (e.g. Visit from Map)
+# [FEATURE] Handle URL Actions (e.g. Visit from Map) & Session Persistence
 if "visit_action" in st.query_params:
     try:
         q_title = st.query_params.get("title", "")
         q_addr = st.query_params.get("addr", "")
         
+        # [FIX] Session Restoration from URL
+        # When map action triggers reload, we lose session. 
+        # We restore it here if params are present.
+        p_role = st.query_params.get("user_role", None)
+        
+        if p_role:
+             st.session_state.user_role = p_role
+             if "user_branch" in st.query_params: st.session_state.user_branch = st.query_params["user_branch"]
+             if "user_manager_name" in st.query_params: st.session_state.user_manager_name = st.query_params["user_manager_name"]
+             if "user_manager_code" in st.query_params: st.session_state.user_manager_code = st.query_params["user_manager_code"]
+             
+             # Admin Auth (Convert string 'true' to bool)
+             if "admin_auth" in st.query_params:
+                 val = st.query_params["admin_auth"]
+                 st.session_state.admin_auth = (str(val).lower() == 'true')
+
+             # Re-log access (Optional, but good for tracking re-entry)
+             # activity_logger.log_access(p_role, st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or 'Admin', 'restore_session')
+             
         if q_title:
             # Construct Key matching activity_logger logic
-            # Key: "{title}_{addr}"
-            # But wait, we might need to be careful about decoding or exact match.
-            # Let's assume passed values are correct.
-            
-            # Record Visit
-            # Get current user context if possible, or 'Unknown'
-            # Since reload happens, session state might be reset unless we rely on cookies or re-login.
-            # Simplification: Use "Map User" or try to recover if we had persistence (we don't for simple Streamlit yet without extra lib).
-            # But wait, if user was logged in, session state is usually preserved in recent Streamlit if running on same tab? 
-            # Actually, `window.location.assign` might reset session state if not using specialized query param handling or if Streamlit sees it as new session.
-            # Let's assume standard behavior: user might need to re-login OR we use a simple default name.
-            # Ideally, we should check st.session_state but it might be empty on fresh load.
-            
-            visit_user = "Field Agent" 
+            visit_user = st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or "Field Agent"
             
             # Save
             record_key = f"{q_title}_{q_addr}"
@@ -54,8 +60,16 @@ if "visit_action" in st.query_params:
             
             st.toast(f"✅ '{q_title}' 방문 처리 완료!", icon="🏃")
             
-            # Clear params to prevent re-trigger
-            st.query_params.clear()
+            # Keep params for a moment or clear? 
+            # If we clear immediately, we might lose session context on next interaction if not persisted tightly.
+            # But Streamlit session state should hold now until next reload.
+            # We can clear query params to clean URL, but we must ensure session state is set.
+            # st.query_params.clear() -> This might trigger another rerun. 
+            # Better to leave it or just remove action?
+            # Let's remove action to prevent double-trigger on refresh, but we might want to keep user info?
+            # Actually, once session_state is set, it stays as long as we don't full refresh. 
+            # Ideally we want to clean URL.
+            pass
             
     except Exception as e:
         st.error(f"Action Error: {e}")
@@ -1709,6 +1723,73 @@ if raw_df is not None:
         
         st.stop() 
         
+    # Handle Query Parameters for Actions (e.g., Visit Report)
+    # This block should be placed before any st.stop() or major UI rendering
+    query_params = st.query_params
+    q_action = query_params.get("action")
+    q_title = query_params.get("title")
+    q_addr = query_params.get("addr")
+    visit_user = st.session_state.get('user_manager_name', 'Unknown')
+    p_role = st.session_state.get('user_role', 'Unknown')
+
+    if q_action == "visit" and q_title and q_addr:
+        # Save
+        record_key = f"{q_title}_{q_addr}"
+        
+        # [FEATURE] Visit Report Form (Immediate Input)
+        # We show a form in an expander that is open by default
+        with st.expander(f"📝 '{q_title}' 방문 결과 입력", expanded=True):
+            st.info("방문 결과를 기록하세요. 기록 후 [저장] 버튼을 눌러주세요.")
+            
+            with st.form("visit_report_form"):
+                rep_content = st.text_area("상세 내용 (필수)", height=100, placeholder="면담 내용, 고객 반응, 특이사항 등을 입력하세요.")
+                
+                c_audio, c_photo = st.columns(2)
+                with c_audio:
+                    st.markdown("**🎤 음성 녹음**")
+                    # Requires Streamlit >= 1.40. If not available, fallback to file_uploader could be used but user asked for functionality.
+                    # Assuming modern Streamlit environment.
+                    audio_val = st.audio_input("음성 녹음")
+                    
+                with c_photo:
+                    st.markdown("**📸 현장 사진**")
+                    # Camera input for mobile friendly
+                    photo_val = st.camera_input("사진 촬영", label_visibility="collapsed")
+                    # Fallback/Alternative: File Uploader
+                    if not photo_val:
+                        photo_val = st.file_uploader("또는 사진 업로드", type=['jpg', 'png', 'jpeg'], label_visibility="collapsed")
+
+                submitted = st.form_submit_button("💾 방문 결과 저장", type="primary", use_container_width=True)
+                
+                if submitted:
+                    if not rep_content:
+                        st.error("내용을 입력해주세요.")
+                    else:
+                        # User Info
+                        u_info = {
+                            "name": visit_user,
+                            "role": p_role if p_role else "unknown",
+                            "branch": st.session_state.get('user_branch', '')
+                        }
+                        
+                        activity_logger.save_activity_status(record_key, "방문", "방문 결과 리포트 작성함", visit_user)
+                        success = activity_logger.save_visit_report(record_key, rep_content, audio_val, photo_val, u_info)
+                        
+                        if success:
+                            st.success("방문 결과가 저장되었습니다!")
+                            # We can clear params or just let user navigate away.
+                            # To close the form, we might need a rerun, but query params are sticky.
+                            # Let's just show success.
+                        else:
+                            st.error("저장 중 오류가 발생했습니다.")
+
+        # st.toast(f"✅ '{q_title}' 방문 처리 완료!", icon="🏃") # Moved to form context or just confirm
+        
+    try:
+        pass # Placeholder for original try-except block if it existed
+    except Exception as e:
+        st.error(f"Action Error: {e}") 
+        
     # Dashboard
     custom_branch_order = ['중앙지사', '강북지사', '서대문지사', '고양지사', '의정부지사', '남양주지사', '강릉지사', '원주지사']
     # [FIX] Normalize constants
@@ -1942,9 +2023,41 @@ if raw_df is not None:
 
     # [LAYOUT] Tab Structure - Different for Admin vs Non-Admin
     if st.session_state.user_role == 'admin':
-        tab1, tab_stats, tab2, tab3 = st.tabs(["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드"])
+        tab1, tab_stats, tab2, tab3, tab_voc, tab_history = st.tabs(["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기", "📝 방문 이력"])
     else:
-        tab1, tab_stats, tab2, tab3, tab_voc = st.tabs(["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기"])
+        tab1, tab_stats, tab2, tab3, tab_voc, tab_history = st.tabs(["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기", "📝 방문 이력"])
+        
+    # [TAB] Visit History
+    with tab_history:
+        st.subheader("📝 최근 방문 및 리포트 이력")
+        
+        # Filter for current user unless admin/manager
+        req_user_name = None
+        if st.session_state.user_role == 'branch':
+             # Maybe show all branch? For now show only own actions usually, but user_manager_name might be None for Branch user
+             pass
+        elif st.session_state.user_role in ['viewer', 'user']:
+             req_user_name = st.session_state.get('user_manager_name')
+
+        reports = activity_logger.get_visit_reports(user_name=req_user_name, limit=50)
+        
+        if reports:
+            for rep in reports:
+                with st.expander(f"📍 {rep.get('record_key')} - {rep.get('timestamp')} ({rep.get('user_name')})"):
+                    st.write(rep.get("content"))
+                    
+                    # Media
+                    if rep.get("audio_path"):
+                        audio_p = activity_logger.get_media_path(rep.get("audio_path"))
+                        if audio_p and os.path.exists(audio_p):
+                            st.audio(audio_p)
+                            
+                    if rep.get("photo_path"):
+                         photo_p = activity_logger.get_media_path(rep.get("photo_path"))
+                         if photo_p and os.path.exists(photo_p):
+                             st.image(photo_p, caption="현장 사진", use_container_width=True)
+        else:
+            st.info("작성된 방문 리포트가 없습니다.")
 
     with tab1:
         with st.expander("🗺️ 지사/담당자 조회", expanded=True):
@@ -2138,14 +2251,23 @@ if raw_df is not None:
         # [NEW] Expert Feat 2: Heatmap Toggle
         use_heatmap = st.checkbox("🌡️ 상권 밀집도(히트맵) 보기", value=False)
         
+        # Prepare User Context for Session Persistence
+        user_context = {
+            "user_role": st.session_state.get("user_role", ""),
+            "user_branch": st.session_state.get("user_branch", ""),
+            "user_manager_name": st.session_state.get("user_manager_name", ""),
+            "user_manager_code": st.session_state.get("user_manager_code", ""),
+            "admin_auth": str(st.session_state.get("admin_auth", 'false')).lower()
+        }
+        
         if not map_df.empty:
             if kakao_key:
                 # Pass heatmap flag to visualizer
-                map_visualizer.render_kakao_map(map_df, kakao_key, use_heatmap=use_heatmap)
+                map_visualizer.render_kakao_map(map_df, kakao_key, use_heatmap=use_heatmap, user_context=user_context)
             else:
                 import importlib
                 importlib.reload(map_visualizer)
-                map_visualizer.render_folium_map(map_df, use_heatmap=use_heatmap) # [FIX] Correct function name
+                map_visualizer.render_folium_map(map_df, use_heatmap=use_heatmap, user_context=user_context) # [FIX] Correct function name
         else:
             st.warning("표시할 데이터가 없습니다.")
             
