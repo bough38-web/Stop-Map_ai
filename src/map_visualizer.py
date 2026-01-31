@@ -250,6 +250,9 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False):
                 minLevel: 10 
             }});
             
+            // [FEATURE] Places Service for Auto-Phone Search
+            var ps = new kakao.maps.services.Places();
+            
             var data = {json_data};
             var markers = [];
             
@@ -357,7 +360,14 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False):
                     if(item.manager) html += '<tr><td class="info-label">담당자</td><td class="info-value">' + item.manager + '</td></tr>';
                     html += '<tr><td class="info-label">업종</td><td class="info-value">' + (item.biz_type || '-') + '</td></tr>';
                     html += '<tr><td class="info-label">주소</td><td class="info-value">' + item.addr + '</td></tr>';
-                    if(item.tel) html += '<tr><td class="info-label">전화번호</td><td class="info-value">' + item.tel + '</td></tr>';
+                    if(item.tel && item.tel != '-') {{
+                        html += '<tr><td class="info-label">전화번호</td><td class="info-value">' + item.tel + '</td></tr>';
+                    }} else {{
+                        // [FEATURE] Missing Phone Number - Auto Search Button
+                        html += '<tr><td class="info-label">전화번호</td><td class="info-value" id="tel-box-' + item.title + '">';
+                        html += '<button onclick="findPhoneNumber(\'' + item.title + '\', \'' + item.addr + '\')" style="background:white; border:1px solid #ddd; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:11px; color:#555;">🔍 전화번호 찾기</button>';
+                        html += '</td></tr>';
+                    }}
                     html += '<tr><td colspan="2" style="height:10px;"></td></tr>'; // Spacer
                     
                     if(item.permit_date) html += '<tr><td class="info-label">인허가일</td><td class="info-value">' + item.permit_date + '</td></tr>';
@@ -376,6 +386,30 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False):
                 
                 markers.push(marker);
             }});
+            
+            // [FEATURE] Find Phone Number Function
+            window.findPhoneNumber = function(title, addr) {{
+                var btnBox = document.getElementById('tel-box-' + title);
+                if(btnBox) btnBox.innerHTML = '⏳ 검색중...';
+                
+                // Search by Title
+                ps.keywordSearch(title, function(data, status, pagination) {{
+                    if (status === kakao.maps.services.Status.OK) {{
+                        // Filter by similarity or just take the first one?
+                        // Simple check: take first result
+                        var foundTel = data[0].phone;
+                        var placeUrl = data[0].place_url;
+                        
+                        if(foundTel) {{
+                            if(btnBox) btnBox.innerHTML = '<span style="color:#2E7D32; font-weight:bold;">' + foundTel + '</span> <span style="font-size:10px; color:#aaa;">(자동발견)</span>';
+                        }} else {{
+                             if(btnBox) btnBox.innerHTML = '<span style="color:#d32f2f;">번호없음</span> <a href="' + placeUrl + '" target="_blank" style="font-size:10px; color:#aaa;">[상세보기]</a>';
+                        }}
+                    }} else {{
+                        if(btnBox) btnBox.innerHTML = '<span style="color:#999;">검색실패</span>';
+                    }}
+                }});
+            }};
             
             // [FEATURE] Visit Trigger Function
             window.triggerVisit = function(title, addr) {{
