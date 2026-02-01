@@ -233,8 +233,9 @@ def generate_record_key(title, addr):
         if s.lower() == 'nan': return ""
         # Normalize unicode (e.g. separate jamo)
         s = unicodedata.normalize('NFC', s)
-        # Remove quotes and massive whitespace
-        s = s.replace('"', '').replace("'", "").replace('\n', ' ')
+        # Remove quotes and ALL whitespace for robustness
+        # This fixes issues where "City A" != "CityA"
+        s = s.replace('"', '').replace("'", "").replace('\n', '').replace(' ', '')
         return s.strip()
 
     c_title = clean(title)
