@@ -166,6 +166,16 @@ def merge_activity_status(df: pd.DataFrame) -> pd.DataFrame:
 
             # Apply to new column '활동진행상태'
             # [FIX] Force update even if column exists
+            
+            def get_saved_status(row):
+                key = activity_logger.get_record_key(row)
+                record = saved_statuses.get(key)
+                
+                if record:
+                    if '활동진행상태' in record:
+                        return activity_logger.normalize_status(record.get('활동진행상태'))
+                return row['영업상태명'] if '영업상태명' in row else '' # Default fall back
+            
             df['활동진행상태'] = df.apply(get_saved_status, axis=1)
             
             # If nothing found, it might be empty string. Fill with '-' or keep empty?
@@ -255,6 +265,16 @@ def load_and_process_data(zip_file_path_or_obj: Any, district_file_path_or_obj: 
     target_df = concatenated_df[list(set(selected_cols))].copy()
     target_df.rename(columns=rename_map, inplace=True)
     
+    # [FIX] Address Standardization
+    # Ensure '소재지전체주소' exists for key generation
+    if '소재지전체주소' not in target_df.columns:
+        if '도로명전체주소' in target_df.columns:
+            target_df['소재지전체주소'] = target_df['도로명전체주소']
+        elif '도로명주소' in target_df.columns:
+             target_df['소재지전체주소'] = target_df['도로명주소']
+        elif '주소' in target_df.columns:
+             target_df['소재지전체주소'] = target_df['주소']
+
     # Date Parsing
     for col in ['인허가일자', '폐업일자']:
         if col in target_df.columns:

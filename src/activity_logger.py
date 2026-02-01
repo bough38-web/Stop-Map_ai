@@ -98,7 +98,9 @@ from . import utils
 def get_record_key(row):
     """Generate unique key for a record (Normalized)"""
     # Use centralized logic to prevent mismatch
-    return utils.generate_record_key(row.get('사업장명'), row.get('소재지전체주소'))
+    # Fallback to alternative address columns if primary is missing
+    addr = row.get('소재지전체주소') or row.get('도로명전체주소') or row.get('주소') or ""
+    return utils.generate_record_key(row.get('사업장명'), addr)
 
 
 def get_activity_status(record_key):

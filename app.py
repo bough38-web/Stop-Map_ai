@@ -134,7 +134,7 @@ if st.session_state.get("visit_active"):
             submitted = st.form_submit_button("💾 방문 결과 저장", type="primary", use_container_width=True)
             
             if submitted:
-                st.toast("DEBUG: Submit Triggered", icon="🐛")
+                st.error(f"DEBUG: Submit Button Clicked! Key={record_key}") # Persistent
                 if not rep_content:
                     st.error("내용을 입력해주세요.")
                 else:
@@ -152,6 +152,7 @@ if st.session_state.get("visit_active"):
                         
                         if success:
                             st.success("방문 결과가 저장되었습니다! (이력 및 상태 동시 업데이트)")
+                            
                             st.session_state.visit_active = False # Close form on success
                             st.toast(f"저장 완료! (User: {visit_user})", icon="💾")
                             # [FIX] Clear params on success
@@ -2040,6 +2041,15 @@ if raw_df is not None:
 
         reports = activity_logger.get_visit_reports(user_name=req_user_name, user_branch=req_user_branch, limit=50)
         
+        # [DEBUG] History Visibility Check
+        with st.expander("🔍 이력 보이지 않을 때 확인 (Debug)", expanded=False):
+             st.write(f"현재 필터링 조건: User='{req_user_name}', Branch='{req_user_branch}'")
+             st.write(f"조회된 리포트 수: {len(reports)}")
+             all_raw = activity_logger.load_json_file(activity_logger.VISIT_REPORT_FILE)
+             st.write(f"전체 저장된 리포트(Raw): {len(all_raw)}건")
+             if all_raw:
+                 st.json(all_raw[-1]) # Show latest raw entry
+
         if reports:
             for rep in reports:
                 with st.expander(f"📍 {rep.get('record_key')} - {rep.get('timestamp')} ({rep.get('user_name')})"):
