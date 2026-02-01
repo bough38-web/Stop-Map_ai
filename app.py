@@ -1563,29 +1563,6 @@ if raw_df is not None:
             # [FEATURE] Address search
             st.markdown("##### 🔍 주소 검색")
             address_search = st.text_input("주소 검색 (예: 인천/삼산동)", value="", placeholder="주소 또는 업체명 입력...")
-        else:
-            # [HIDDEN] Defaults for Manager/Branch
-            # They see no global filter sidebar widgets, their filters are applied via hard filters
-            sel_branch = st.session_state.user_branch if st.session_state.user_branch else "전체"
-            sel_manager = "전체" # Managers see their own only via Main Data Filter, global filter is 'all' within that scope
-            sel_manager_label = "전체" # Default for manager label
-            selected_area_code = None # Default for area code
-            only_hospitals = False
-            only_large_area = False
-            only_medium_area = False
-            sel_types = []
-            sel_permit_ym = "전체"
-            sel_close_ym = "전체"
-            sel_status = "전체"
-            only_with_phone = False
-            address_search = ""
-            
-            # Force Session State for consistency
-            st.session_state.sb_branch = sel_branch
-            st.session_state.sb_manager = "전체"
-            st.session_state.sb_status = "전체"
-            if 'sb_permit_ym' not in st.session_state: st.session_state.sb_permit_ym = "전체"
-            if 'sb_close_ym' not in st.session_state: st.session_state.sb_close_ym = "전체"
             
     # [LOGGING] View/Filter Logging
     # We track changes in key filters
