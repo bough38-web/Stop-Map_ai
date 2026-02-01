@@ -1142,7 +1142,17 @@ if raw_df is not None:
         sel_close_ym = "전체"
         sel_status = "전체"
         only_with_phone = False
+        # [FIX] Additional missing initializations
+        sel_permit_ym = "전체"
+        sel_close_ym = "전체"
+        sel_status = "전체"
+        only_with_phone = False
         address_search = ""  # Address search filter
+        
+        # [NEW] Initialize Date Filter from Session State (for filtering logic before UI render)
+        if 'global_date_range' not in st.session_state:
+            st.session_state.global_date_range = ()
+        global_date_range = st.session_state.global_date_range
         
         filter_df = raw_df.copy()
         
@@ -1160,15 +1170,9 @@ if raw_df is not None:
         # [SECURITY] Global Filter Visibility (Admin Only)
         st.markdown("### 🔍 조회 조건 설정")
         
-        # [FEATURE] Global Date Range Filter (Common for All Roles)
-        st.markdown("##### 🕵️ 기간 조회 (최종수정일 기준)")
-        st.caption("전체 탭(지도, 통계, 리스트)에 공통 적용됩니다.")
-        global_date_range = st.date_input(
-            "조회 기간 선택",
-            value=(),
-            label_visibility="collapsed",
-            key="global_date_range"
-        )
+        # [FEATURE] Global Date Range Filter (Moved to Conditional Search Expander)
+        # Old location removed. Now handled via session state at top and UI rendered later.
+        global_date_range = st.session_state.get('global_date_range', ())
         st.markdown("---")
             
         # 1. Branch
@@ -2014,8 +2018,19 @@ if raw_df is not None:
             st.info("작성된 방문 리포트가 없습니다.")
 
     with tab1:
-        with st.expander("🗺️ 지사/담당자 조회", expanded=True):
-            # st.subheader("🗺️ 지사/담당자 조회")
+        with st.expander("🗺️ 조건조회", expanded=True):
+            # st.subheader("🗺️ 조건조회")
+            
+            # [MOVED] Global Date Range Filter
+            st.markdown("##### 🕵️ 기간 조회 (최종수정일 기준)")
+            st.caption("전체 탭(지도, 통계, 리스트)에 공통 적용됩니다.")
+            st.date_input(
+                "조회 기간 선택",
+                value=(),
+                label_visibility="collapsed",
+                key="global_date_range"
+            )
+            st.divider()
 
             # [FEATURE] Local AI Activity Guide
             # Only show for Manager/Branch roles to provide personalized insight
