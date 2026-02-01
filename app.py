@@ -2175,7 +2175,14 @@ if raw_df is not None:
                          map_df_base['인허가일자'] = pd.to_datetime(map_df_base['인허가일자'], errors='coerce')
                          # [FIX] Changed to 15 days
                          cutoff_new = pd.Timestamp.now() - pd.Timedelta(days=15)
-                         date_mask = date_mask | (map_df_base['인허가일자'] >= cutoff_new)
+                         
+                         # [LOGIC] "New" implies Sales Opportunity. Exclude "Closed" status to remove noise.
+                         # User Complaint: "New selected but Closed appears" -> Filter out '폐업' for New items.
+                         new_cond = (map_df_base['인허가일자'] >= cutoff_new)
+                         if '영업상태명' in map_df_base.columns:
+                             new_cond = new_cond & (map_df_base['영업상태명'] != '폐업')
+                             
+                         date_mask = date_mask | new_cond
     
                 if q_closed:
                      has_date_filter = True
