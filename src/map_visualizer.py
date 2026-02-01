@@ -1405,9 +1405,8 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
 
             // [FEATURE] Route Optimization Button (Leaflet)
             var routeBtn = document.createElement('div');
-            routeBtn.innerHTML = '⚡ 추천 동선 (10곳)';
-            routeBtn.innerHTML = '⚡ 추천 동선 (10곳)';
-            routeBtn.style.cssText = 'position:absolute; top:70px; left:10px; z-index:1000; background:white; padding:12px 16px; border-radius:8px; border:1px solid #ccc; cursor:pointer; font-weight:bold; font-size:14px; box-shadow:0 2px 6px rgba(0,0,0,0.2); color:#E65100;';
+            routeBtn.innerHTML = '⚡ 추천 동선 (15곳)';
+            routeBtn.style.cssText = 'position:absolute; top:70px; left:10px; z-index:1000; background:white; padding:12px 16px; border-radius:8px; border:2px solid #FF5722; cursor:pointer; font-weight:bold; font-size:14px; box-shadow:0 2px 6px rgba(0,0,0,0.2); color:#FF5722;';
             routeBtn.onclick = function() {{
                 if (navigator.geolocation) {{
                     routeBtn.innerHTML = '⏳ 계산중...';
@@ -1424,11 +1423,11 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
                         // 2. Find Optimized Route
                         findOptimizedRoute(startPos);
                         
-                        routeBtn.innerHTML = '⚡ 추천 동선 (10곳)';
+                        routeBtn.innerHTML = '⚡ 추천 동선 (15곳)';
                         
                     }}, function(err) {{
                         alert('위치 정보를 가져올 수 없습니다: ' + err.message);
-                        routeBtn.innerHTML = '⚡ 추천 동선 (10곳)';
+                        routeBtn.innerHTML = '⚡ 추천 동선 (15곳)';
                     }});
                 }} else {{
                     alert('이 브라우저는 위치 정보를 지원하지 않습니다.');
@@ -1518,7 +1517,7 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
                 var route = [];
                 var currentPos = {{ lat: startPos[0], lon: startPos[1] }};
                 var visitedIndices = new Set();
-                var maxStops = 10;
+                var maxStops = 15;
                 
                 for (var i = 0; i < maxStops; i++) {{
                     if (visitedIndices.size >= candidates.length) break;
