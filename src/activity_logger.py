@@ -62,8 +62,17 @@ def get_access_logs(limit=100):
 # ===== ACTIVITY STATUS =====
 
 def get_record_key(row):
-    """Generate unique key for a record"""
-    return f"{row.get('사업장명', '')}_{row.get('소재지전체주소', '')}"
+    """Generate unique key for a record (Normalized)"""
+    def clean(s):
+        if s is None: return ""
+        s = str(s)
+        # Handle pandas/numpy NaN string representation
+        if s.lower() == 'nan': return ""
+        return s.replace('"', '').replace("'", "").replace('\n', ' ')
+
+    title = clean(row.get('사업장명'))
+    addr = clean(row.get('소재지전체주소'))
+    return f"{title}_{addr}"
 
 
 def get_activity_status(record_key):
