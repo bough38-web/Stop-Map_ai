@@ -1302,13 +1302,15 @@ if raw_df is not None:
         st.divider()
         
         # [FEATURE] Global Date Range Filter (Common for All Roles)
-        st.markdown("##### 🕵️ 기간 조회 (최종수정일 기준)")
+        # [FEATURE] Global Date Range Filter (Common for All Roles)
+        st.markdown("##### 📅 기간 조회 (최종수정일 기준)")
         st.caption("전체 탭(지도, 통계, 리스트)에 공통 적용됩니다.")
-        global_date_range = st.date_input(
-            "조회 기간 선택",
-            value=(),
+        mod_range = st.date_input(
+            "시작일 - 종료일",
+            value=[],
             label_visibility="collapsed",
-            key="global_date_range"
+            help="데이터의 최종 수정일(인허가/폐업/활동) 기준",
+            key="sb_mod_period"
         )
         st.divider()
         
@@ -1535,14 +1537,7 @@ if raw_df is not None:
                 key="sb_close_ym"
             )
             
-            # [FEATURE] Modification Period Filter (Requested by User)
-            st.markdown("##### 📅 수정 기간 (기간 선택)")
-            mod_range = st.date_input(
-                "시작일 - 종료일",
-                value=[],
-                help="데이터의 최종 수정일(인허가/폐업/활동) 기준",
-                key="sb_mod_period"
-            )
+
             
             # 5. Status
             st.markdown("##### 영업상태")
