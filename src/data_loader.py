@@ -161,7 +161,7 @@ def merge_activity_status(df: pd.DataFrame) -> pd.DataFrame:
                 key = activity_logger.get_record_key(row)
                 record = saved_statuses.get(key)
                 if record and record.get('활동진행상태'):
-                    return record.get('활동진행상태')
+                    return activity_logger.normalize_status(record.get('활동진행상태'))
                 return row['영업상태명'] if '영업상태명' in row else '' # Default fall back
 
             # Apply to new column '활동진행상태'

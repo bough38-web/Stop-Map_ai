@@ -2268,12 +2268,8 @@ if raw_df is not None:
                  sel_map_status = st.selectbox("영업상태 (공공)", map_status_opts, key="map_status_filter")
             
             # [FEATURE] Activity Status Filter (Internal)
-            # Users want to filter map by 'Visit', 'Consulting', etc.
-            # Get unique values from current data
-            act_status_opts = ["전체"]
-            if '활동진행상태' in map_df_base.columns:
-                unique_acts = sorted([x for x in map_df_base['활동진행상태'].unique() if x])
-                act_status_opts += unique_acts
+            # Use Centralized Map for Options
+            act_status_opts = ["전체"] + list(activity_logger.ACTIVITY_STATUS_MAP.values())
             
             sel_act_status = st.selectbox("활동상태 (내부)", act_status_opts, key="map_act_status_filter")
 
@@ -2696,37 +2692,15 @@ if raw_df is not None:
         st.markdown("##### 📊 활동 현황 분석")
         
         # [MIGRATION] Convert plain status to Emoji status for display consistency
-        # This modification is temporary for display; saving handles the mapping if needed, 
-        # but here we just convert loaded data to new format.
-        status_map = {
-            "상담중": "🟡 상담중",
-            "상담완료": "🔵 상담완료", # [NEW] Added per user request
-            "상담불가": "🔴 상담불가",
-            "계약완료": "🟢 계약완료",
-            "진행중": "🟡 상담중", # Handle legacy '진행중' map to '상담중'
-            "활동불가대상": "🔴 상담불가", # Legacy map
-            "방문": "✅ 방문" # [FEATURE] Map Visit status
-        }
-        
-        # Apply mapping to grid_df['활동진행상태']
-        # If value is already in values (has emoji), keep it. If in keys, map it.
-        def map_status_display(val):
-            val = str(val).strip()
-            if val in status_map:
-                return status_map[val]
-            # Check if it's already one of the target values
-            if val in status_map.values():
-                return val
-            return val
-            
+        # Use Centralized Normalizer
         if '활동진행상태' in grid_df.columns:
-            grid_df['활동진행상태'] = grid_df['활동진행상태'].apply(map_status_display)
+            grid_df['활동진행상태'] = grid_df['활동진행상태'].apply(activity_logger.normalize_status)
 
         
         # Layout: Filter & Search
         c_filter, c_search = st.columns([1, 1])
         
-        status_filter_opts = ["✅ 방문", "🟡 상담중", "🔵 상담완료", "🔴 상담불가", "🟢 계약완료"]
+        status_filter_opts = list(activity_logger.ACTIVITY_STATUS_MAP.values())
         
         with c_filter:
             sel_grid_status = st.multiselect("진행상태 필터", status_filter_opts, placeholder="전체 보기 (미선택 시)")
@@ -2748,7 +2722,7 @@ if raw_df is not None:
                 base = alt.Chart(chart_data).encode(
                     theta=alt.Theta("count", stack=True),
                     color=alt.Color("status", scale=alt.Scale(
-                        domain=["✅ 방문", "🟡 상담중", "🔵 상담완료", "🔴 상담불가", "🟢 계약완료"], 
+                        domain=list(activity_logger.ACTIVITY_STATUS_MAP.values()), 
                         range=['#29B6F6', '#FFB74D', '#5C6BC0', '#E57373', '#81C784']
                     ), legend=None)
                 )
@@ -2815,7 +2789,7 @@ if raw_df is not None:
                 "평수": st.column_config.NumberColumn(format="%.1f평"),
                 "활동진행상태": st.column_config.SelectboxColumn(
                     "활동상태",
-                    options=["", "✅ 방문", "🟡 상담중", "🔵 상담완료", "🔴 상담불가", "🟢 계약완료"],
+                    options=[""] + list(activity_logger.ACTIVITY_STATUS_MAP.values()),
                     required=False
                 ),
                 "특이사항": st.column_config.TextColumn(
@@ -2844,13 +2818,16 @@ if raw_df is not None:
                     if (row['활동진행상태'] != orig_row['활동진행상태'] or 
                         row['특이사항'] != orig_row['특이사항']):
                         
-                        # [FIX] Sanitize status
+                        # [FIX] Sanitize status using centralized normalization
+                        # We want to store just the status or the emoji status? 
+                        # User seems to prefer Emoji status in UI.
+                        # For consistency, let's keep what the UI has.
+                        # But `save_activity_status` expects what? String.
+                        # Let's save the FULL string (with Emoji) to avoid ambiguity.
                         raw_status = row['활동진행상태']
-                        for emoji in ["✅ ", "🟡 ", "🔴 ", "🟢 ", "🔵 "]:
-                            raw_status = raw_status.replace(emoji, "")
                             
                         # Debug Log
-                        debug_log.append(f"Saving: {row['business_name']} ({row['record_key']}) -> {raw_status}")
+                        debug_log.append(f"Saving: {row.get('사업장명')} ({row['record_key']}) -> {raw_status}")
                         
                         activity_logger.save_activity_status(
                             row['record_key'],

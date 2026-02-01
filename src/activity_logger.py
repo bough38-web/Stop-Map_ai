@@ -11,7 +11,29 @@ STORAGE_DIR.mkdir(exist_ok=True)
 
 ACCESS_LOG_FILE = STORAGE_DIR / "access_logs.json"
 ACTIVITY_STATUS_FILE = STORAGE_DIR / "activity_status.json"
+ACTIVITY_STATUS_FILE = STORAGE_DIR / "activity_status.json"
 CHANGE_HISTORY_FILE = STORAGE_DIR / "change_history.json"
+
+# [CONSTANTS] Activity Status Constants
+# Centralized source of truth for all activity statuses
+ACTIVITY_STATUS_MAP = {
+    "방문": "✅ 방문",
+    "상담중": "🟡 상담중",
+    "상담완료": "🔵 상담완료",
+    "상담불가": "🔴 상담불가",
+    "계약완료": "🟢 계약완료"
+}
+
+# Helper to get normalized status
+def normalize_status(status_str):
+    if not status_str or status_str == "None" or status_str == "nan": return ""
+    
+    # Check if already has emoji (Value check)
+    if status_str in ACTIVITY_STATUS_MAP.values():
+        return status_str
+        
+    activity_key = str(status_str).replace("✅ ", "").replace("🟡 ", "").replace("🔵 ", "").replace("🔴 ", "").replace("🟢 ", "").strip()
+    return ACTIVITY_STATUS_MAP.get(activity_key, status_str) # Default to original if no match
 
 
 def load_json_file(filepath):
