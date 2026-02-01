@@ -71,11 +71,10 @@ if "visit_action" in st.query_params:
             # Clear params from URL to prevent loop, but KEEP the session state active
             # We must be careful not to trigger full rerun immediately which might hide toast
             # But query params can be cleared safely now that we have session state
-            if "visit_action" in st.query_params:
-                 try:
-                     del st.query_params["visit_action"]
-                     # Optional: del st.query_params["title"] ...
-                 except: pass
+            # [MODIFIED] Do NOT clear params immediately. 
+            # Clearing params triggers a rerun which might cause state loss in some envs.
+            # We will clear params ONLY when the user explicitly Closes or Saves.
+            pass
 
     except Exception as e:
         st.error(f"Error processing visit action: {e}")
@@ -105,6 +104,8 @@ if st.session_state.get("visit_active"):
         # Add a Close button outside the form to cancel
         if st.button("닫기 (기록 취소)"):
             st.session_state.visit_active = False
+            # [FIX] Clear params on explicit close
+            st.query_params.clear()
             st.rerun()
 
         with st.form("visit_report_form"):
@@ -147,6 +148,9 @@ if st.session_state.get("visit_active"):
                             st.success("방문 결과가 저장되었습니다!")
                             st.session_state.visit_active = False # Close form on success
                             st.toast("저장 완료!", icon="💾")
+                            # [FIX] Clear params on success
+                            st.query_params.clear()
+                            
                             # Short delay then rerun to refresh history
                             import time
                             time.sleep(1)
