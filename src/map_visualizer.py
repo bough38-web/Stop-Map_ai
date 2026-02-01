@@ -1320,7 +1320,7 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
             window.triggerVisit = function(title, addr) {{
                 if(confirm("'" + title + "' 업체를 [방문] 상태로 변경하시겠습니까? (페이지가 새로고침됩니다)")) {{
                     // Show immediate feedback as requested
-                    alert("저장이 되었습니다.");
+                    alert("방문처리 되었습니다.");
                     
                      // Normalize for URL
                     var url = window.parent.location.href; // Access parent Streamlit URL

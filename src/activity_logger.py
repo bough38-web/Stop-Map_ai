@@ -242,9 +242,9 @@ def save_visit_report(record_key, content, audio_file, photo_file, user_info):
     save_json_file(VISIT_REPORT_FILE, reports)
     return True
 
-def get_visit_reports(record_key=None, user_name=None, limit=100):
+def get_visit_reports(record_key=None, user_name=None, user_branch=None, limit=100):
     """
-    Get visit reports filtered by key or user.
+    Get visit reports filtered by key, user, or branch.
     """
     reports = load_json_file(VISIT_REPORT_FILE)
     if not isinstance(reports, list):
@@ -255,6 +255,9 @@ def get_visit_reports(record_key=None, user_name=None, limit=100):
         
     if user_name:
         reports = [r for r in reports if r.get("user_name") == user_name]
+        
+    if user_branch:
+        reports = [r for r in reports if r.get("user_branch") == user_branch]
         
     # Sort by timestamp desc
     reports.sort(key=lambda x: x.get("timestamp", ""), reverse=True)

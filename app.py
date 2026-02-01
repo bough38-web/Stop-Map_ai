@@ -2081,15 +2081,17 @@ if raw_df is not None:
     with tab_history:
         st.subheader("📝 최근 방문 및 리포트 이력")
         
-        # Filter for current user unless admin/manager
+        # Filter for current user unless admin
         req_user_name = None
+        req_user_branch = None
+        
         if st.session_state.user_role == 'branch':
-             # Maybe show all branch? For now show only own actions usually, but user_manager_name might be None for Branch user
-             pass
-        elif st.session_state.user_role in ['viewer', 'user']:
+             req_user_branch = st.session_state.get('user_branch')
+        elif st.session_state.user_role == 'manager':
              req_user_name = st.session_state.get('user_manager_name')
+        # Admin sees all (req_user_name=None, req_user_branch=None)
 
-        reports = activity_logger.get_visit_reports(user_name=req_user_name, limit=50)
+        reports = activity_logger.get_visit_reports(user_name=req_user_name, user_branch=req_user_branch, limit=50)
         
         if reports:
             for rep in reports:
