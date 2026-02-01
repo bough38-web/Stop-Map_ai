@@ -1475,6 +1475,15 @@ if raw_df is not None:
                 key="sb_close_ym"
             )
             
+            # [FEATURE] Modification Period Filter (Requested by User)
+            st.markdown("##### 📅 수정 기간 (기간 선택)")
+            mod_range = st.date_input(
+                "시작일 - 종료일",
+                value=[],
+                help="데이터의 최종 수정일(인허가/폐업/활동) 기준",
+                key="sb_mod_period"
+            )
+            
             # 5. Status
             st.markdown("##### 영업상태")
             status_opts = ["전체"] + sorted(list(raw_df['영업상태명'].unique()))
@@ -1710,14 +1719,12 @@ if raw_df is not None:
     if only_with_phone:
         base_df = base_df[base_df['소재지전화'].notna() & (base_df['소재지전화'] != "")]
     
-    # [FEATURE] Apply Global Date Range Filter
+    # [FEATURE] Apply Global Date Range Filter (Modification Period)
     # Applied to base_df so it affects ALL tabs (Map, Stats, Mobile, Grid)
-    if 'global_date_range' in st.session_state and len(st.session_state.global_date_range) == 2:
-        g_start, g_end = st.session_state.global_date_range
+    if 'sb_mod_period' in st.session_state and len(st.session_state.sb_mod_period) == 2:
+        g_start, g_end = st.session_state.sb_mod_period
         
-        # Ensure '최종수정시점' is valid datetime (it was created via apply(), so likely mixed or timestamp)
-        # We created it at line 1342 using max() of dates or now(). It should be Timestamp.
-        # But safest to coerce just in case.
+        # Ensure '최종수정시점' is valid datetime
         if '최종수정시점' in base_df.columns:
              # Fast check type
              if not pd.api.types.is_datetime64_any_dtype(base_df['최종수정시점']):
@@ -1728,8 +1735,8 @@ if raw_df is not None:
                  (base_df['최종수정시점'].dt.date <= g_end)
              ]
              
-             if st.session_state.user_role == 'admin':
-                 st.sidebar.caption(f"🗓️ 기간 필터: {g_start} ~ {g_end} ({len(base_df)}건)")
+             # Show filter info for debugging/confirmation
+             st.sidebar.caption(f"🗓️ 기간 필터: {g_start} ~ {g_end} ({len(base_df)}건)")
 
     
     # [FEATURE] Area Filter Logic
