@@ -2693,7 +2693,10 @@ if raw_df is not None:
                 # Donut Chart
                 base = alt.Chart(chart_data).encode(
                     theta=alt.Theta("count", stack=True),
-                    color=alt.Color("status", scale=alt.Scale(domain=["🟡 상담중", "🔴 상담불가", "🟢 계약완료"], range=['#FFB74D', '#E57373', '#81C784']), legend=None)
+                    color=alt.Color("status", scale=alt.Scale(
+                        domain=["✅ 방문", "🟡 상담중", "🔵 상담완료", "🔴 상담불가", "🟢 계약완료"], 
+                        range=['#29B6F6', '#FFB74D', '#5C6BC0', '#E57373', '#81C784']
+                    ), legend=None)
                 )
                 pie = base.mark_arc(outerRadius=80, innerRadius=40)
                 text = base.mark_text(radius=100).encode(
@@ -2715,6 +2718,9 @@ if raw_df is not None:
                     tooltip=['status', 'count']
                 )
                 st.altair_chart(bar_chart, use_container_width=True)
+        
+        # [DEBUG] Check Mapping Results
+        st.caption(f"🔧 Debug Statuses: {sorted(grid_df['활동진행상태'].unique())}")
         
         # Apply Filters to Grid Display (Status AND Search)
         if sel_grid_status:
