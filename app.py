@@ -463,6 +463,18 @@ with st.sidebar:
              st.session_state.clear()
              st.rerun()
          st.divider()
+    
+    # [UX] Filter Location Guide
+    st.info("📊 **필터는 사이드바 아래쪽에 있습니다**")
+    st.caption("👇 스크롤을 내려서 지사, 담당자, 업태 등을 선택하세요")
+    with st.expander("💡 빠른 이동 팁", expanded=False):
+        st.markdown("""
+        - 사이드바를 **아래로 스크롤**하여 **🔍 조회 조건 설정** 섹션을 찾으세요
+        - 데이터 로드 후 필터가 활성화됩니다
+        - 필터를 사용하여 지사, 담당자, 업태, 영업상태 등을 선택할 수 있습니다
+        """)
+    
+    st.markdown("---")
 
     st.header("⚙️ 설정 & 데이터")
     
