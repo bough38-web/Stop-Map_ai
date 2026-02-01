@@ -33,124 +33,130 @@ if "reset" in st.query_params:
     st.rerun()
 
 # [FEATURE] Handle URL Actions (e.g. Visit from Map) & Session Persistence
+# [FEATURE] Handle URL Actions (e.g. Visit from Map) & Session Persistence
+# Refactored to use Session State for persistent Modal/Form behavior
+
+# 1. Trigger from URL
 if "visit_action" in st.query_params:
     try:
         q_title = st.query_params.get("title", "")
         q_addr = st.query_params.get("addr", "")
         
         # [FIX] Session Restoration from URL
-        # When map action triggers reload, we lose session. 
-        # We restore it here if params are present.
         p_role = st.query_params.get("user_role", None)
         
         if p_role:
-             st.session_state.user_role = p_role
+             if "user_role" not in st.session_state: st.session_state.user_role = p_role
              if "user_branch" in st.query_params: st.session_state.user_branch = st.query_params["user_branch"]
              if "user_manager_name" in st.query_params: st.session_state.user_manager_name = st.query_params["user_manager_name"]
              if "user_manager_code" in st.query_params: st.session_state.user_manager_code = st.query_params["user_manager_code"]
              
-             # Admin Auth (Convert string 'true' to bool)
+             # Admin Auth
              if "admin_auth" in st.query_params:
                  val = st.query_params["admin_auth"]
                  st.session_state.admin_auth = (str(val).lower() == 'true')
 
-             # Re-log access (Optional, but good for tracking re-entry)
-             # activity_logger.log_access(p_role, st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or 'Admin', 'restore_session')
-             
         if q_title:
-            # Construct Key matching activity_logger logic
-            visit_user = st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or "Field Agent"
-            
-            # [FIX] Normalize Inputs for Key Generation
-            def clean_param(s):
-                if not s: return ""
-                s = str(s)
-                if s.lower() == 'nan': return ""
-                return s.replace('"', '').replace("'", "").replace('\n', ' ')
-
-            c_title = clean_param(q_title)
-            c_addr = clean_param(q_addr)
-            
-            # Save Status
-            record_key = f"{c_title}_{c_addr}"
-            print(f"DEBUG: Attempting save. Key='{record_key}', User='{visit_user}'")
-            
-            # User Info construction for report
-            u_info = {
-                "name": visit_user,
-                "role": p_role if p_role else "unknown",
-                "branch": st.session_state.get('user_branch', '')
+            # Initialize Session State for Visit Form
+            st.session_state.visit_active = True
+            st.session_state.visit_data = {
+                'title': q_title,
+                'addr': q_addr,
+                'user': st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or "Field Agent"
             }
+            
+            # Initial Quick Log (Once) - Logic to prevent duplicate logging could be added here if needed
+            # For now, we update the logic below to handle the actual processing
+            
+            # Clear params from URL to prevent loop, but KEEP the session state active
+            # We must be careful not to trigger full rerun immediately which might hide toast
+            # But query params can be cleared safely now that we have session state
+            if "visit_action" in st.query_params:
+                 try:
+                     del st.query_params["visit_action"]
+                     # Optional: del st.query_params["title"] ...
+                 except: pass
 
-            try:
-                # 1. Update Status
-                activity_logger.save_activity_status(record_key, "방문", "지도에서 방문 처리함", visit_user)
-                # 2. Create Auto Report (so it shows in History)
-                activity_logger.save_visit_report(record_key, "지도에서 '방문' 상태로 변경했습니다.", None, None, u_info)
-                print("DEBUG: Save success.")
-            except Exception as e:
-                print(f"DEBUG: Save failed: {e}")
-                st.error(f"Save Failed: {e}")
-            
-            
-            st.toast(f"✅ '{q_title}' 방문 처리 완료!", icon="🏃")
-            
-            # Keep params for a moment or clear? 
-            # If we clear immediately, we might lose session context on next interaction if not persisted tightly.
-            # But Streamlit session state should hold now until next reload.
-            # We can clear query params to clean URL, but we must ensure session state is set.
-            # st.query_params.clear() -> This might trigger another rerun. 
-            # Better to leave it or just remove action?
-            # Let's remove action to prevent double-trigger on refresh, but we might want to keep user info?
-            # Actually, once session_state is set, it stays as long as we don't full refresh. 
-            # Ideally we want to clean URL.
-            st.toast(f"✅ '{q_title}' 방문 처리 완료!", icon="🏃")
-            
-            # [FEATURE] Visit Report Form (Immediate Input)
-            # We show a form in an expander that is open by default
-            with st.expander(f"📝 '{q_title}' 방문 결과 입력", expanded=True):
-                st.info("방문 결과를 기록하세요. 기록 후 [저장] 버튼을 눌러주세요.")
-                
-                with st.form("visit_report_form"):
-                    rep_content = st.text_area("상세 내용 (필수)", height=100, placeholder="면담 내용, 고객 반응, 특이사항 등을 입력하세요.")
-                    
-                    c_audio, c_photo = st.columns(2)
-                    with c_audio:
-                        st.markdown("**🎤 음성 녹음**")
-                        audio_val = st.audio_input("음성 녹음")
-                        
-                    with c_photo:
-                        st.markdown("**📸 현장 사진**")
-                        # Camera input for mobile friendly
-                        photo_val = st.camera_input("사진 촬영", label_visibility="collapsed")
-                        # Fallback/Alternative: File Uploader
-                        if not photo_val:
-                            photo_val = st.file_uploader("또는 사진 업로드", type=['jpg', 'png', 'jpeg'], label_visibility="collapsed")
+    except Exception as e:
+        st.error(f"Error processing visit action: {e}")
+
+# 2. Render Form based on Session State
+if st.session_state.get("visit_active"):
+    v_data = st.session_state.visit_data
+    q_title = v_data.get('title')
+    q_addr = v_data.get('addr')
+    visit_user = v_data.get('user')
     
+    # Generate Key
+    def clean_param(s):
+        if not s: return ""
+        s = str(s)
+        if s.lower() == 'nan': return ""
+        return s.replace('"', '').replace("'", "").replace('\n', ' ')
+
+    c_title = clean_param(q_title)
+    c_addr = clean_param(q_addr)
+    record_key = f"{c_title}_{c_addr}"
+    
+    # [FEATURE] Visit Report Form (Persistent)
+    with st.expander(f"📝 '{q_title}' 방문 결과 입력", expanded=True):
+        st.info("방문 결과를 기록하세요. 기록 후 [저장] 버튼을 눌러주세요.")
+        
+        # Add a Close button outside the form to cancel
+        if st.button("닫기 (기록 취소)"):
+            st.session_state.visit_active = False
+            st.rerun()
+
+        with st.form("visit_report_form"):
+            rep_content = st.text_area("상세 내용 (필수)", height=100, placeholder="면담 내용, 고객 반응, 특이사항 등을 입력하세요.")
+            
+            c_audio, c_photo = st.columns(2)
+            with c_audio:
+                st.markdown("**🎤 음성 녹음**")
+                audio_val = st.audio_input("음성 녹음")
+                
+            with c_photo:
+                st.markdown("**📸 현장 사진**")
+                # Camera input
+                photo_val = st.camera_input("사진 촬영", label_visibility="collapsed")
+                if not photo_val:
+                    photo_val = st.file_uploader("또는 사진 업로드", type=['jpg', 'png', 'jpeg'], label_visibility="collapsed")
+
                     submitted = st.form_submit_button("💾 방문 결과 저장", type="primary", use_container_width=True)
                     
                     if submitted:
+                        st.toast("DEBUG: Submit Triggered", icon="🐛")
                         if not rep_content:
-                            st.error("내용을 입력해주세요.")
+                    st.error("내용을 입력해주세요.")
+                else:
+                    # User Info
+                    u_info = {
+                        "name": visit_user,
+                        "role": st.session_state.get('user_role', 'unknown'),
+                        "branch": st.session_state.get('user_branch', '')
+                    }
+                    
+                    # Save Logic
+                    try:
+                        # 1. Update Status (Confirmed Visit)
+                        activity_logger.save_activity_status(record_key, "방문", "방문 결과 리포트 작성함", visit_user)
+                        # 2. Save Report
+                        success = activity_logger.save_visit_report(record_key, rep_content, audio_val, photo_val, u_info)
+                        
+                        if success:
+                            st.success("방문 결과가 저장되었습니다!")
+                            st.session_state.visit_active = False # Close form on success
+                            st.toast("저장 완료!", icon="💾")
+                            # Short delay then rerun to refresh history
+                            import time
+                            time.sleep(1)
+                            st.rerun()
                         else:
-                            # User Info
-                            u_info = {
-                                "name": visit_user,
-                                "role": st.session_state.get('user_role', 'unknown'),
-                                "branch": st.session_state.get('user_branch', '')
-                            }
-                            
-                            # Re-save status to ensure note is updated
-                            activity_logger.save_activity_status(record_key, "방문", "방문 결과 리포트 작성함", visit_user)
-                            success = activity_logger.save_visit_report(record_key, rep_content, audio_val, photo_val, u_info)
-                            
-                            if success:
-                                st.success("방문 결과가 저장되었습니다!")
-                            else:
-                                st.error("저장 중 오류가 발생했습니다.")
+                            st.error("저장 중 오류가 발생했습니다.")
+                    except Exception as e:
+                        st.error(f"Error saving: {e}")
             
-    except Exception as e:
-        st.error(f"Action Error: {e}")
+
 
 # [FIX] Force Streamlit Native Theme for Altair (High Contrast)
 try:
@@ -2763,6 +2769,7 @@ if raw_df is not None:
         col1, col2 = st.columns([1, 4])
         with col1:
             if st.button("💾 변경사항 저장", use_container_width=True):
+                st.toast("DEBUG: Grid Save Clicked", icon="🐛")
                 saved_count = 0
                 for idx, row in edited_df.iterrows():
                     orig_row = df_display.iloc[idx]
