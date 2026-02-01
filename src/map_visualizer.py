@@ -759,9 +759,13 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                 headerHtml += aiReview; // Insert AI Review
                 
                 // Cleanest Update: Replace innerHTML with robustly built strings
-                document.getElementById('info-panel').innerHTML = headerHtml + bodyHtml;
-                
-                document.getElementById('map-detail').innerHTML = '<div class="detail-label">⚡ 추천 동선 모드</div><div style="width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; color:#E65100; font-weight:bold; background:#fafafa; text-align:center;"><div>총 예상 이동거리</div><div style="font-size:24px; color:#E65100; margin:5px 0 15px 0;">' + totalDistStr + '</div><div style="font-size:13px; color:#777;">지도에 표시된 순서대로<br>방문하세요</div></div>';
+                requestAnimationFrame(function() {{
+                    var infoPanel = document.getElementById('info-panel');
+                    if (infoPanel) infoPanel.innerHTML = headerHtml + bodyHtml;
+                    
+                    var mapDetail = document.getElementById('map-detail');
+                    if (mapDetail) mapDetail.innerHTML = '<div class="detail-label">⚡ 추천 동선 모드</div><div style="width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; color:#E65100; font-weight:bold; background:#fafafa; text-align:center;"><div>총 예상 이동거리</div><div style="font-size:24px; color:#E65100; margin:5px 0 15px 0;">' + totalDistStr + '</div><div style="font-size:13px; color:#777;">지도에 표시된 순서대로<br>방문하세요</div></div>';
+                }});
                 
                 // Draw Polyline (Segment by Segment)
                 
