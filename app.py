@@ -1345,225 +1345,224 @@ if raw_df is not None:
                   filter_df = filter_df[filter_df['SP담당'] == st.session_state.user_manager_name]
         
         # [SECURITY] Global Filter Visibility (Visible to All)
-        if True: # Was admin check, now open to all with internal constraints
-            st.markdown("### 🔍 조회 조건 설정")
+        st.markdown("### 🔍 조회 조건 설정")
                 
-            # 1. Branch
-            custom_branch_order = ['중앙지사', '강북지사', '서대문지사', '고양지사', '의정부지사', '남양주지사', '강릉지사', '원주지사']
-            custom_branch_order = [unicodedata.normalize('NFC', b) for b in custom_branch_order]
-            current_branches_in_raw = [unicodedata.normalize('NFC', str(b)) for b in raw_df['관리지사'].unique() if pd.notna(b)]
-            sorted_branches_for_filter = [b for b in custom_branch_order if b in current_branches_in_raw]
-            
-            # [FEATURE] Add 미지정 option for admin users
-            if '미지정' in current_branches_in_raw and '미지정' not in sorted_branches_for_filter:
-                sorted_branches_for_filter.append('미지정')
-            
-            others_for_filter = [b for b in current_branches_in_raw if b not in custom_branch_order]
-            sorted_branches_for_filter.extend(others_for_filter)
-            sorted_branches_for_filter = [unicodedata.normalize('NFC', b) for b in sorted_branches_for_filter]
+        # 1. Branch
+        custom_branch_order = ['중앙지사', '강북지사', '서대문지사', '고양지사', '의정부지사', '남양주지사', '강릉지사', '원주지사']
+        custom_branch_order = [unicodedata.normalize('NFC', b) for b in custom_branch_order]
+        current_branches_in_raw = [unicodedata.normalize('NFC', str(b)) for b in raw_df['관리지사'].unique() if pd.notna(b)]
+        sorted_branches_for_filter = [b for b in custom_branch_order if b in current_branches_in_raw]
+        
+        # [FEATURE] Add 미지정 option for admin users
+        if '미지정' in current_branches_in_raw and '미지정' not in sorted_branches_for_filter:
+            sorted_branches_for_filter.append('미지정')
+        
+        others_for_filter = [b for b in current_branches_in_raw if b not in custom_branch_order]
+        sorted_branches_for_filter.extend(others_for_filter)
+        sorted_branches_for_filter = [unicodedata.normalize('NFC', b) for b in sorted_branches_for_filter]
 
 
 
-            st.markdown("##### 🏢 지사 선택")
+        st.markdown("##### 🏢 지사 선택")
+        
+        # [ROLE_CONSTRAINT] Branch Selection
+        branch_opts = ["전체"] + sorted_branches_for_filter
+        
+        # Default logic
+        if 'sb_branch' not in st.session_state: st.session_state.sb_branch = "전체"
+        
+        # Force overrides
+        disabled_branch = False
+        if st.session_state.user_role == 'branch' or st.session_state.user_role == 'manager':
+            # Lock to user's branch
+            if st.session_state.user_branch:
+                st.session_state.sb_branch = st.session_state.user_branch
+                disabled_branch = True
+        
+        if st.session_state.sb_branch != "전체":
+                st.session_state.sb_branch = unicodedata.normalize('NFC', st.session_state.sb_branch)
+        
+        def reset_manager_filter():
+            st.session_state.sb_manager = "전체"
             
-            # [ROLE_CONSTRAINT] Branch Selection
-            branch_opts = ["전체"] + sorted_branches_for_filter
-            
-            # Default logic
-            if 'sb_branch' not in st.session_state: st.session_state.sb_branch = "전체"
-            
-            # Force overrides
-            disabled_branch = False
-            if st.session_state.user_role == 'branch' or st.session_state.user_role == 'manager':
-                # Lock to user's branch
-                if st.session_state.user_branch:
-                    st.session_state.sb_branch = st.session_state.user_branch
-                    disabled_branch = True
-            
-            if st.session_state.sb_branch != "전체":
-                    st.session_state.sb_branch = unicodedata.normalize('NFC', st.session_state.sb_branch)
-            
-            def reset_manager_filter():
-                st.session_state.sb_manager = "전체"
-                
-            sel_branch = st.selectbox(
-                "관리지사 선택", 
-                branch_opts, 
-                index=branch_opts.index(st.session_state.sb_branch) if st.session_state.sb_branch in branch_opts else 0,
-                key="sb_branch",
-                on_change=reset_manager_filter,
-                disabled=disabled_branch
-            )
+        sel_branch = st.selectbox(
+            "관리지사 선택", 
+            branch_opts, 
+            index=branch_opts.index(st.session_state.sb_branch) if st.session_state.sb_branch in branch_opts else 0,
+            key="sb_branch",
+            on_change=reset_manager_filter,
+            disabled=disabled_branch
+        )
 
-            if sel_branch != "전체":
-                filter_df = filter_df[filter_df['관리지사'] == sel_branch]
-            
-            # 2. Manager
-            has_area_code = '영업구역 수정' in filter_df.columns
-            
-            st.markdown("##### 🧑‍💻 영업구역 (담당자) 선택")
-            
+        if sel_branch != "전체":
+            filter_df = filter_df[filter_df['관리지사'] == sel_branch]
+        
+        # 2. Manager
+        has_area_code = '영업구역 수정' in filter_df.columns
+        
+        st.markdown("##### 🧑‍💻 영업구역 (담당자) 선택")
+        
+        if has_area_code:
+                temp_df = filter_df[['영업구역 수정', 'SP담당']].dropna(subset=['SP담당']).copy()
+                # Handle potential NaN in code
+                temp_df['영업구역 수정'] = temp_df['영업구역 수정'].fillna('')
+                temp_df['label'] = temp_df.apply(lambda x: f"{x['영업구역 수정']} ({x['SP담당']})" if x['영업구역 수정'] else x['SP담당'], axis=1)
+                temp_df = temp_df.sort_values(['SP담당', '영업구역 수정'])
+                manager_opts = ["전체"] + list(temp_df['label'].unique())
+                # Map label back to data
+                label_map_code = dict(zip(temp_df['label'], temp_df['영업구역 수정']))
+                label_map_name = dict(zip(temp_df['label'], temp_df['SP담당']))
+        else:
+            manager_opts = ["전체"] + sorted(list(filter_df['SP담당'].dropna().unique()))
+        
+        if 'sb_manager' not in st.session_state: st.session_state.sb_manager = "전체"
+
+        # [ROLE_CONSTRAINT] Manager (Admin can always change)
+        sel_manager_label = st.selectbox(
+            "영업구역/담당", 
+            manager_opts, 
+            index=manager_opts.index(st.session_state.get('sb_manager', "전체")) if st.session_state.get('sb_manager') in manager_opts else 0,
+            key="sb_manager",
+            disabled=False # Admin can always change
+        )
+        
+        sel_manager = "전체" 
+        selected_area_code = None 
+        
+        if sel_manager_label != "전체":
             if has_area_code:
-                    temp_df = filter_df[['영업구역 수정', 'SP담당']].dropna(subset=['SP담당']).copy()
-                    # Handle potential NaN in code
-                    temp_df['영업구역 수정'] = temp_df['영업구역 수정'].fillna('')
-                    temp_df['label'] = temp_df.apply(lambda x: f"{x['영업구역 수정']} ({x['SP담당']})" if x['영업구역 수정'] else x['SP담당'], axis=1)
-                    temp_df = temp_df.sort_values(['SP담당', '영업구역 수정'])
-                    manager_opts = ["전체"] + list(temp_df['label'].unique())
-                    # Map label back to data
-                    label_map_code = dict(zip(temp_df['label'], temp_df['영업구역 수정']))
-                    label_map_name = dict(zip(temp_df['label'], temp_df['SP담당']))
-            else:
-                manager_opts = ["전체"] + sorted(list(filter_df['SP담당'].dropna().unique()))
-            
-            if 'sb_manager' not in st.session_state: st.session_state.sb_manager = "전체"
-
-            # [ROLE_CONSTRAINT] Manager (Admin can always change)
-            sel_manager_label = st.selectbox(
-                "영업구역/담당", 
-                manager_opts, 
-                index=manager_opts.index(st.session_state.get('sb_manager', "전체")) if st.session_state.get('sb_manager') in manager_opts else 0,
-                key="sb_manager",
-                disabled=False # Admin can always change
-            )
-            
-            sel_manager = "전체" 
-            selected_area_code = None 
-            
-            if sel_manager_label != "전체":
-                if has_area_code:
-                    # Reverse lookup
-                    selected_area_code = label_map_code.get(sel_manager_label)
-                    selected_name_only = label_map_name.get(sel_manager_label)
-                    
-                    if selected_area_code:
-                        filter_df = filter_df[filter_df['영업구역 수정'] == selected_area_code]
-                        sel_manager = selected_name_only
-                    else:
-                        # No code, just name
-                        filter_df = filter_df[filter_df['SP담당'] == selected_name_only]
-                        sel_manager = selected_name_only
+                # Reverse lookup
+                selected_area_code = label_map_code.get(sel_manager_label)
+                selected_name_only = label_map_name.get(sel_manager_label)
+                
+                if selected_area_code:
+                    filter_df = filter_df[filter_df['영업구역 수정'] == selected_area_code]
+                    sel_manager = selected_name_only
                 else:
-                    filter_df = filter_df[filter_df['SP담당'] == sel_manager_label]
-                    sel_manager = sel_manager_label
+                    # No code, just name
+                    filter_df = filter_df[filter_df['SP담당'] == selected_name_only]
+                    sel_manager = selected_name_only
+            else:
+                filter_df = filter_df[filter_df['SP담당'] == sel_manager_label]
+                sel_manager = sel_manager_label
 
-                if sel_manager != "전체":
-                    sel_manager = unicodedata.normalize('NFC', sel_manager)
-                    
-            # 3. Type
-            st.markdown("##### 🏥 병원/의원 필터")
-            c_h1, c_h2 = st.columns(2)
-            with c_h1:
-                only_hospitals = st.toggle("🏥 병원 관련만 보기", value=False)
-            with c_h2:
-                only_large_area = st.toggle("🏗️ 100평 이상만 보기", value=False)
-            
-            # [FEATURE] Medium Area Filter
-            only_medium_area = st.toggle("🏗️ 10평 ~ 100평 미만", value=False)
-            
-            try:
-                available_types = sorted(list(filter_df[type_col].dropna().unique()))
-            except:
-                available_types = []
+            if sel_manager != "전체":
+                sel_manager = unicodedata.normalize('NFC', sel_manager)
                 
-            if not available_types and not filter_df.empty:
-                available_types = sorted(list(raw_df[type_col].dropna().unique()))
-                
-            with st.expander("📂 업태(업종) 필터 (펼치기/접기)", expanded=False):
-                sel_types = st.multiselect(
-                    "업태를 선택하세요 (복수 선택 가능)", 
-                    available_types,
-                    placeholder="전체 선택 (비어있으면 전체)",
-                    label_visibility="collapsed"
-                )
+        # 3. Type
+        st.markdown("##### 🏥 병원/의원 필터")
+        c_h1, c_h2 = st.columns(2)
+        with c_h1:
+            only_hospitals = st.toggle("🏥 병원 관련만 보기", value=False)
+        with c_h2:
+            only_large_area = st.toggle("🏗️ 100평 이상만 보기", value=False)
+        
+        # [FEATURE] Medium Area Filter
+        only_medium_area = st.toggle("🏗️ 10평 ~ 100평 미만", value=False)
+        
+        try:
+            available_types = sorted(list(filter_df[type_col].dropna().unique()))
+        except:
+            available_types = []
             
-            # 4. Date
-            st.markdown("##### 📅 날짜 필터 (연-월)")
-
-            # [FEATURE] Quick Filters (New/Closed 9 Days)
-            # Initialize Session State for Quick Filter
-            if 'admin_quick_filter' not in st.session_state:
-                st.session_state.admin_quick_filter = None
-
-            qf_col1, qf_col2 = st.columns(2)
-            # Use pandas for robust date handling
-            today_ref = pd.Timestamp.now().date()
-            target_date = (pd.Timestamp.now() - pd.Timedelta(days=9)).date()
+        if not available_types and not filter_df.empty:
+            available_types = sorted(list(raw_df[type_col].dropna().unique()))
             
-            with qf_col1:
-                # Toggle logic
-                is_active_new = st.session_state.admin_quick_filter == 'new_7d'
-                if st.button(f"✨ 신규 (9일){' ✅' if is_active_new else ''}", use_container_width=True, help="최근 9일 이내 개업(인허가)된 건만 봅니다."):
-                    st.session_state.admin_quick_filter = None if is_active_new else 'new_7d'
-                    st.rerun()
-            with qf_col2:
-                is_active_closed = st.session_state.admin_quick_filter == 'closed_7d'
-                if st.button(f"🚪 폐업 (9일){' ✅' if is_active_closed else ''}", use_container_width=True, help="최근 9일 이내 폐업된 건만 봅니다."):
-                    st.session_state.admin_quick_filter = None if is_active_closed else 'closed_7d'
-                    st.rerun()
-
-            # Apply Quick Filter Logic
-            if st.session_state.admin_quick_filter == 'new_7d':
-                 st.info(f"✨ 최근 9일 ({target_date} ~) 신규 인허가 건")
-                 if '인허가일자' in filter_df.columns:
-                     filter_df = filter_df[filter_df['인허가일자'].dt.date >= target_date]
-                 
-            elif st.session_state.admin_quick_filter == 'closed_7d':
-                 st.info(f"🚪 최근 9일 ({target_date} ~) 폐업 건")
-                 if '폐업일자' in filter_df.columns:
-                     filter_df = filter_df[filter_df['폐업일자'].dt.date >= target_date]
-
-            def get_ym_options(column):
-                if column not in raw_df.columns: return []
-                dates = raw_df[column].dropna()
-                if dates.empty: return []
-                return sorted(dates.dt.strftime('%Y-%m').unique(), reverse=True)
-
-            permit_ym_opts = ["전체"] + get_ym_options('인허가일자')
-            if 'sb_permit_ym' not in st.session_state: st.session_state.sb_permit_ym = "전체"
-            sel_permit_ym = st.selectbox(
-                "인허가일자 (월별)", 
-                permit_ym_opts,
-                index=permit_ym_opts.index(st.session_state.get('sb_permit_ym', "전체")) if st.session_state.get('sb_permit_ym') in permit_ym_opts else 0,
-                key="sb_permit_ym"
+        with st.expander("📂 업태(업종) 필터 (펼치기/접기)", expanded=False):
+            sel_types = st.multiselect(
+                "업태를 선택하세요 (복수 선택 가능)", 
+                available_types,
+                placeholder="전체 선택 (비어있으면 전체)",
+                label_visibility="collapsed"
             )
-            
-            close_ym_opts = ["전체"] + get_ym_options('폐업일자')
-            if 'sb_close_ym' not in st.session_state: st.session_state.sb_close_ym = "전체"
-            sel_close_ym = st.selectbox(
-                "폐업일자 (월별)", 
-                close_ym_opts,
-                index=close_ym_opts.index(st.session_state.get('sb_close_ym', "전체")) if st.session_state.get('sb_close_ym') in close_ym_opts else 0,
-                key="sb_close_ym"
-            )
-            
+        
+        # 4. Date
+        st.markdown("##### 📅 날짜 필터 (연-월)")
 
+        # [FEATURE] Quick Filters (New/Closed 9 Days)
+        # Initialize Session State for Quick Filter
+        if 'admin_quick_filter' not in st.session_state:
+            st.session_state.admin_quick_filter = None
+
+        qf_col1, qf_col2 = st.columns(2)
+        # Use pandas for robust date handling
+        today_ref = pd.Timestamp.now().date()
+        target_date = (pd.Timestamp.now() - pd.Timedelta(days=9)).date()
+        
+        with qf_col1:
+            # Toggle logic
+            is_active_new = st.session_state.admin_quick_filter == 'new_7d'
+            if st.button(f"✨ 신규 (9일){' ✅' if is_active_new else ''}", use_container_width=True, help="최근 9일 이내 개업(인허가)된 건만 봅니다."):
+                st.session_state.admin_quick_filter = None if is_active_new else 'new_7d'
+                st.rerun()
+        with qf_col2:
+            is_active_closed = st.session_state.admin_quick_filter == 'closed_7d'
+            if st.button(f"🚪 폐업 (9일){' ✅' if is_active_closed else ''}", use_container_width=True, help="최근 9일 이내 폐업된 건만 봅니다."):
+                st.session_state.admin_quick_filter = None if is_active_closed else 'closed_7d'
+                st.rerun()
+
+        # Apply Quick Filter Logic
+        if st.session_state.admin_quick_filter == 'new_7d':
+             st.info(f"✨ 최근 9일 ({target_date} ~) 신규 인허가 건")
+             if '인허가일자' in filter_df.columns:
+                 filter_df = filter_df[filter_df['인허가일자'].dt.date >= target_date]
+             
+        elif st.session_state.admin_quick_filter == 'closed_7d':
+             st.info(f"🚪 최근 9일 ({target_date} ~) 폐업 건")
+             if '폐업일자' in filter_df.columns:
+                 filter_df = filter_df[filter_df['폐업일자'].dt.date >= target_date]
+
+        def get_ym_options(column):
+            if column not in raw_df.columns: return []
+            dates = raw_df[column].dropna()
+            if dates.empty: return []
+            return sorted(dates.dt.strftime('%Y-%m').unique(), reverse=True)
+
+        permit_ym_opts = ["전체"] + get_ym_options('인허가일자')
+        if 'sb_permit_ym' not in st.session_state: st.session_state.sb_permit_ym = "전체"
+        sel_permit_ym = st.selectbox(
+            "인허가일자 (월별)", 
+            permit_ym_opts,
+            index=permit_ym_opts.index(st.session_state.get('sb_permit_ym', "전체")) if st.session_state.get('sb_permit_ym') in permit_ym_opts else 0,
+            key="sb_permit_ym"
+        )
+        
+        close_ym_opts = ["전체"] + get_ym_options('폐업일자')
+        if 'sb_close_ym' not in st.session_state: st.session_state.sb_close_ym = "전체"
+        sel_close_ym = st.selectbox(
+            "폐업일자 (월별)", 
+            close_ym_opts,
+            index=close_ym_opts.index(st.session_state.get('sb_close_ym', "전체")) if st.session_state.get('sb_close_ym') in close_ym_opts else 0,
+            key="sb_close_ym"
+        )
+        
+
+        
+        # 5. Status
+        st.markdown("##### 영업상태")
+        status_opts = ["전체"] + sorted(list(raw_df['영업상태명'].unique()))
+        
+        if 'sb_status' not in st.session_state: st.session_state.sb_status = "전체"
+        
+        sel_status = st.selectbox(
+            "영업상태", 
+            status_opts, 
+            index=status_opts.index(st.session_state.get('sb_status', "전체")) if st.session_state.get('sb_status') in status_opts else 0,
+            key="sb_status"
+        )
+        
+        def reset_page():
+            st.session_state.page = 0
             
-            # 5. Status
-            st.markdown("##### 영업상태")
-            status_opts = ["전체"] + sorted(list(raw_df['영업상태명'].unique()))
-            
-            if 'sb_status' not in st.session_state: st.session_state.sb_status = "전체"
-            
-            sel_status = st.selectbox(
-                "영업상태", 
-                status_opts, 
-                index=status_opts.index(st.session_state.get('sb_status', "전체")) if st.session_state.get('sb_status') in status_opts else 0,
-                key="sb_status"
-            )
-            
-            def reset_page():
-                st.session_state.page = 0
-                
-            st.markdown("##### 📞 전화번호 필터")
-            only_with_phone = st.toggle("전화번호 있는 것만 보기", value=False, on_change=reset_page)
-            
-            st.markdown("---")
-            
-            # [FEATURE] Address search
-            st.markdown("##### 🔍 주소 검색")
-            address_search = st.text_input("주소 검색 (예: 인천/삼산동)", value="", placeholder="주소 또는 업체명 입력...")
-            
+        st.markdown("##### 📞 전화번호 필터")
+        only_with_phone = st.toggle("전화번호 있는 것만 보기", value=False, on_change=reset_page)
+        
+        st.markdown("---")
+        
+        # [FEATURE] Address search
+        st.markdown("##### 🔍 주소 검색")
+        address_search = st.text_input("주소 검색 (예: 인천/삼산동)", value="", placeholder="주소 또는 업체명 입력...")
+        
     # [LOGGING] View/Filter Logging
     # We track changes in key filters
     
