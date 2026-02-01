@@ -1298,18 +1298,8 @@ if raw_df is not None:
                             st.info("기록 없음")
         
 
+
         
-        st.divider()
-        
-        # [FEATURE] Global Date Range Filter (Common for All Roles)
-        st.markdown("##### 🕵️ 기간 조회 (최종수정일 기준)")
-        st.caption("전체 탭(지도, 통계, 리스트)에 공통 적용됩니다.")
-        global_date_range = st.date_input(
-            "조회 기간 선택",
-            value=(),
-            label_visibility="collapsed",
-            key="global_date_range"
-        )
         st.divider()
         
         # [FIX] Initialize filter variables globally (Default: All)
@@ -1344,6 +1334,17 @@ if raw_df is not None:
         
         # [SECURITY] Global Filter Visibility (Admin Only)
         st.markdown("### 🔍 조회 조건 설정")
+        
+        # [FEATURE] Global Date Range Filter (Common for All Roles)
+        st.markdown("##### 🕵️ 기간 조회 (최종수정일 기준)")
+        st.caption("전체 탭(지도, 통계, 리스트)에 공통 적용됩니다.")
+        global_date_range = st.date_input(
+            "조회 기간 선택",
+            value=(),
+            label_visibility="collapsed",
+            key="global_date_range"
+        )
+        st.markdown("---")
             
         # 1. Branch
         custom_branch_order = ['중앙지사', '강북지사', '서대문지사', '고양지사', '의정부지사', '남양주지사', '강릉지사', '원주지사']
