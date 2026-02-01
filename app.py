@@ -2253,6 +2253,8 @@ if raw_df is not None:
         if not map_df.empty:
             if kakao_key:
                 # Pass heatmap flag to visualizer
+                import importlib
+                importlib.reload(map_visualizer)
                 map_visualizer.render_kakao_map(map_df, kakao_key, use_heatmap=use_heatmap, user_context=user_context)
             else:
                 import importlib
