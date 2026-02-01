@@ -1355,6 +1355,7 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
                         var params = currentUrl.searchParams;
                         
                         params.set('visit_action', 'true');
+                        if(key) params.set('key', key); // [OVERHAUL] Pass explicit key
                         params.set('title', title);
                         params.set('addr', addr);
                         

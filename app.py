@@ -59,9 +59,14 @@ if "visit_action" in st.query_params:
         if q_title:
             # Initialize Session State for Visit Form
             st.session_state.visit_active = True
+            
+            # [OVERHAUL] Use Explicit Key if available
+            q_key = st.query_params.get("key", "")
+            
             st.session_state.visit_data = {
                 'title': q_title,
                 'addr': q_addr,
+                'key': q_key, # [NEW] Store explicit key
                 'user': st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or "Field Agent"
             }
             
@@ -84,11 +89,16 @@ if st.session_state.get("visit_active"):
     v_data = st.session_state.visit_data
     q_title = v_data.get('title')
     q_addr = v_data.get('addr')
+    q_key_explicit = v_data.get('key') # [NEW]
     visit_user = v_data.get('user')
     
     # Generate Key
-    # Generate Key using Shared Utility (Consistency Fix)
-    record_key = utils.generate_record_key(q_title, q_addr)
+    # [OVERHAUL] Priority: Explicit Key > Generated Key
+    if q_key_explicit and str(q_key_explicit).strip():
+        record_key = str(q_key_explicit).strip()
+    else:
+        # Fallback to generator
+        record_key = utils.generate_record_key(q_title, q_addr)
     
     # [FEATURE] Visit Report Form (Persistent)
     with st.expander(f"📝 '{q_title}' 방문 결과 입력", expanded=True):
@@ -2253,6 +2263,11 @@ if raw_df is not None:
             if sel_map_sales != "전체": map_df = map_df[map_df['SP담당'] == sel_map_sales]
             if sel_map_type != "전체": map_df = map_df[map_df['업태구분명'] == sel_map_type]
             if sel_map_status != "전체": map_df = map_df[map_df['영업상태명'] == sel_map_status]
+            
+            # [OVERHAUL] Pre-calculate record_key for Map
+            # This ensures the key sent from Map matches the key used in Grid
+            if not map_df.empty:
+                map_df['record_key'] = map_df.apply(lambda row: utils.generate_record_key(row.get('사업장명'), row.get('소재지전체주소')), axis=1)
 
             st.markdown(f"**📍 조회된 업체**: {len(map_df):,} 개")
 
