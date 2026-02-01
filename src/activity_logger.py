@@ -27,8 +27,18 @@ def load_json_file(filepath):
 
 def save_json_file(filepath, data):
     """Save data to JSON file"""
-    with open(filepath, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    try:
+        # Ensure parent dir exists
+        if hasattr(filepath, 'parent'):
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        print(f"DEBUG: Successfully saved to {filepath}")
+        return True
+    except Exception as e:
+        print(f"DEBUG: Error saving {filepath}: {e}")
+        return False
 
 
 # ===== ACCESS LOGGING =====
