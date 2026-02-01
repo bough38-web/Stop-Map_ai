@@ -2408,50 +2408,54 @@ if raw_df is not None:
         
         st.divider()
         
-        st.markdown("##### 🏢 지사별 업체 분포 (선택된 영업상태 기준)")
-        
-        if not df.empty:
-            c3, c4 = st.columns([1,1])
+        # [UX] Boxed Layout for Branch Status with Clean Tone
+        with st.container(border=True):
+            st.markdown("##### 🏢 지사별 업체 분포 (선택된 영업상태 기준)")
             
-            bar_chart_base = alt.Chart(df).encode(
-                y=alt.Y("관리지사", sort="-x", title=" "),
-                x=alt.X("count()", title="업체 수"),
-                color=alt.Color("관리지사", legend=None), 
-                tooltip=["관리지사", "count()"]
-            ).properties(height=200)
-            
-            bar_chart = bar_chart_base.mark_bar(cornerRadius=3)
-            
-            bar_text = bar_chart_base.mark_text(
-                align='left', 
-                dx=5,
-                color='black'
-            ).encode(
-                text=alt.Text("count()", format=",.0f")
-            )
-            
-            with c3:
-                st.markdown("**지사별 점유율 (Rank)**")
-                st.altair_chart((bar_chart + bar_text), use_container_width=True)
+            if not df.empty:
+                c3, c4 = st.columns([1,1])
                 
-            # [FIX] Filter out 'Other' (기타) and reduce height to 200px
-            # Only show '영업/정상' and '폐업'
-            df_stacked = df[df['영업상태명'].isin(['영업/정상', '폐업'])]
-            
-            bar_base = alt.Chart(df_stacked).encode(
-                x=alt.X("관리지사", sort=custom_branch_order, title=None),
-                y=alt.Y("count()", title="업체 수"),
-                color=alt.Color("영업상태명", scale=alt.Scale(domain=['영업/정상', '폐업'], range=['#2E7D32', '#d32f2f']), legend=alt.Legend(title="상태")),
-                tooltip=["관리지사", "영업상태명", "count()"]
-            ).properties(height=200)
-            
-            stacked_bar = bar_base.mark_bar(cornerRadiusTopLeft=5, cornerRadiusTopRight=5)
-            
-            with c4:
-                st.markdown("**지사별 영업상태 누적 (Stacked)**")
-                st.altair_chart(stacked_bar.interactive(), use_container_width=True)
+                bar_chart_base = alt.Chart(df).encode(
+                    y=alt.Y("관리지사", sort="-x", title=" "),
+                    x=alt.X("count()", title="업체 수"),
+                    color=alt.Color("관리지사", legend=None), 
+                    tooltip=["관리지사", "count()"]
+                ).properties(height=200)
                 
-            st.divider()
+                bar_chart = bar_chart_base.mark_bar(cornerRadius=3)
+                
+                bar_text = bar_chart_base.mark_text(
+                    align='left', 
+                    dx=5,
+                    color='black'
+                ).encode(
+                    text=alt.Text("count()", format=",.0f")
+                )
+                
+                with c3:
+                    st.markdown("**지사별 점유율 (Rank)**")
+                    # Clean Tone Background + No Border stroke
+                    final_rank_chart = (bar_chart + bar_text).configure_view(stroke=None).configure(background='#F8F9FA')
+                    st.altair_chart(final_rank_chart, use_container_width=True)
+                    
+                # [FIX] Filter out 'Other' (기타) and reduce height to 200px
+                # Only show '영업/정상' and '폐업'
+                df_stacked = df[df['영업상태명'].isin(['영업/정상', '폐업'])]
+                
+                bar_base = alt.Chart(df_stacked).encode(
+                    x=alt.X("관리지사", sort=custom_branch_order, title=None),
+                    y=alt.Y("count()", title="업체 수"),
+                    color=alt.Color("영업상태명", scale=alt.Scale(domain=['영업/정상', '폐업'], range=['#2E7D32', '#d32f2f']), legend=alt.Legend(title="상태")),
+                    tooltip=["관리지사", "영업상태명", "count()"]
+                ).properties(height=200)
+                
+                stacked_bar = bar_base.mark_bar(cornerRadiusTopLeft=5, cornerRadiusTopRight=5)
+                
+                with c4:
+                    st.markdown("**지사별 영업상태 누적 (Stacked)**")
+                    # Clean Tone Background + No Border stroke
+                    final_stack_chart = stacked_bar.interactive().configure_view(stroke=None).configure(background='#F8F9FA')
+                    st.altair_chart(final_stack_chart, use_container_width=True)
             
             st.markdown("##### 👤 영업담당별 실적 Top 10")
             mgr_counts = df['SP담당'].value_counts().head(10).reset_index()
