@@ -851,9 +851,15 @@ if raw_df is not None:
     # [FEATURE] Admin Global Sidebar Chart (Populated via Placeholder)
     # Uses admin_chart_placeholder defined at top of sidebar
     if st.session_state.get('user_role') == 'admin':
-         if 'admin_chart_placeholder' in locals() or 'admin_chart_placeholder' in globals():
-             with admin_chart_placeholder.container():
-                with st.expander("📊 글로벌 현황 (Global)", expanded=True):
+         # [FIX] Removed locals() check that might fail in Streamlit runtime
+         try:
+             target_container = admin_chart_placeholder.container()
+         except NameError:
+             # Fallback: Render at bottom but visible
+             target_container = st.sidebar
+         
+         with target_container:
+            with st.expander("📊 글로벌 현황 (Global)", expanded=True):
                     g_total = len(raw_df)
                     g_visited = 0
                     if '활동진행상태' in raw_df.columns:
