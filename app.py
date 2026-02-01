@@ -1286,6 +1286,22 @@ if raw_df is not None:
             sorted_branches_for_filter.extend(others_for_filter)
             sorted_branches_for_filter = [unicodedata.normalize('NFC', b) for b in sorted_branches_for_filter]
 
+            # [FEATURE] Admin Global Sidebar Chart (Moved here for visibility)
+            if st.session_state.user_role == 'admin' and 'raw_df' in locals() and raw_df is not None:
+                with st.sidebar.expander("📊 글로벌 현황 (Global)", expanded=True):
+                    g_total = len(raw_df)
+                    g_visited = 0
+                    if '활동진행상태' in raw_df.columns:
+                        g_visited = len(raw_df[raw_df['활동진행상태'] == '방문'])
+                    
+                    st.metric("전체 데이터", f"{g_total:,}")
+                    st.metric("누적 방문 완료", f"{g_visited:,}", delta=f"{g_visited/g_total*100:.1f}%" if g_total>0 else None)
+                    
+                    if g_total > 0:
+                        prog = g_visited / g_total
+                        st.progress(min(prog, 1.0))
+                        st.caption(f"전체 진행률: {prog*100:.1f}%")
+
             st.markdown("##### 🏢 지사 선택")
             
             # [ROLE_CONSTRAINT] Branch Selection
@@ -1629,23 +1645,6 @@ if raw_df is not None:
                  
              base_df = base_df[mask_assigned | mask_touched]
     
-    # [FEATURE] Admin Global Sidebar Chart
-    # Requested by user: "Global chart side view should be visible"
-    if st.session_state.user_role == 'admin':
-        with st.sidebar.expander("📊 글로벌 현황 (Global)", expanded=True):
-            g_total = len(raw_df)
-            g_visited = 0
-            if '활동진행상태' in raw_df.columns:
-                 g_visited = len(raw_df[raw_df['활동진행상태'] == '방문'])
-            
-            st.metric("전체 데이터", f"{g_total:,}")
-            st.metric("누적 방문 완료", f"{g_visited:,}", delta=f"{g_visited/g_total*100:.1f}%" if g_total>0 else None)
-            
-            if g_total > 0:
-                prog = g_visited / g_total
-                st.progress(min(prog, 1.0))
-                st.caption(f"전체 진행률: {prog*100:.1f}%")
-
     # [FEATURE] Admin Custom Dashboard Override
     if custom_view_mode and admin_auth and (custom_view_managers or exclude_branches):
         if custom_view_managers:
