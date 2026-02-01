@@ -559,7 +559,7 @@ with st.sidebar:
     with st.sidebar.expander("🎨 테마 설정", expanded=False):
         theme_mode = st.selectbox(
             "스타일 테마 선택", 
-            ["기본 (Default)", "모던 다크 (Modern Dark)", "웜 페이퍼 (Warm Paper)", "고대비 (High Contrast)", "코퍼레이트 블루 (Corporate Blue)"],
+            ["기본 (Default)", "모던 다크 (Modern Dark)", "웜 페이퍼 (Warm Paper)", "고대비 (High Contrast)", "코퍼레이트 블루 (Corporate Blue)", "그린 에코 (Green Eco)"],
             index=0,
             label_visibility="collapsed"
         )
@@ -605,6 +605,16 @@ with st.sidebar:
                 h1, h2, h3 { color: #102A43 !important; }
                 div[data-testid="metric-container"] { background-color: #FFFFFF; border-left: 5px solid #334E68; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 15px; border-radius: 4px; }
                 .stButton button { background-color: #334E68 !important; color: white !important; border-radius: 4px; }
+            </style>
+            """
+        elif theme == "그린 에코 (Green Eco)":
+            css = """
+            <style>
+                [data-testid="stAppViewContainer"] { background-color: #F1F8E9; color: #1B5E20; }
+                [data-testid="stSidebar"] { background-color: #FFFFFF; border-right: 1px solid #C5E1A5; }
+                h1, h2, h3 { color: #2E7D32 !important; }
+                div[data-testid="metric-container"] { background-color: #FFFFFF; border-bottom: 3px solid #66BB6A; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 15px; border-radius: 8px; }
+                .stButton button { background-color: #2E7D32 !important; color: white !important; border-radius: 20px; box-shadow: 0 2px 4px rgba(46, 125, 50, 0.3); }
             </style>
             """
         else: # Default
