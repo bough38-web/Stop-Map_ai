@@ -55,7 +55,6 @@ if "visit_action" in st.query_params:
             visit_user = st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or "Field Agent"
             
             # [FIX] Normalize Inputs for Key Generation
-            # Ensure we apply the same cleaning logic as activity_logger.get_record_key
             def clean_param(s):
                 if not s: return ""
                 s = str(s)
@@ -65,9 +64,27 @@ if "visit_action" in st.query_params:
             c_title = clean_param(q_title)
             c_addr = clean_param(q_addr)
             
-            # Save
+            # Save Status
             record_key = f"{c_title}_{c_addr}"
-            activity_logger.save_activity_status(record_key, "방문", "지도에서 방문 처리함", visit_user)
+            print(f"DEBUG: Attempting save. Key='{record_key}', User='{visit_user}'")
+            
+            # User Info construction for report
+            u_info = {
+                "name": visit_user,
+                "role": p_role if p_role else "unknown",
+                "branch": st.session_state.get('user_branch', '')
+            }
+
+            try:
+                # 1. Update Status
+                activity_logger.save_activity_status(record_key, "방문", "지도에서 방문 처리함", visit_user)
+                # 2. Create Auto Report (so it shows in History)
+                activity_logger.save_visit_report(record_key, "지도에서 '방문' 상태로 변경했습니다.", None, None, u_info)
+                print("DEBUG: Save success.")
+            except Exception as e:
+                print(f"DEBUG: Save failed: {e}")
+                st.error(f"Save Failed: {e}")
+            
             
             st.toast(f"✅ '{q_title}' 방문 처리 완료!", icon="🏃")
             
