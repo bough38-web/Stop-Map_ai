@@ -54,8 +54,17 @@ if "visit_action" in st.query_params:
             # Construct Key matching activity_logger logic
             visit_user = st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or "Field Agent"
             
+            # [FIX] Normalize Inputs for Key Generation
+            # Ensure we apply the same cleaning logic as activity_logger.get_record_key
+            def clean_param(s):
+                if not s: return ""
+                return str(s).replace('"', '').replace("'", "").replace('\n', ' ')
+
+            c_title = clean_param(q_title)
+            c_addr = clean_param(q_addr)
+            
             # Save
-            record_key = f"{q_title}_{q_addr}"
+            record_key = f"{c_title}_{c_addr}"
             activity_logger.save_activity_status(record_key, "방문", "지도에서 방문 처리함", visit_user)
             
             st.toast(f"✅ '{q_title}' 방문 처리 완료!", icon="🏃")
