@@ -2646,6 +2646,7 @@ if raw_df is not None:
         # but here we just convert loaded data to new format.
         status_map = {
             "상담중": "🟡 상담중",
+            "상담완료": "🔵 상담완료", # [NEW] Added per user request
             "상담불가": "🔴 상담불가",
             "계약완료": "🟢 계약완료",
             "진행중": "🟡 상담중", # Handle legacy '진행중' map to '상담중'
@@ -2671,7 +2672,7 @@ if raw_df is not None:
         # Layout: Filter & Search
         c_filter, c_search = st.columns([1, 1])
         
-        status_filter_opts = ["✅ 방문", "🟡 상담중", "🔴 상담불가", "🟢 계약완료"]
+        status_filter_opts = ["✅ 방문", "🟡 상담중", "🔵 상담완료", "🔴 상담불가", "🟢 계약완료"]
         
         with c_filter:
             sel_grid_status = st.multiselect("진행상태 필터", status_filter_opts, placeholder="전체 보기 (미선택 시)")
@@ -2754,7 +2755,7 @@ if raw_df is not None:
                 "평수": st.column_config.NumberColumn(format="%.1f평"),
                 "활동진행상태": st.column_config.SelectboxColumn(
                     "활동상태",
-                    options=["", "✅ 방문", "🟡 상담중", "🔴 상담불가", "🟢 계약완료"],
+                    options=["", "✅ 방문", "🟡 상담중", "🔵 상담완료", "🔴 상담불가", "🟢 계약완료"],
                     required=False
                 ),
                 "특이사항": st.column_config.TextColumn(
@@ -2784,7 +2785,7 @@ if raw_df is not None:
                         # [FIX] Sanitize status: remove emojis for consistent storage
                         # "✅ 방문" -> "방문", "🟡 상담중" -> "상담중"
                         raw_status = row['활동진행상태']
-                        for emoji in ["✅ ", "🟡 ", "🔴 ", "🟢 "]:
+                        for emoji in ["✅ ", "🟡 ", "🔴 ", "🟢 ", "🔵 "]:
                             raw_status = raw_status.replace(emoji, "")
                             
                         activity_logger.save_activity_status(
