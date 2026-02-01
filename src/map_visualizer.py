@@ -634,8 +634,9 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                 var bounds = new kakao.maps.LatLngBounds();
                 bounds.extend(startPos);
                 
-                var listHtml = '<div class="sb-header"><h3 class="sb-title">⚡ 추천 방문 코스 (' + routeItems.length + '곳)</h3></div><div class="sb-body">';
-                listHtml += '<div style="margin-bottom:10px; color:#666; font-size:13px;">현재 위치에서 가장 가까운 순서대로<br>최적의 동선을 제안합니다.</div>';
+                var headerHtml = '';
+                var bodyHtml = '<div class="sb-body">';
+                bodyHtml += '<div style="margin-bottom:10px; color:#666; font-size:13px;">현재 위치에서 가장 가까운 순서대로<br>최적의 동선을 제안합니다.</div>';
                 
                 // Distance Tracking
                 var totalDist = 0;
@@ -645,7 +646,7 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                     var pos = new kakao.maps.LatLng(item.lat, item.lon);
                     
                     // [FEATURE] Calculate Segment Distance & Add Overlay
-                    var prevPos = linePath[linePath.length - 1]; // Last added point (start or prev item)
+                    var prevPos = linePath[linePath.length - 1]; // Last added point
                     var dist = getDistance(prevPos.getLat(), prevPos.getLng(), pos.getLat(), pos.getLng());
                     totalDist += dist;
                     
@@ -655,14 +656,13 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                         var midPos = new kakao.maps.LatLng(midLat, midLon);
                         
                         var distText = formatDistance(dist);
-                        // Overlay Style: White pill with border
                         var distContent = '<div style="padding:2px 6px; background:white; border:1px solid #E65100; color:#E65100; font-size:11px; border-radius:12px; font-weight:bold; box-shadow:0 1px 3px rgba(0,0,0,0.2); white-space:nowrap; z-index:9999;">' + distText + '</div>';
                         
                         var distOverlay = new kakao.maps.CustomOverlay({{
                             position: midPos,
                             content: distContent,
                             yAnchor: 0.5,
-                            zIndex: 9999 // Ensure visibility above line (z-indices: markers=1000+, polygons=?)
+                            zIndex: 9999
                         }});
                         distOverlay.setMap(mapOverview);
                         routeOverlays.push(distOverlay);
@@ -680,7 +680,6 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                             offset: new kakao.maps.Point(13, 37)
                         }};
                         
-                    // Simple Marker + Custom Overlay with Number
                     var marker = new kakao.maps.Marker({{
                         position: pos,
                         map: mapOverview,
@@ -689,70 +688,66 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                     routeMarkers.push(marker);
                     
                     var content = '<div style="background:#E65100; color:white; border-radius:50%; width:24px; height:24px; text-align:center; line-height:24px; font-weight:bold; border:2px solid white; box-shadow:0 2px 4px rgba(0,0,0,0.3);">' + seq + '</div>';
-                    
                     var customOverlay = new kakao.maps.CustomOverlay({{
                         position: pos,
                         content: content,
                         yAnchor: 1.5,
                         zIndex: 2000 + seq
                     }});
-                    
                     customOverlay.setMap(mapOverview);
                     routeOverlays.push(customOverlay);
-                                        // Rich Card Item (Inspired by User Image + Full Details)
-                     listHtml += '<div style="background:white; border:1px solid #ddd; border-radius:8px; margin-bottom:12px; box-shadow:0 2px 4px rgba(0,0,0,0.05); overflow:hidden;">';
-                     
-                     // Card Header
-                     listHtml += '<div style="background:#f8f9fa; padding:10px 12px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">';
-                     listHtml += '  <div style="font-weight:bold; color:#333; display:flex; align-items:center;">';
-                     listHtml += '    <span style="background:#E65100; color:white; border-radius:12px; padding:2px 8px; font-size:11px; margin-right:8px;">#' + seq + '</span>';
-                     listHtml += '    ' + item.title;
-                     listHtml += '  </div>';
-                     listHtml += '  <div style="font-size:11px; color:#E65100; font-weight:bold; background:#FFF3E0; padding:2px 6px; border-radius:4px;">+' + formatDistance(dist) + '</div>';
-                     listHtml += '</div>';
+                    
+                    // Rich Card Item Construction
+                    bodyHtml += '<div style="background:white; border:1px solid #ddd; border-radius:8px; margin-bottom:12px; box-shadow:0 2px 4px rgba(0,0,0,0.05); overflow:hidden;">';
+                    
+                    // Card Header
+                    bodyHtml += '<div style="background:#f8f9fa; padding:10px 12px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">';
+                    bodyHtml += '  <div style="font-weight:bold; color:#333; display:flex; align-items:center;">';
+                    bodyHtml += '    <span style="background:#E65100; color:white; border-radius:12px; padding:2px 8px; font-size:11px; margin-right:8px;">#' + seq + '</span>';
+                    bodyHtml += '    ' + item.title;
+                    bodyHtml += '  </div>';
+                    bodyHtml += '  <div style="font-size:11px; color:#E65100; font-weight:bold; background:#FFF3E0; padding:2px 6px; border-radius:4px;">+' + formatDistance(dist) + '</div>';
+                    bodyHtml += '</div>';
 
-                     // Card Body (Full Info)
-                     listHtml += '<div style="padding:12px;">';
-                     
-                     // 1. Status & Type Badge Row
-                     var statusColor = (item.status.includes('영업') || item.status.includes('정상')) ? '#E8F5E9' : '#FFEBEE';
-                     var statusTextColor = (item.status.includes('영업') || item.status.includes('정상')) ? '#2E7D32' : '#C62828';
-                     
-                     listHtml += '  <div style="margin-bottom:8px; display:flex; gap:6px; flex-wrap:wrap;">';
-                     listHtml += '    <span style="background:' + statusColor + '; color:' + statusTextColor + '; font-size:11px; padding:2px 6px; border-radius:4px;">' + item.status + '</span>';
-                     if(item.biz_type) listHtml += '    <span style="background:#F3E5F5; color:#7B1FA2; font-size:11px; padding:2px 6px; border-radius:4px;">' + item.biz_type + '</span>';
-                     if(item.is_large) listHtml += '    <span style="background:#EDE7F6; color:#512DA8; font-size:11px; padding:2px 6px; border-radius:4px; font-weight:bold;">🏢 대형매장</span>';
-                     listHtml += '  </div>';
+                    // Card Body
+                    bodyHtml += '<div style="padding:12px;">';
+                    
+                    var statusColor = (item.status.includes('영업') || item.status.includes('정상')) ? '#E8F5E9' : '#FFEBEE';
+                    var statusTextColor = (item.status.includes('영업') || item.status.includes('정상')) ? '#2E7D32' : '#C62828';
+                    
+                    bodyHtml += '  <div style="margin-bottom:8px; display:flex; gap:6px; flex-wrap:wrap;">';
+                    bodyHtml += '    <span style="background:' + statusColor + '; color:' + statusTextColor + '; font-size:11px; padding:2px 6px; border-radius:4px;">' + item.status + '</span>';
+                    if(item.biz_type) bodyHtml += '    <span style="background:#F3E5F5; color:#7B1FA2; font-size:11px; padding:2px 6px; border-radius:4px;">' + item.biz_type + '</span>';
+                    if(item.is_large) bodyHtml += '    <span style="background:#EDE7F6; color:#512DA8; font-size:11px; padding:2px 6px; border-radius:4px; font-weight:bold;">🏢 대형매장</span>';
+                    bodyHtml += '  </div>';
 
-                     // 2. Main Details Table style
-                     listHtml += '  <div style="font-size:12px; color:#555; line-height:1.6;">';
-                     listHtml += '    <div style="display:flex;"><span style="color:#888; width:50px;">주소</span> <span style="flex:1;">' + item.addr + '</span></div>';
-                     listHtml += '    <div style="display:flex;"><span style="color:#888; width:50px;">전화</span> <span style="flex:1;">' + (item.tel && item.tel != '-' ? item.tel : '<span style="color:#ccc;">(미등록)</span>') + '</span></div>';
-                     listHtml += '    <div style="display:flex;"><span style="color:#888; width:50px;">면적</span> <span style="flex:1;">' + (item.area_py || 0) + '평</span></div>';
-                     
-                     // Manager Info if available
-                     if(item.branch || item.manager) {{
-                         listHtml += '    <div style="display:flex; margin-top:4px; padding-top:4px; border-top:1px dashed #eee;"><span style="color:#888; width:50px;">담당</span> <span style="flex:1; color:#1565C0;">' + (item.branch || '') + ' ' + (item.manager || '') + '</span></div>';
-                     }}
-                     listHtml += '  </div>';
-                     
-                     listHtml += '</div>';
+                    // Info Rows
+                    bodyHtml += '  <div style="font-size:12px; color:#555; line-height:1.6;">';
+                    bodyHtml += '    <div style="display:flex;"><span style="color:#888; width:50px;">주소</span> <span style="flex:1;">' + item.addr + '</span></div>';
+                    bodyHtml += '    <div style="display:flex;"><span style="color:#888; width:50px;">전화</span> <span style="flex:1;">' + (item.tel && item.tel != '-' ? item.tel : '<span style="color:#ccc;">(미등록)</span>') + '</span></div>';
+                    bodyHtml += '    <div style="display:flex;"><span style="color:#888; width:50px;">면적</span> <span style="flex:1;">' + (item.area_py || 0) + '평</span></div>';
+                    
+                    if(item.branch || item.manager) {{
+                        bodyHtml += '    <div style="display:flex; margin-top:4px; padding-top:4px; border-top:1px dashed #eee;"><span style="color:#888; width:50px;">담당</span> <span style="flex:1; color:#1565C0;">' + (item.branch || '') + ' ' + (item.manager || '') + '</span></div>';
+                    }}
+                    bodyHtml += '  </div>';
+                    bodyHtml += '</div>'; // End Card Body
 
-                     // Card Footer (Actions)
-                     listHtml += '<div style="padding:8px 12px; background:#fafafa; border-top:1px solid #eee; display:flex; gap:8px;">';
-                     listHtml += '    <a href="javascript:void(0);" onclick="triggerVisit(\'' + item.title + '\', \'' + item.addr + '\')" style="flex:1; text-align:center; padding:6px 0; background:white; border:1px solid #4CAF50; color:#4CAF50; border-radius:4px; font-size:12px; font-weight:bold; text-decoration:none;">✅ 방문처리</a>';
-                     
-                     if (dist < 1.0) {{
-                         listHtml += '    <a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="flex:1; text-align:center; padding:6px 0; background:#2E7D32; border:1px solid #2E7D32; color:white; border-radius:4px; font-size:12px; font-weight:bold; text-decoration:none;">🚶 도보 길내 (' + Math.ceil(dist*15) + '분)</a>';
-                     }} else {{
-                         listHtml += '    <a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="flex:1; text-align:center; padding:6px 0; background:#E65100; border:1px solid #E65100; color:white; border-radius:4px; font-size:12px; font-weight:bold; text-decoration:none;">🚗 차량 길안내</a>';
-                     }}
-                     listHtml += '</div>';
-                     
-                     listHtml += '</div>';
+                    // Card Footer
+                    bodyHtml += '<div style="padding:8px 12px; background:#fafafa; border-top:1px solid #eee; display:flex; gap:8px;">';
+                    bodyHtml += '    <a href="javascript:void(0);" onclick="triggerVisit(\'' + item.title + '\', \'' + item.addr + '\')" style="flex:1; text-align:center; padding:6px 0; background:white; border:1px solid #4CAF50; color:#4CAF50; border-radius:4px; font-size:12px; font-weight:bold; text-decoration:none;">✅ 방문처리</a>';
+                    
+                    if (dist < 1.0) {{
+                        bodyHtml += '    <a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="flex:1; text-align:center; padding:6px 0; background:#2E7D32; border:1px solid #2E7D32; color:white; border-radius:4px; font-size:12px; font-weight:bold; text-decoration:none;">🚶 도보 길안내</a>';
+                    }} else {{
+                        bodyHtml += '    <a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="flex:1; text-align:center; padding:6px 0; background:#E65100; border:1px solid #E65100; color:white; border-radius:4px; font-size:12px; font-weight:bold; text-decoration:none;">🚗 차량 길안내</a>';
+                    }}
+                    bodyHtml += '</div>'; // End Footer
+                    
+                    bodyHtml += '</div>'; // End Card Item
                 }});
                 
-                listHtml += '</div>';
+                bodyHtml += '</div>'; // End sb-body
                 
                 // [FEATURE] Update Header with Total Distance
                 var totalDistStr = formatDistance(totalDist);
@@ -760,14 +755,11 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                 // [NEW] AI Analysis Review Generation
                 var aiReview = generateAIAnalysis(routeItems, totalDist);
                 
-                var headerHtml = '<div class="sb-header"><h3 class="sb-title">⚡ 추천 방문 코스 (' + routeItems.length + '곳 / 총 ' + totalDistStr + ')</h3></div>';
+                headerHtml = '<div class="sb-header"><h3 class="sb-title">⚡ 추천 방문 코스 (' + routeItems.length + '곳 / 총 ' + totalDistStr + ')</h3></div>';
+                headerHtml += aiReview; // Insert AI Review
                 
-                // Insert AI Review after Header
-                headerHtml += aiReview;
-                
-                // Re-assemble content with new header
-                var bodyContent = listHtml.substring(listHtml.indexOf('<div class="sb-body">'));
-                document.getElementById('info-panel').innerHTML = headerHtml + bodyContent;
+                // Cleanest Update: Replace innerHTML with robustly built strings
+                document.getElementById('info-panel').innerHTML = headerHtml + bodyHtml;
                 
                 document.getElementById('map-detail').innerHTML = '<div class="detail-label">⚡ 추천 동선 모드</div><div style="width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; color:#E65100; font-weight:bold; background:#fafafa; text-align:center;"><div>총 예상 이동거리</div><div style="font-size:24px; color:#E65100; margin:5px 0 15px 0;">' + totalDistStr + '</div><div style="font-size:13px; color:#777;">지도에 표시된 순서대로<br>방문하세요</div></div>';
                 
