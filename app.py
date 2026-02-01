@@ -2301,12 +2301,12 @@ if raw_df is not None:
     with tab_stats:
         st.subheader("📈 다차원 상세 분석")
         
-        # [FEATURE] 7-Day Daily Trend Chart
-        st.markdown("##### 📅 최근 7일 영업/폐업 추이")
+        # [FEATURE] 15-Day Daily Trend Chart
+        st.markdown("##### 📅 최근 15일 영업/폐업 추이")
         try:
             # 1. Prepare Data
             trend_end_date = pd.Timestamp.now().normalize()
-            trend_start_date = trend_end_date - pd.Timedelta(days=6) # 7 days inclusive: [Today-6, Today]
+            trend_start_date = trend_end_date - pd.Timedelta(days=14) # 15 days inclusive: [Today-6, Today]
             
             trend_data = []
             
