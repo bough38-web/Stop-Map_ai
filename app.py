@@ -407,6 +407,22 @@ with st.sidebar:
             index=0,
             label_visibility="collapsed"
         )
+    
+    # [FEATURE] Admin Mobile Filter Visibility Control
+    # Only visible to Admin. Controls visibility of "Conditional Search" on mobile.
+    if st.session_state.get('user_role') == 'admin':
+        st.sidebar.divider()
+        show_mobile_filter = st.sidebar.toggle("📱 모바일에서 필터 표시", value=True, help="끄면 모바일 화면에서 '조건조회' 창이 사라집니다.")
+        if not show_mobile_filter:
+            st.markdown("""
+            <style>
+            @media (max-width: 768px) {
+                div[data-testid="stExpander"]:has(#mobile-filter-marker) {
+                    display: none !important;
+                }
+            }
+            </style>
+            """, unsafe_allow_html=True)
 
     def apply_theme(theme):
         css = ""
@@ -2019,6 +2035,8 @@ if raw_df is not None:
 
     with tab1:
         with st.expander("🗺️ 조건조회", expanded=True):
+            # Marker for Mobile Visibility Control
+            st.markdown('<div id="mobile-filter-marker"></div>', unsafe_allow_html=True)
             # st.subheader("🗺️ 조건조회")
             
             # [MOVED] Global Date Range Filter
