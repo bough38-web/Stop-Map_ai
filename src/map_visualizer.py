@@ -94,7 +94,11 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
         display_df['AI_Score'] = 0
         display_df['AI_Comment'] = ''
         
-    map_data = display_df[['lat', 'lon', 'title', 'status', 'addr', 'tel', 'close_date', 'permit_date', 'reopen_date', 'modified_date', 'biz_type', 'branch', 'manager', 'is_large', 'area_py', 'AI_Score', 'AI_Comment']].to_dict(orient='records')
+    # [FIX] data integrity
+    if 'record_key' not in display_df.columns:
+        display_df['record_key'] = display_df.apply(lambda row: str(row['title']) + "_" + str(row['addr']), axis=1)
+
+    map_data = display_df[['lat', 'lon', 'title', 'status', 'addr', 'tel', 'close_date', 'permit_date', 'reopen_date', 'modified_date', 'biz_type', 'branch', 'manager', 'is_large', 'area_py', 'AI_Score', 'AI_Comment', 'record_key']].to_dict(orient='records')
     json_data = json.dumps(map_data, ensure_ascii=False)
     
     st.markdown('<div style="background-color: #e3f2fd; border-left: 5px solid #2196F3; padding: 10px; margin-bottom: 10px; border-radius: 4px;"><small><b>Tip:</b> 왼쪽 지도에서 마커를 선택하면 오른쪽에서 <b>상세 위치</b>와 <b>정보</b>를 확인할 수 있습니다.</small></div>', unsafe_allow_html=True)
@@ -333,7 +337,7 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                                     (item.close_date ? '<span style="color:#D32F2F; font-size:12px;">❌ 폐업일: ' + item.close_date + '</span>' : '') +
                                     '</div>' +
                                     '<div style="margin-top:10px; display:flex; gap:5px;">' +
-                                    '<a href="javascript:void(0);" onclick="triggerVisit(\'' + item.title + '\', \'' + item.addr + '\')" style="flex:1; background:#4CAF50; color:white; text-decoration:none; padding:8px 0; border-radius:4px; text-align:center; font-size:12px; font-weight:bold;">✅ 방문</a>' +
+                                    '<a href="javascript:void(0);" onclick="triggerVisit(\'' + item.title + '\', \'' + item.addr + '\', \'' + item.record_key + '\')" style="flex:1; background:#4CAF50; color:white; text-decoration:none; padding:8px 0; border-radius:4px; text-align:center; font-size:12px; font-weight:bold;">✅ 방문</a>' +
                                     '<a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="flex:1; background:#FEE500; color:black; text-decoration:none; padding:8px 0; border-radius:4px; text-align:center; font-size:12px; font-weight:bold;">🚗 길찾기</a>' +
                                     '</div>' +
                                     '</div>';
@@ -399,7 +403,7 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                     html += '</table>';
                     
                     html += '<div style="display:flex; gap:10px; margin-top:20px;">';
-                    html += '<a href="javascript:void(0);" onclick="triggerVisit(\'' + item.title + '\', \'' + item.addr + '\')" class="navi-btn" style="background-color:#4CAF50; color:white;">✅ 방문 처리</a>';
+                    html += '<a href="javascript:void(0);" onclick="triggerVisit(\'' + item.title + '\', \'' + item.addr + '\', \'' + item.record_key + '\')" class="navi-btn" style="background-color:#4CAF50; color:white;">✅ 방문 처리</a>';
                     html += '<a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" class="navi-btn">🚗 길찾기</a>';
                     html += '</div>';
                     
@@ -433,15 +437,16 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                 }});
             }};
             
-            // [FEATURE] Visit Trigger Function
             // [FEATURE] Visit Trigger Function (with Session Persistence)
-            window.triggerVisit = function(title, addr) {{
+            window.triggerVisit = function(title, addr, key) {{
                 if(confirm("'" + title + "' 업체를 [방문] 상태로 변경하시겠습니까? (페이지가 새로고침됩니다)")) {{
                     // Normalize for URL
                     var url = window.parent.location.href; // Access parent Streamlit URL
                     // Check if already has query params
                     var separator = url.includes('?') ? '&' : '?';
                     var newUrl = url + separator + 'visit_action=true&title=' + encodeURIComponent(title) + '&addr=' + encodeURIComponent(addr);
+                    
+                    if(key) newUrl += '&key=' + encodeURIComponent(key);
                     
                     // [FIX] Append User Context to URL to restore session
                     var u_role = "{user_context.get('user_role', '')}";

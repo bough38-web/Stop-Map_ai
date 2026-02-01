@@ -148,7 +148,9 @@ if st.session_state.get("visit_active"):
                     # Save Logic
                     try:
                         # 1. Update Status (Confirmed Visit)
-                        activity_logger.save_activity_status(record_key, "방문", "방문 결과 리포트 작성함", visit_user)
+                        # [FIX] Use Standardized Status Constant
+                        visit_status = activity_logger.ACTIVITY_STATUS_MAP["방문"]
+                        activity_logger.save_activity_status(record_key, visit_status, "방문 결과 리포트 작성함", visit_user)
                         # 2. Save Report
                         success = activity_logger.save_visit_report(record_key, rep_content, audio_val, photo_val, u_info)
                         
