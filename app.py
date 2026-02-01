@@ -2075,7 +2075,10 @@ if raw_df is not None:
                     if rep.get("photo_path"):
                          photo_p = activity_logger.get_media_path(rep.get("photo_path"))
                          if photo_p and os.path.exists(photo_p):
-                             st.image(photo_p, caption="현장 사진", use_container_width=True)
+                             try:
+                                 st.image(photo_p, caption="현장 사진", use_container_width=True)
+                             except Exception as e:
+                                 st.warning(f"⚠️ 이미지를 불러올 수 없습니다: {rep.get('photo_path')}")
                     
                     # [NEW] Edit Button
                     # Only show for own reports or admin? Let's allow all for now as requested "add photo".
