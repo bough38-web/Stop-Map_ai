@@ -218,81 +218,133 @@ VISIT_REPORT_FILE = STORAGE_DIR / "visit_reports.json"
 VISIT_MEDIA_DIR = STORAGE_DIR / "visits"
 VISIT_MEDIA_DIR.mkdir(exist_ok=True)
 
-def save_visit_report(record_key, content, audio_file, photo_file, user_info):
-    """
-    Save a comprehensive visit report.
-    - record_key: Unique ID of the place
-    - content: Text notes
-    - audio_file: Streamlit UploadedFile object (Audio)
-    - photo_file: Streamlit UploadedFile object (Image)
-    - user_info: Dict with user details
-    """
-    reports = load_json_file(VISIT_REPORT_FILE)
-    
-    timestamp = datetime.now()
-    ts_str = timestamp.strftime("%Y-%m-%d %H:%M:%S")
-    file_prefix = f"{timestamp.strftime('%Y%m%d_%H%M%S')}_{user_info.get('name', 'unknown')}"
-    
-    # Save Media Files
-    audio_path = None
-    photo_path = None
-    
-    if audio_file:
-        # Determine extension (usually wav or webm depending on browser/streamlit version)
-        ext = audio_file.name.split('.')[-1] if '.' in audio_file.name else "wav"
-        fname = f"{file_prefix}_audio.{ext}"
-        save_path = VISIT_MEDIA_DIR / fname
-        with open(save_path, "wb") as f:
-            f.write(audio_file.getvalue())
-        audio_path = str(fname) # Store relative filename
-        
-    if photo_file:
-        ext = photo_file.name.split('.')[-1] if '.' in photo_file.name else "jpg"
-        fname = f"{file_prefix}_photo.{ext}"
-        save_path = VISIT_MEDIA_DIR / fname
-        with open(save_path, "wb") as f:
-            f.write(photo_file.getvalue())
-        photo_path = str(fname)
+# ===== ATOMIC TRANSACTIONS (REDESIGN) =====
 
-    report_entry = {
-        "id": f"rep_{timestamp.timestamp()}",
-        "timestamp": ts_str,
-        "record_key": record_key,
-        "content": content,
-        "audio_path": audio_path,
-        "photo_path": photo_path,
-        "user_name": user_info.get("name"),
-        "user_role": user_info.get("role"),
-        "user_branch": user_info.get("branch")
-    }
+def register_visit(record_key, content, audio_file, photo_file, user_info, forced_status=None):
+    """
+    ATOMIC OPERATION: Register a visit.
+    1. Save Visit Report
+    2. Update Activity Status (to 'Visit' or forced status)
+    3. Log History
     
-    reports.append(report_entry)
-    save_json_file(VISIT_REPORT_FILE, reports)
+    Returns: (bool, msg)
+    """
+    try:
+        # 1. Save Media
+        audio_path = None
+        photo_path = None
+        timestamp = datetime.now()
+        ts_str = timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        file_prefix = f"{timestamp.strftime('%Y%m%d_%H%M%S')}_{user_info.get('name', 'unknown')}"
+        
+        if audio_file:
+            ext = audio_file.name.split('.')[-1] if '.' in audio_file.name else "wav"
+            fname = f"{file_prefix}_audio.{ext}"
+            save_path = VISIT_MEDIA_DIR / fname
+            with open(save_path, "wb") as f:
+                f.write(audio_file.getvalue())
+            audio_path = str(fname)
+            
+        if photo_file:
+            ext = photo_file.name.split('.')[-1] if '.' in photo_file.name else "jpg"
+            fname = f"{file_prefix}_photo.{ext}"
+            save_path = VISIT_MEDIA_DIR / fname
+            with open(save_path, "wb") as f:
+                f.write(photo_file.getvalue())
+            photo_path = str(fname)
+
+        # 2. Determine New Status
+        # Default to "✅ 방문" if not forced. 
+        # If user selected a specific status in a dropdown, use that.
+        new_status = forced_status if forced_status else ACTIVITY_STATUS_MAP["방문"]
+        new_status = normalize_status(new_status)
+
+        # 3. Create Visit Report Entry
+        visit_entry = {
+            "id": f"rep_{timestamp.timestamp()}",
+            "timestamp": ts_str,
+            "record_key": record_key,
+            "content": content,
+            "audio_path": audio_path,
+            "photo_path": photo_path,
+            "user_name": user_info.get("name"),
+            "user_role": user_info.get("role"),
+            "user_branch": user_info.get("branch"),
+            "resulting_status": new_status # Link result
+        }
+        
+        # 4. Update Status Entry
+        status_entry = {
+            "활동진행상태": new_status,
+            "특이사항": content, # Sync notes
+            "변경일시": ts_str,
+            "변경자": user_info.get("name")
+        }
+        
+        # 5. EXECUTE WRITES (Sequential)
+        
+        # A. Reports
+        reports = load_json_file(VISIT_REPORT_FILE)
+        reports.append(visit_entry)
+        save_json_file(VISIT_REPORT_FILE, reports)
+        
+        # B. Status & History (Reuse save_activity_status for history logic)
+        # We manually call internal save to avoid double loading
+        _save_status_internal(record_key, status_entry)
+        
+        return True, "저장 완료"
+        
+    except Exception as e:
+        print(f"CRITICAL ERROR in register_visit: {e}")
+        return False, str(e)
+
+def _save_status_internal(record_key, new_data_dict):
+    """
+    Internal helper to save status and log history.
+    """
+    statuses = load_json_file(ACTIVITY_STATUS_FILE)
+    old_data = statuses.get(record_key, {})
+    
+    statuses[record_key] = new_data_dict
+    save_json_file(ACTIVITY_STATUS_FILE, statuses)
+    
+    # Log Change if different
+    if old_data.get("활동진행상태") != new_data_dict.get("활동진행상태") or \
+       old_data.get("특이사항") != new_data_dict.get("특이사항"):
+           
+        log_change_history(record_key, old_data, new_data_dict, new_data_dict.get("변경자"))
+
+# Backward Compatibility & Direct Status Change (e.g. from Grid)
+def save_activity_status(record_key, status, notes, user_name):
+    """
+    Save activity status for a record (Direct Update).
+    Wraps _save_status_internal.
+    """
+    status = normalize_status(status)
+    new_data = {
+        "활동진행상태": status,
+        "특이사항": notes,
+        "변경일시": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "변경자": user_name
+    }
+    _save_status_internal(record_key, new_data)
     return True
 
+# Read Methods
 def get_visit_reports(record_key=None, user_name=None, user_branch=None, limit=100):
-    """
-    Get visit reports filtered by key, user, or branch.
-    """
     reports = load_json_file(VISIT_REPORT_FILE)
-    if not isinstance(reports, list):
-        reports = []
+    if not isinstance(reports, list): reports = []
     
     if record_key:
         reports = [r for r in reports if r.get("record_key") == record_key]
-        
     if user_name:
         reports = [r for r in reports if r.get("user_name") == user_name]
-        
     if user_branch:
         reports = [r for r in reports if r.get("user_branch") == user_branch]
         
-    # Sort by timestamp desc
     reports.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
-    
     return reports[:limit]
 
 def get_media_path(filename):
-    """Return absolute path to media file"""
     if not filename: return None
     return str(VISIT_MEDIA_DIR / filename)

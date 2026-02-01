@@ -147,15 +147,11 @@ if st.session_state.get("visit_active"):
                     
                     # Save Logic
                     try:
-                        # 1. Update Status (Confirmed Visit)
-                        # [FIX] Use Standardized Status Constant
-                        visit_status = activity_logger.ACTIVITY_STATUS_MAP["방문"]
-                        activity_logger.save_activity_status(record_key, visit_status, "방문 결과 리포트 작성함", visit_user)
-                        # 2. Save Report
-                        success = activity_logger.save_visit_report(record_key, rep_content, audio_val, photo_val, u_info)
+                        # [REDESIGN] Atomic Visit Registration
+                        success, msg = activity_logger.register_visit(record_key, rep_content, audio_val, photo_val, u_info)
                         
                         if success:
-                            st.success("방문 결과가 저장되었습니다!")
+                            st.success("방문 결과가 저장되었습니다! (이력 및 상태 동시 업데이트)")
                             st.session_state.visit_active = False # Close form on success
                             st.toast(f"저장 완료! (User: {visit_user})", icon="💾")
                             # [FIX] Clear params on success
@@ -166,7 +162,7 @@ if st.session_state.get("visit_active"):
                             time.sleep(1)
                             st.rerun()
                         else:
-                            st.error("저장 중 오류가 발생했습니다.")
+                            st.error(f"저장 중 오류가 발생했습니다: {msg}")
                     except Exception as e:
                         st.error(f"Error saving: {e}")
             
@@ -2831,24 +2827,33 @@ if raw_df is not None:
                         # Debug Log
                         debug_log.append(f"Saving: {row.get('사업장명')} ({row['record_key']}) -> {raw_status}")
                         
-                        activity_logger.save_activity_status(
-                            row['record_key'],
-                            raw_status,
-                            row['특이사항'],
-                            current_user
-                        )
+                        # [REDESIGN] Atomic Handling
+                        # 1. Prepare User Info
+                        u_info = {
+                            "name": current_user,
+                            "role": st.session_state.get('user_role', 'unknown'),
+                            "branch": st.session_state.get('user_branch', '')
+                        }
                         
-                        # [FIX] Automatically Log Visit History if status is "Visit"
-                        # If the user sets status to "Visit" (and it wasn't before? or always?), we log a system report.
+                        # 2. Check if this is a Visit Registration
                         if "방문" in raw_status:
-                             # Create a system generated report
-                             u_info = {
-                                "name": current_user,
-                                "role": st.session_state.get('user_role', 'unknown'),
-                                "branch": st.session_state.get('user_branch', '')
-                             }
+                             # Register Visit (Atomic: Report + Status + History)
                              sys_note = f"[시스템 자동] 데이터 그리드에서 '방문' 상태로 변경됨. (특이사항: {row['특이사항']})"
-                             activity_logger.save_visit_report(row['record_key'], sys_note, None, None, u_info)
+                             activity_logger.register_visit(
+                                 row['record_key'], 
+                                 sys_note, 
+                                 None, None, # No media
+                                 u_info,
+                                 forced_status=raw_status # Persist the exact status string
+                             )
+                        else:
+                             # Just Status Update (Atomic: Status + History)
+                             activity_logger.save_activity_status(
+                                row['record_key'],
+                                raw_status,
+                                row['특이사항'],
+                                current_user
+                            )
 
                         saved_count += 1
                 
