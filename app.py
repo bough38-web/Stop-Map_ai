@@ -417,7 +417,9 @@ with st.sidebar:
             st.markdown("""
             <style>
             @media (max-width: 768px) {
-                div[data-testid="stExpander"]:has(#mobile-filter-marker) {
+                /* Try multiple selectors for robustness */
+                div[data-testid="stExpander"]:has(#mobile-filter-marker),
+                details:has(#mobile-filter-marker) {
                     display: none !important;
                 }
             }
