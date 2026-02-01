@@ -1070,6 +1070,34 @@ if raw_df is not None:
     # Main Logic (Authenticated)
     # -------------------------------------------------------------
     
+    # [FAILSAFE] Admin Dashboard on Main Page (For visibility guarantee)
+    if st.session_state.get('user_role') == 'admin':
+         st.success(f"🔐 관리자 모드 접속중")
+         with st.expander("📊 글로벌 현황 및 제어 (Main Panel)", expanded=True):
+             # Ensure raw_df is available
+             current_raw = raw_df if 'raw_df' in locals() or 'raw_df' in globals() else pd.DataFrame()
+             
+             if not current_raw.empty:
+                 g_total = len(current_raw)
+                 g_visited = 0
+                 if '활동진행상태' in current_raw.columns:
+                     g_visited = len(current_raw[current_raw['활동진행상태'] == '방문'])
+                 
+                 c_m1, c_m2, c_m3 = st.columns([1, 2, 1])
+                 with c_m1:
+                     delta = f"{(g_visited/g_total*100):.1f}%" if g_total > 0 else "0%"
+                     st.metric("진행률", delta)
+                 with c_m2:
+                     if g_total > 0:
+                         st.progress(min(g_visited/g_total, 1.0))
+                     st.caption(f"방문: {g_visited} / 전체: {g_total} 건")
+                 with c_m3:
+                     if st.button("로그아웃", key="btn_logout_main_panel", type="primary", use_container_width=True):
+                         st.session_state.clear()
+                         st.rerun()
+             else:
+                 st.warning("데이터 로드 전입니다.")
+
     # --- Apply Global Filters (Sidebar) ---
     # --- Sidebar Filters ---
     with st.sidebar:
