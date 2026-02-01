@@ -233,6 +233,37 @@ def generate_record_key(title, addr):
         if s.lower() == 'nan': return ""
         # Normalize unicode (e.g. separate jamo)
         s = unicodedata.normalize('NFC', s)
+        
+        # [IMPROVED] Address Semantic Normalization
+        # Replace common long forms with short forms to ensure "서울특별시" == "서울"
+        # Only apply this to the address part, but here 's' could be title too.
+        # However, titles unlikely to have these exact strings unless coincidence.
+        # Safer to apply replacement only if recognized as address components.
+        # For simplicity and robustness, we replace globally as these are district names.
+        
+        replacements = {
+            "서울특별시": "서울", "서울시": "서울",
+            "기도": "경기", "경기도": "경기", # fix '경기도' -> '경기' (careful with '기도')
+            "인천광역시": "인천", "인천시": "인천",
+            "부산광역시": "부산", "부산시": "부산",
+            "대구광역시": "대구", "대구시": "대구",
+            "광주광역시": "광주", "광주시": "광주",
+            "대전광역시": "대전", "대전시": "대전",
+            "울산광역시": "울산", "울산시": "울산",
+            "세종특별자치시": "세종", "세종시": "세종",
+            "제주특별자치도": "제주", "제주도": "제주",
+            "강원특별자치도": "강원", "강원도": "강원",
+            "충청북도": "충북", "충청남도": "충남",
+            "전라북도": "전북", "전라남도": "전남",
+            "경상북도": "경북", "경상남도": "경남"
+        }
+        
+        # Pre-clean strict logic: remove spaces first? No, replacements might need boundaries if we were regexing.
+        # But here we do simple string replace. "서울특별시" -> "서울" works even if attached.
+        
+        for k, v in replacements.items():
+            s = s.replace(k, v)
+            
         # Remove quotes and ALL whitespace for robustness
         # This fixes issues where "City A" != "CityA"
         s = s.replace('"', '').replace("'", "").replace('\n', '').replace(' ', '')

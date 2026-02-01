@@ -300,6 +300,48 @@ def register_visit(record_key, content, audio_file, photo_file, user_info, force
         print(f"CRITICAL ERROR in register_visit: {e}")
         return False, str(e)
 
+def update_visit_report(report_id, new_content, new_photo_file=None):
+    """
+    Update an existing visit report.
+    - report_id: ID of the report to update
+    - new_content: New text content (appended or replaced? Let's assume replace or user handles appending)
+    - new_photo_file: Streamlit UploadedFile (optional)
+    """
+    try:
+        reports = load_json_file(VISIT_REPORT_FILE)
+        target_idx = next((i for i, r in enumerate(reports) if r.get("id") == report_id), -1)
+        
+        if target_idx == -1:
+            return False, "리포트를 찾을 수 없습니다."
+            
+        report = reports[target_idx]
+        
+        # Update Content
+        if new_content:
+            report['content'] = new_content
+            
+        # Update Photo
+        if new_photo_file:
+            timestamp = datetime.now()
+            file_prefix = f"{timestamp.strftime('%Y%m%d_%H%M%S')}_update"
+            ext = new_photo_file.name.split('.')[-1] if '.' in new_photo_file.name else "jpg"
+            fname = f"{file_prefix}_photo.{ext}"
+            save_path = VISIT_MEDIA_DIR / fname
+            
+            with open(save_path, "wb") as f:
+                f.write(new_photo_file.getvalue())
+            
+            report['photo_path'] = str(fname)
+            
+        # Prepare for save
+        reports[target_idx] = report
+        save_json_file(VISIT_REPORT_FILE, reports)
+        
+        return True, "수정 완료"
+        
+    except Exception as e:
+        return False, str(e)
+
 def _save_status_internal(record_key, new_data_dict):
     """
     Internal helper to save status and log history.

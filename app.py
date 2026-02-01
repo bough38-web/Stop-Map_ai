@@ -151,12 +151,19 @@ if st.session_state.get("visit_active"):
                         success, msg = activity_logger.register_visit(record_key, rep_content, audio_val, photo_val, u_info)
                         
                         if success:
-                            st.success("방문 결과가 저장되었습니다! (이력 및 상태 동시 업데이트)")
+                            st.success("방문 결과가 저장되었습니다!")
+                            
+                            # [FIX] Force Data Reload for Grid
+                            st.cache_data.clear()
                             
                             st.session_state.visit_active = False # Close form on success
                             st.toast(f"저장 완료! (User: {visit_user})", icon="💾")
+                            
                             # [FIX] Clear params on success
                             st.query_params.clear()
+                            
+                            # Rerun immediately to reflect changes in Grid
+                            st.rerun()
                             
                             # Short delay then rerun to refresh history
                             import time
@@ -2039,23 +2046,27 @@ if raw_df is not None:
              req_user_name = st.session_state.get('user_manager_name')
         # Admin sees all (req_user_name=None, req_user_branch=None)
 
-        reports = activity_logger.get_visit_reports(user_name=req_user_name, user_branch=req_user_branch, limit=50)
-        
-        # [DEBUG] History Visibility Check
-        with st.expander("🔍 이력 보이지 않을 때 확인 (Debug)", expanded=False):
-             st.write(f"현재 필터링 조건: User='{req_user_name}', Branch='{req_user_branch}'")
-             st.write(f"조회된 리포트 수: {len(reports)}")
-             all_raw = activity_logger.load_json_file(activity_logger.VISIT_REPORT_FILE)
-             st.write(f"전체 저장된 리포트(Raw): {len(all_raw)}건")
-             if all_raw:
-                 st.json(all_raw[-1]) # Show latest raw entry
+        # [FEATURE] Visibility Control
+        show_all_history = st.checkbox("👥 전체 담당자 이력 보기 (다른 지사/담당자 포함)", value=False, help="체크하면 본인 이외의 다른 담당자가 작성한 방문 기록도 모두 볼 수 있습니다.")
 
+        # Filter logic
+        if show_all_history:
+             reports = activity_logger.get_visit_reports(limit=100) # No user filter
+        else:
+             reports = activity_logger.get_visit_reports(user_name=req_user_name, user_branch=req_user_branch, limit=50)
+        
+        # [DEBUG] Force Inject Dummy Record logic removed (Cleanup) or kept if needed.
+        # Let's keep it minimal or remove debug as verified.
+        
         if reports:
             for rep in reports:
+                # [FEATURE] Edit / Add Photo UI
+                # Need unique key for each expander state? Streamlit reruns on interaction.
+                
                 with st.expander(f"📍 {rep.get('record_key')} - {rep.get('timestamp')} ({rep.get('user_name')})"):
                     st.write(rep.get("content"))
                     
-                    # Media
+                    # Media Display
                     if rep.get("audio_path"):
                         audio_p = activity_logger.get_media_path(rep.get("audio_path"))
                         if audio_p and os.path.exists(audio_p):
@@ -2065,6 +2076,31 @@ if raw_df is not None:
                          photo_p = activity_logger.get_media_path(rep.get("photo_path"))
                          if photo_p and os.path.exists(photo_p):
                              st.image(photo_p, caption="현장 사진", use_container_width=True)
+                    
+                    # [NEW] Edit Button
+                    # Only show for own reports or admin? Let's allow all for now as requested "add photo".
+                    if st.button("📸 사진/내용 추가", key=f"btn_edit_{rep['id']}"):
+                        st.session_state[f"edit_mode_{rep['id']}"] = True
+                    
+                    if st.session_state.get(f"edit_mode_{rep['id']}", False):
+                        with st.form(key=f"form_edit_{rep['id']}"):
+                            st.caption("기존 내용을 수정하거나 사진을 추가하세요.")
+                            new_text = st.text_area("내용 수정/추가", value=rep.get("content", ""))
+                            new_photo = st.file_uploader("사진 추가", type=['jpg', 'png', 'jpeg'], key=f"uploader_{rep['id']}")
+                            
+                            c1, c2 = st.columns(2)
+                            if c1.form_submit_button("💾 저장"):
+                                succ, msg = activity_logger.update_visit_report(rep['id'], new_text, new_photo)
+                                if succ:
+                                    st.success("수정되었습니다!")
+                                    st.session_state[f"edit_mode_{rep['id']}"] = False
+                                    st.rerun()
+                                else:
+                                    st.error(f"오류: {msg}")
+                                    
+                            if c2.form_submit_button("취소"):
+                                st.session_state[f"edit_mode_{rep['id']}"] = False
+                                st.rerun()
         else:
             st.info("작성된 방문 리포트가 없습니다.")
 
@@ -2869,9 +2905,16 @@ if raw_df is not None:
                 
                 if saved_count > 0:
                     st.success(f"✅ {saved_count}건의 변경사항이 저장되었습니다!")
+                    
+                    # [FIX] Force Reload to visible updates
+                    st.cache_data.clear()
+                    
                     with st.expander("🛠️ 저장 상세 로그 (Debug)", expanded=True):
                         for log in debug_log:
                             st.write(log)
+                            
+                    import time
+                    time.sleep(1)
                     st.rerun()
                 else:
                     st.info("변경된 항목이 없습니다.")
