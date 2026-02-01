@@ -2436,7 +2436,7 @@ if raw_df is not None:
                     st.markdown("**지사별 점유율 (Rank)**")
                     # Clean Tone Background + No Border stroke
                     final_rank_chart = (bar_chart + bar_text).configure_view(stroke=None).configure(background='#F8F9FA')
-                    st.altair_chart(final_rank_chart, use_container_width=True)
+                    st.altair_chart(final_rank_chart, use_container_width=True, theme=None)
                     
                 # [FIX] Filter out 'Other' (기타) and reduce height to 200px
                 # Only show '영업/정상' and '폐업'
@@ -2455,7 +2455,7 @@ if raw_df is not None:
                     st.markdown("**지사별 영업상태 누적 (Stacked)**")
                     # Clean Tone Background + No Border stroke
                     final_stack_chart = stacked_bar.interactive().configure_view(stroke=None).configure(background='#F8F9FA')
-                    st.altair_chart(final_stack_chart, use_container_width=True)
+                    st.altair_chart(final_stack_chart, use_container_width=True, theme=None)
             
                 st.markdown("##### 👤 영업담당별 실적 Top 10")
                 mgr_counts = df['SP담당'].value_counts().head(10).reset_index()
@@ -2471,7 +2471,7 @@ if raw_df is not None:
                     text=alt.Text("count", format=",.0f")
                 )
                 
-                st.altair_chart((mgr_chart + mgr_text), use_container_width=True)
+                st.altair_chart((mgr_chart + mgr_text).configure_view(stroke=None).configure(background='#F8F9FA'), use_container_width=True, theme=None)
             
             else:
                 st.info("조건에 맞는 데이터가 없습니다.")
