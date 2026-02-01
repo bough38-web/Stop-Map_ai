@@ -1629,6 +1629,23 @@ if raw_df is not None:
                  
              base_df = base_df[mask_assigned | mask_touched]
     
+    # [FEATURE] Admin Global Sidebar Chart
+    # Requested by user: "Global chart side view should be visible"
+    if st.session_state.user_role == 'admin':
+        with st.sidebar.expander("📊 글로벌 현황 (Global)", expanded=True):
+            g_total = len(raw_df)
+            g_visited = 0
+            if '활동진행상태' in raw_df.columns:
+                 g_visited = len(raw_df[raw_df['활동진행상태'] == '방문'])
+            
+            st.metric("전체 데이터", f"{g_total:,}")
+            st.metric("누적 방문 완료", f"{g_visited:,}", delta=f"{g_visited/g_total*100:.1f}%" if g_total>0 else None)
+            
+            if g_total > 0:
+                prog = g_visited / g_total
+                st.progress(min(prog, 1.0))
+                st.caption(f"전체 진행률: {prog*100:.1f}%")
+
     # [FEATURE] Admin Custom Dashboard Override
     if custom_view_mode and admin_auth and (custom_view_managers or exclude_branches):
         if custom_view_managers:
@@ -1641,7 +1658,8 @@ if raw_df is not None:
         if custom_view_managers: msg += f"담당자 {len(custom_view_managers)}명 포함"
         if custom_view_managers and exclude_branches: msg += " & "
         if exclude_branches: msg += f"지사 {len(exclude_branches)}곳 제외"
-        st.toast(msg)
+        
+        st.toast(msg, icon="👮")
         
     else:
         # Standard Sidebar Filters
