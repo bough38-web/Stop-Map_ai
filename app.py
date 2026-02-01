@@ -2418,7 +2418,7 @@ if raw_df is not None:
                 x=alt.X("count()", title="업체 수"),
                 color=alt.Color("관리지사", legend=None), 
                 tooltip=["관리지사", "count()"]
-            ).properties(height=250)
+            ).properties(height=200)
             
             bar_chart = bar_chart_base.mark_bar(cornerRadius=3)
             
@@ -2434,12 +2434,16 @@ if raw_df is not None:
                 st.markdown("**지사별 점유율 (Rank)**")
                 st.altair_chart((bar_chart + bar_text), use_container_width=True)
                 
-            bar_base = alt.Chart(df).encode(
+            # [FIX] Filter out 'Other' (기타) and reduce height to 200px
+            # Only show '영업/정상' and '폐업'
+            df_stacked = df[df['영업상태명'].isin(['영업/정상', '폐업'])]
+            
+            bar_base = alt.Chart(df_stacked).encode(
                 x=alt.X("관리지사", sort=custom_branch_order, title=None),
                 y=alt.Y("count()", title="업체 수"),
                 color=alt.Color("영업상태명", scale=alt.Scale(domain=['영업/정상', '폐업'], range=['#2E7D32', '#d32f2f']), legend=alt.Legend(title="상태")),
                 tooltip=["관리지사", "영업상태명", "count()"]
-            ).properties(height=250)
+            ).properties(height=200)
             
             stacked_bar = bar_base.mark_bar(cornerRadiusTopLeft=5, cornerRadiusTopRight=5)
             
@@ -2457,7 +2461,7 @@ if raw_df is not None:
                 x=alt.X("count", title="업체 수"),
                 y=alt.Y("SP담당", sort='-x', title=None),
                 tooltip=["SP담당", "count"]
-            ).properties(height=250)
+            ).properties(height=200)
             
             mgr_text = mgr_chart.mark_text(dx=5, align='left', color='black').encode(
                 text=alt.Text("count", format=",.0f")
