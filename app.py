@@ -451,6 +451,9 @@ def update_manager_with_status(name, status):
 with st.sidebar:
     st.header("⚙️ 설정 & 데이터")
     
+    # [FEATURE] Placeholder for Admin Global Chart (Populated after data load)
+    admin_chart_placeholder = st.empty()
+    
     st.sidebar.markdown("---")
     with st.sidebar.expander("📂 데이터 소스 및 API 설정", expanded=False):
         st.subheader("데이터 소스 선택")
@@ -844,6 +847,27 @@ if raw_df is not None:
     global_branch_opts = [b for b in custom_branch_order if b in current_branches_raw]
     others = [b for b in current_branches_raw if b not in custom_branch_order]
     global_branch_opts.extend(others)
+    
+    # [FEATURE] Admin Global Sidebar Chart (Populated via Placeholder)
+    # Uses admin_chart_placeholder defined at top of sidebar
+    if st.session_state.user_role == 'admin':
+         if 'admin_chart_placeholder' in locals() or 'admin_chart_placeholder' in globals():
+             with admin_chart_placeholder.container():
+                with st.expander("📊 글로벌 현황 (Global)", expanded=True):
+                    g_total = len(raw_df)
+                    g_visited = 0
+                    if '활동진행상태' in raw_df.columns:
+                        g_visited = len(raw_df[raw_df['활동진행상태'] == '방문'])
+                    
+                    c1, c2 = st.columns(2)
+                    c1.metric("전체", f"{g_total:,}")
+                    
+                    delta_val = f"{(g_visited/g_total*100):.1f}%" if g_total > 0 else None
+                    c2.metric("방문", f"{g_visited:,}", delta=delta_val)
+                    
+                    if g_total > 0:
+                        prog = g_visited / g_total
+                        st.progress(min(prog, 1.0))
 
     # -------------------------------------------------------------
     # [FEATURE] Role-Based Landing Page
@@ -1286,21 +1310,7 @@ if raw_df is not None:
             sorted_branches_for_filter.extend(others_for_filter)
             sorted_branches_for_filter = [unicodedata.normalize('NFC', b) for b in sorted_branches_for_filter]
 
-            # [FEATURE] Admin Global Sidebar Chart (Moved here for visibility)
-            if st.session_state.user_role == 'admin' and 'raw_df' in locals() and raw_df is not None:
-                with st.sidebar.expander("📊 글로벌 현황 (Global)", expanded=True):
-                    g_total = len(raw_df)
-                    g_visited = 0
-                    if '활동진행상태' in raw_df.columns:
-                        g_visited = len(raw_df[raw_df['활동진행상태'] == '방문'])
-                    
-                    st.metric("전체 데이터", f"{g_total:,}")
-                    st.metric("누적 방문 완료", f"{g_visited:,}", delta=f"{g_visited/g_total*100:.1f}%" if g_total>0 else None)
-                    
-                    if g_total > 0:
-                        prog = g_visited / g_total
-                        st.progress(min(prog, 1.0))
-                        st.caption(f"전체 진행률: {prog*100:.1f}%")
+
 
             st.markdown("##### 🏢 지사 선택")
             
