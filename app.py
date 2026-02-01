@@ -25,6 +25,13 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# [SYSTEM] Master Reset Handler (Factory Reset for Session/Cache)
+if "reset" in st.query_params:
+    st.cache_data.clear()
+    st.session_state.clear()
+    st.query_params.clear()
+    st.rerun()
+
 # [FEATURE] Handle URL Actions (e.g. Visit from Map) & Session Persistence
 if "visit_action" in st.query_params:
     try:
