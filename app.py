@@ -2418,7 +2418,7 @@ if raw_df is not None:
                 x=alt.X("count()", title="업체 수"),
                 color=alt.Color("관리지사", legend=None), 
                 tooltip=["관리지사", "count()"]
-            )
+            ).properties(height=250)
             
             bar_chart = bar_chart_base.mark_bar(cornerRadius=3)
             
@@ -2439,7 +2439,7 @@ if raw_df is not None:
                 y=alt.Y("count()", title="업체 수"),
                 color=alt.Color("영업상태명", scale=alt.Scale(domain=['영업/정상', '폐업'], range=['#2E7D32', '#d32f2f']), legend=alt.Legend(title="상태")),
                 tooltip=["관리지사", "영업상태명", "count()"]
-            )
+            ).properties(height=250)
             
             stacked_bar = bar_base.mark_bar(cornerRadiusTopLeft=5, cornerRadiusTopRight=5)
             
@@ -2457,7 +2457,7 @@ if raw_df is not None:
                 x=alt.X("count", title="업체 수"),
                 y=alt.Y("SP담당", sort='-x', title=None),
                 tooltip=["SP담당", "count"]
-            )
+            ).properties(height=250)
             
             mgr_text = mgr_chart.mark_text(dx=5, align='left', color='black').encode(
                 text=alt.Text("count", format=",.0f")
