@@ -1330,26 +1330,36 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
                     // Let's stick to appending but maybe cleaner if we use URL object?
                     // Given iframe constraints, simple string append is safest for now.
                     
-                    var separator = url.includes('?') ? '&' : '?';
-                    var newUrl = url + separator + 'visit_action=true&title=' + encodeURIComponent(title) + '&addr=' + encodeURIComponent(addr);
-
-                    // [FIX] Append User Context to URL to restore session
-                    var u_role = "{user_context.get('user_role', '')}";
-                    if(u_role) newUrl += '&user_role=' + encodeURIComponent(u_role);
-                    
-                    var u_branch = "{user_context.get('user_branch', '')}";
-                    if(u_branch && u_branch != 'None') newUrl += '&user_branch=' + encodeURIComponent(u_branch);
-                    
-                    var u_mgr = "{user_context.get('user_manager_name', '')}";
-                    if(u_mgr && u_mgr != 'None') newUrl += '&user_manager_name=' + encodeURIComponent(u_mgr);
-                    
-                    var u_code = "{user_context.get('user_manager_code', '')}";
-                    if(u_code && u_code != 'None') newUrl += '&user_manager_code=' + encodeURIComponent(u_code);
-                    
-                    var u_auth = "{user_context.get('admin_auth', 'false')}";
-                    newUrl += '&admin_auth=' + u_auth;
-
-                    window.parent.location.assign(newUrl);
+                    try {{
+                        var currentUrl = new URL(window.parent.location.href);
+                        var params = currentUrl.searchParams;
+                        
+                        params.set('visit_action', 'true');
+                        params.set('title', title);
+                        params.set('addr', addr);
+                        
+                        var u_role = "{user_context.get('user_role', '')}";
+                        if(u_role) params.set('user_role', u_role);
+                        
+                        var u_branch = "{user_context.get('user_branch', '')}";
+                        if(u_branch && u_branch != 'None') params.set('user_branch', u_branch);
+                        
+                        var u_mgr = "{user_context.get('user_manager_name', '')}";
+                        if(u_mgr && u_mgr != 'None') params.set('user_manager_name', u_mgr);
+                        
+                        var u_code = "{user_context.get('user_manager_code', '')}";
+                        if(u_code && u_code != 'None') params.set('user_manager_code', u_code);
+                        
+                        var u_auth = "{user_context.get('admin_auth', 'false')}";
+                        params.set('admin_auth', u_auth);
+                        
+                        window.parent.location.href = currentUrl.toString();
+                    }} catch(e) {{
+                        console.error("URL failed", e);
+                        var u = window.parent.location.href;
+                        var s = u.includes('?') ? '&' : '?';
+                        window.parent.location.href = u + s + 'visit_action=true&title=' + encodeURIComponent(title) + '&addr=' + encodeURIComponent(addr);
+                    }}
                 }}
             }};
             

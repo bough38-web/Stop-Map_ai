@@ -1606,6 +1606,13 @@ if raw_df is not None:
             dates.append(row['인허가일자'])
         if pd.notna(row.get('폐업일자')):
             dates.append(row['폐업일자'])
+            
+        # [FIX] Include Activity Change Date
+        if pd.notna(row.get('변경일시')):
+            try:
+                d = pd.to_datetime(row['변경일시'])
+                dates.append(d)
+            except: pass
         
         if dates:
             return max(dates)
