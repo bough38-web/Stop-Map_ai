@@ -138,6 +138,18 @@ def _process_and_merge_district_data(target_df: pd.DataFrame, district_file_path
 
     # 8. Merge Persistent Activity Status
     # [FEATURE] Load saved activity status (e.g. Visit) and merge
+    final_df = merge_activity_status(final_df)
+            
+    return final_df, mgr_info, None
+
+def merge_activity_status(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Merges persistent activity status from JSON storage into the DataFrame.
+    Can be called independently to refresh status without reloading all data.
+    """
+    if df is None or df.empty:
+        return df
+
     try:
         from src import activity_logger
         # Load all statuses once
@@ -152,24 +164,29 @@ def _process_and_merge_district_data(target_df: pd.DataFrame, district_file_path
                     return record.get('활동진행상태')
                 return row['영업상태명'] if '영업상태명' in row else '' # Default fall back
 
-            # Create '활동진행상태' column if not exists, or update it
-            # We want to PRIORITIZE saved status over raw status if "Activity Status" concept is separate.
-            # But usually '영업상태명' is Open/Closed (Public Data).
-            # '활동진행상태' is Internal Sales Status (Visit, Consulting, etc).
-            
             # Apply to new column '활동진행상태'
-            final_df['활동진행상태'] = final_df.apply(get_saved_status, axis=1)
+            # [FIX] Force update even if column exists
+            df['활동진행상태'] = df.apply(get_saved_status, axis=1)
             
             # If nothing found, it might be empty string. Fill with '-' or keep empty?
             # Let's fill NaNs with empty string
-            final_df['활동진행상태'] = final_df['활동진행상태'].fillna('')
+            df['활동진행상태'] = df['활동진행상태'].fillna('')
+            
+            # [NEW] Also merge '특이사항' and '변경일시' for Data Grid freshness
+            def get_saved_note(row, field):
+                key = activity_logger.get_record_key(row)
+                record = saved_statuses.get(key)
+                return record.get(field, '') if record else ''
+
+            df['특이사항'] = df.apply(lambda r: get_saved_note(r, '특이사항'), axis=1)
+            df['변경일시'] = df.apply(lambda r: get_saved_note(r, '변경일시'), axis=1)
             
     except Exception as e:
         print(f"Failed to merge activity status: {e}")
-        if '활동진행상태' not in final_df.columns:
-             final_df['활동진행상태'] = ''
-        
-    return final_df, mgr_info, None
+        if '활동진행상태' not in df.columns:
+             df['활동진행상태'] = ''
+             
+    return df
 
 @st.cache_data
 def load_and_process_data(zip_file_path_or_obj: Any, district_file_path_or_obj: Any, dist_mtime: Optional[float] = None) -> Tuple[Union[pd.DataFrame, None], List[Dict], Optional[str]]:

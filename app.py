@@ -42,6 +42,10 @@ if "visit_action" in st.query_params:
         q_title = st.query_params.get("title", "")
         q_addr = st.query_params.get("addr", "")
         
+        # [FIX] Unicode Normalization (NFC) for consistency
+        if q_title: q_title = unicodedata.normalize('NFC', q_title)
+        if q_addr: q_addr = unicodedata.normalize('NFC', q_addr)
+        
         # [FIX] Session Restoration from URL
         p_role = st.query_params.get("user_role", None)
         
@@ -711,6 +715,10 @@ if raw_df is not None:
         if col in raw_df.columns:
             raw_df[col] = raw_df[col].astype(str).apply(lambda x: unicodedata.normalize('NFC', x).strip() if x else x)
             
+    # [FIX] HOT-RELOAD STATUS
+    # Even if cached, we re-merge the latest JSON status to ensure freshness
+    raw_df = data_loader.merge_activity_status(raw_df)
+
     # [REFACTOR] Centralized Branch List Calculation
     custom_branch_order = ['중앙지사', '강북지사', '서대문지사', '고양지사', '의정부지사', '남양주지사', '강릉지사', '원주지사']
     custom_branch_order = [unicodedata.normalize('NFC', b) for b in custom_branch_order]
@@ -1478,8 +1486,11 @@ if raw_df is not None:
     current_branch_filter = st.session_state.get('sb_branch', "전체")
     
     # [REVERT] Exclude '미지정' unless explicitly selected (Previous behavior)
-    if st.session_state.user_role != 'admin' or (st.session_state.user_role == 'admin' and current_branch_filter not in ["전체", "미지정"]):
-         base_df = base_df[base_df['관리지사'] != '미지정']
+    # [FIX] REMOVED aggressive 'Unassigned' filter that was hiding valid 'Touched' records for Managers.
+    # The Security Filter below (lines 1515+) is sufficient and more accurate.
+    # if st.session_state.user_role != 'admin' or (st.session_state.user_role == 'admin' and current_branch_filter not in ["전체", "미지정"]):
+    #      base_df = base_df[base_df['관리지사'] != '미지정']
+
         
     # Debug: show total records after 미지정 filter
     if st.session_state.user_role == 'admin':
@@ -2622,6 +2633,9 @@ if raw_df is not None:
         
         # [DEBUG] Key Comparison
         with st.expander("🕵️ 데이터 키 정밀 분석 (Debug)", expanded=True):
+            st.write("### 0. 스토리지 경로 Check")
+            st.code(str(activity_logger.ACTIVITY_STATUS_FILE))
+            
             st.write("### 1. 저장된 데이터 키 (Storage)")
             stored_keys = list(status_data.keys())
             st.write(stored_keys[:5] if stored_keys else "저장된 데이터 없음")
@@ -2813,27 +2827,47 @@ if raw_df is not None:
             if st.button("💾 변경사항 저장", use_container_width=True):
                 st.toast("DEBUG: Grid Save Clicked", icon="🐛")
                 saved_count = 0
+                debug_log = []
+                
                 for idx, row in edited_df.iterrows():
                     orig_row = df_display.iloc[idx]
                     if (row['활동진행상태'] != orig_row['활동진행상태'] or 
                         row['특이사항'] != orig_row['특이사항']):
                         
-                        # [FIX] Sanitize status: remove emojis for consistent storage
-                        # "✅ 방문" -> "방문", "🟡 상담중" -> "상담중"
+                        # [FIX] Sanitize status
                         raw_status = row['활동진행상태']
                         for emoji in ["✅ ", "🟡 ", "🔴 ", "🟢 ", "🔵 "]:
                             raw_status = raw_status.replace(emoji, "")
                             
+                        # Debug Log
+                        debug_log.append(f"Saving: {row['business_name']} ({row['record_key']}) -> {raw_status}")
+                        
                         activity_logger.save_activity_status(
                             row['record_key'],
                             raw_status,
                             row['특이사항'],
                             current_user
                         )
+                        
+                        # [FIX] Automatically Log Visit History if status is "Visit"
+                        # If the user sets status to "Visit" (and it wasn't before? or always?), we log a system report.
+                        if "방문" in raw_status:
+                             # Create a system generated report
+                             u_info = {
+                                "name": current_user,
+                                "role": st.session_state.get('user_role', 'unknown'),
+                                "branch": st.session_state.get('user_branch', '')
+                             }
+                             sys_note = f"[시스템 자동] 데이터 그리드에서 '방문' 상태로 변경됨. (특이사항: {row['특이사항']})"
+                             activity_logger.save_visit_report(row['record_key'], sys_note, None, None, u_info)
+
                         saved_count += 1
                 
                 if saved_count > 0:
                     st.success(f"✅ {saved_count}건의 변경사항이 저장되었습니다!")
+                    with st.expander("🛠️ 저장 상세 로그 (Debug)", expanded=True):
+                        for log in debug_log:
+                            st.write(log)
                     st.rerun()
                 else:
                     st.info("변경된 항목이 없습니다.")
