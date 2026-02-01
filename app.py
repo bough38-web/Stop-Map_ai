@@ -2620,6 +2620,28 @@ if raw_df is not None:
         grid_df['상태변경일시'] = grid_df['record_key'].apply(lambda k: get_status_val(k, '변경일시')).astype(str)
         grid_df['상태변경자'] = grid_df['record_key'].apply(lambda k: get_status_val(k, '변경자')).astype(str)
         
+        # [DEBUG] Key Comparison
+        with st.expander("🕵️ 데이터 키 정밀 분석 (Debug)", expanded=True):
+            st.write("### 1. 저장된 데이터 키 (Storage)")
+            stored_keys = list(status_data.keys())
+            st.write(stored_keys[:5] if stored_keys else "저장된 데이터 없음")
+            
+            st.write("### 2. 현재 그리드 생성 키 (Grid Generated)")
+            generated_keys = grid_df['record_key'].head(5).tolist()
+            st.write(generated_keys)
+            
+            st.write("### 3. 매칭 테스트")
+            matches = [k for k in stored_keys if k in grid_df['record_key'].values]
+            st.write(f"일치하는 키 개수: {len(matches)} / {len(stored_keys)}")
+            if matches:
+                st.success(f"매칭 성공 예시: {matches[0]}")
+            else:
+                st.error("일치하는 키가 하나도 없습니다! (키 생성 로직 또는 데이터 소스 불일치)")
+                if stored_keys and generated_keys:
+                    kb = stored_keys[0].encode('utf-8')
+                    kg = generated_keys[0].encode('utf-8')
+                    st.code(f"Storage Key Hex: {kb.hex()}\nGrid Key Hex:    {kg.hex()}")
+        
         if '인허가일자' in grid_df.columns:
             grid_df['인허가일자'] = grid_df['인허가일자'].apply(lambda x: x.strftime('%Y-%m-%d') if pd.notna(x) else "")
             
