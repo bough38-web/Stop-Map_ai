@@ -2473,8 +2473,8 @@ if raw_df is not None:
             
             st.altair_chart((mgr_chart + mgr_text), use_container_width=True)
             
-        else:
-            st.info("조건에 맞는 데이터가 없습니다.")
+            else:
+                st.info("조건에 맞는 데이터가 없습니다.")
 
         st.divider()
         st.markdown("##### 🏘️ 행정동(읍/면/동)별 상위 TOP 20")
