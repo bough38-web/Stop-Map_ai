@@ -699,32 +699,57 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                     
                     customOverlay.setMap(mapOverview);
                     routeOverlays.push(customOverlay);
-                    
-                    // List Item
-                     listHtml += '<div style="background:white; border:1px solid #eee; border-left:4px solid #E65100; padding:10px; margin-bottom:8px; border-radius:4px;">';
-                     listHtml += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">';
-                     listHtml += '<div style="font-weight:bold; color:#E65100;">#' + seq + '. ' + item.title + '</div>';
-                     listHtml += '<div style="font-size:11px; color:#E65100; font-weight:bold;">+' + formatDistance(dist) + '</div>';
-                     listHtml += '</div>';
-                     listHtml += '<div style="font-size:12px; color:#555; margin-bottom:6px;">' + item.addr + '</div>';
+                                        // Rich Card Item (Inspired by User Image + Full Details)
+                     listHtml += '<div style="background:white; border:1px solid #ddd; border-radius:8px; margin-bottom:12px; box-shadow:0 2px 4px rgba(0,0,0,0.05); overflow:hidden;">';
                      
-                     // Extra Info (Area, Dates)
-                     listHtml += '<div style="font-size:11px; color:#777; line-height:1.4; margin-bottom:8px; background:#f9f9f9; padding:6px; border-radius:4px;">';
-                     listHtml += '📏 면적: ' + (item.area_py || 0) + '평' + (item.is_large ? ' <span style="color:#673AB7; font-weight:bold;">(대형)</span>' : '') + '<br>';
-                     listHtml += '📅 인허가: ' + (item.permit_date || '-') + ' / 수정: ' + (item.modified_date || '-') + '<br>';
-                     if(item.close_date) listHtml += '<span style="color:#D32F2F;">❌ 폐업일: ' + item.close_date + '</span>';
+                     // Card Header
+                     listHtml += '<div style="background:#f8f9fa; padding:10px 12px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">';
+                     listHtml += '  <div style="font-weight:bold; color:#333; display:flex; align-items:center;">';
+                     listHtml += '    <span style="background:#E65100; color:white; border-radius:12px; padding:2px 8px; font-size:11px; margin-right:8px;">#' + seq + '</span>';
+                     listHtml += '    ' + item.title;
+                     listHtml += '  </div>';
+                     listHtml += '  <div style="font-size:11px; color:#E65100; font-weight:bold; background:#FFF3E0; padding:2px 6px; border-radius:4px;">+' + formatDistance(dist) + '</div>';
                      listHtml += '</div>';
 
-                     listHtml += '<div style="margin-top:5px; text-align:right;">';
-                     listHtml += '<a href="javascript:void(0);" onclick="triggerVisit(\'' + item.title + '\', \'' + item.addr + '\')" style="font-size:11px; color:#4CAF50; font-weight:bold; margin-right:10px; text-decoration:none;">✅ 방문처리</a>';
+                     // Card Body (Full Info)
+                     listHtml += '<div style="padding:12px;">';
                      
-                     // [FEATURE] Smart Navigation Link
-                     if (dist < 1.0) {{
-                         listHtml += '<a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="font-size:11px; color:#2E7D32; font-weight:bold; text-decoration:none;">🚶 도보 길내 (' + Math.ceil(dist*15) + '분)</a>';
-                     }} else {{
-                         listHtml += '<a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="font-size:11px; color:#E65100; font-weight:bold; text-decoration:none;">🚗 차량 길안내 (' + Math.ceil(dist*3) + '분)</a>';
-                     }}
-                     listHtml += '</div></div>';
+                     // 1. Status & Type Badge Row
+                     var statusColor = (item.status.includes('영업') || item.status.includes('정상')) ? '#E8F5E9' : '#FFEBEE';
+                     var statusTextColor = (item.status.includes('영업') || item.status.includes('정상')) ? '#2E7D32' : '#C62828';
+                     
+                     listHtml += '  <div style="margin-bottom:8px; display:flex; gap:6px; flex-wrap:wrap;">';
+                     listHtml += '    <span style="background:' + statusColor + '; color:' + statusTextColor + '; font-size:11px; padding:2px 6px; border-radius:4px;">' + item.status + '</span>';
+                     if(item.biz_type) listHtml += '    <span style="background:#F3E5F5; color:#7B1FA2; font-size:11px; padding:2px 6px; border-radius:4px;">' + item.biz_type + '</span>';
+                     if(item.is_large) listHtml += '    <span style="background:#EDE7F6; color:#512DA8; font-size:11px; padding:2px 6px; border-radius:4px; font-weight:bold;">🏢 대형매장</span>';
+                     listHtml += '  </div>';
+
+                     // 2. Main Details Table style
+                     listHtml += '  <div style="font-size:12px; color:#555; line-height:1.6;">';
+                     listHtml += '    <div style="display:flex;"><span style="color:#888; width:50px;">주소</span> <span style="flex:1;">' + item.addr + '</span></div>';
+                     listHtml += '    <div style="display:flex;"><span style="color:#888; width:50px;">전화</span> <span style="flex:1;">' + (item.tel && item.tel != '-' ? item.tel : '<span style="color:#ccc;">(미등록)</span>') + '</span></div>';
+                     listHtml += '    <div style="display:flex;"><span style="color:#888; width:50px;">면적</span> <span style="flex:1;">' + (item.area_py || 0) + '평</span></div>';
+                     
+                     // Manager Info if available
+                     if(item.branch || item.manager) {
+                         listHtml += '    <div style="display:flex; margin-top:4px; padding-top:4px; border-top:1px dashed #eee;"><span style="color:#888; width:50px;">담당</span> <span style="flex:1; color:#1565C0;">' + (item.branch || '') + ' ' + (item.manager || '') + '</span></div>';
+                     }
+                     listHtml += '  </div>';
+                     
+                     listHtml += '</div>';
+
+                     // Card Footer (Actions)
+                     listHtml += '<div style="padding:8px 12px; background:#fafafa; border-top:1px solid #eee; display:flex; gap:8px;">';
+                     listHtml += '    <a href="javascript:void(0);" onclick="triggerVisit(\'' + item.title + '\', \'' + item.addr + '\')" style="flex:1; text-align:center; padding:6px 0; background:white; border:1px solid #4CAF50; color:#4CAF50; border-radius:4px; font-size:12px; font-weight:bold; text-decoration:none;">✅ 방문처리</a>';
+                     
+                     if (dist < 1.0) {
+                         listHtml += '    <a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="flex:1; text-align:center; padding:6px 0; background:#2E7D32; border:1px solid #2E7D32; color:white; border-radius:4px; font-size:12px; font-weight:bold; text-decoration:none;">🚶 도보 길안내</a>';
+                     } else {
+                         listHtml += '    <a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="flex:1; text-align:center; padding:6px 0; background:#E65100; border:1px solid #E65100; color:white; border-radius:4px; font-size:12px; font-weight:bold; text-decoration:none;">🚗 차량 길안내</a>';
+                     }
+                     listHtml += '</div>';
+                     
+                     listHtml += '</div>';
                 }});
                 
                 listHtml += '</div>';
