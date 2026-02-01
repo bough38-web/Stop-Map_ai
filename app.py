@@ -122,11 +122,11 @@ if st.session_state.get("visit_active"):
                 if not photo_val:
                     photo_val = st.file_uploader("또는 사진 업로드", type=['jpg', 'png', 'jpeg'], label_visibility="collapsed")
 
-                    submitted = st.form_submit_button("💾 방문 결과 저장", type="primary", use_container_width=True)
-                    
-                    if submitted:
-                        st.toast("DEBUG: Submit Triggered", icon="🐛")
-                        if not rep_content:
+            submitted = st.form_submit_button("💾 방문 결과 저장", type="primary", use_container_width=True)
+            
+            if submitted:
+                st.toast("DEBUG: Submit Triggered", icon="🐛")
+                if not rep_content:
                     st.error("내용을 입력해주세요.")
                 else:
                     # User Info
