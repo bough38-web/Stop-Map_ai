@@ -850,7 +850,7 @@ if raw_df is not None:
     
     # [FEATURE] Admin Global Sidebar Chart (Populated via Placeholder)
     # Uses admin_chart_placeholder defined at top of sidebar
-    if st.session_state.user_role == 'admin':
+    if st.session_state.get('user_role') == 'admin':
          if 'admin_chart_placeholder' in locals() or 'admin_chart_placeholder' in globals():
              with admin_chart_placeholder.container():
                 with st.expander("📊 글로벌 현황 (Global)", expanded=True):
