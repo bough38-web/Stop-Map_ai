@@ -98,7 +98,13 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
     if 'record_key' not in display_df.columns:
         display_df['record_key'] = display_df.apply(lambda row: str(row['title']) + "_" + str(row['addr']), axis=1)
 
-    map_data = display_df[['lat', 'lon', 'title', 'status', 'addr', 'tel', 'close_date', 'permit_date', 'reopen_date', 'modified_date', 'biz_type', 'branch', 'manager', 'is_large', 'area_py', 'AI_Score', 'AI_Comment', 'record_key']].to_dict(orient='records')
+    # [FEATURE] Pass Activity Status to JS
+    if '활동진행상태' in display_df.columns:
+        display_df['act_status'] = display_df['활동진행상태'].fillna('')
+    else:
+        display_df['act_status'] = ''
+
+    map_data = display_df[['lat', 'lon', 'title', 'status', 'act_status', 'addr', 'tel', 'close_date', 'permit_date', 'reopen_date', 'modified_date', 'biz_type', 'branch', 'manager', 'is_large', 'area_py', 'AI_Score', 'AI_Comment', 'record_key']].to_dict(orient='records')
     json_data = json.dumps(map_data, ensure_ascii=False)
     
     st.markdown('<div style="background-color: #e3f2fd; border-left: 5px solid #2196F3; padding: 10px; margin-bottom: 10px; border-radius: 4px;"><small><b>Tip:</b> 왼쪽 지도에서 마커를 선택하면 오른쪽에서 <b>상세 위치</b>와 <b>정보</b>를 확인할 수 있습니다.</small></div>', unsafe_allow_html=True)
@@ -288,12 +294,26 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
             var closeImg = "https://maps.google.com/mapfiles/ms/icons/red-dot.png";
             var largeImg = "https://maps.google.com/mapfiles/ms/icons/purple-dot.png";
             
+            // [FEATURE] Activity Status Icons (Green=Visit, Yellow=Consulting)
+            var visitImg = "https://maps.google.com/mapfiles/ms/icons/green-dot.png";
+            var consultImg = "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png";
+            var doneImg = "https://maps.google.com/mapfiles/ms/icons/orange-dot.png"; # Contract, etc
+            
             var bounds = new kakao.maps.LatLngBounds();
             var detailMarker = null; // Single marker for detail map
             
             data.forEach(function(item) {{
                 var isOpen = item.status.includes('영업') || item.status.includes('정상');
                 var imgSrc = item.is_large ? largeImg : (isOpen ? openImg : closeImg);
+                
+                // [FEATURE] Override Color based on Activity Status
+                // Priority: Activity > Size > Public Status
+                if (item.act_status) {{
+                     if(item.act_status.includes('방문')) imgSrc = visitImg;
+                     else if(item.act_status.includes('상담중') || item.act_status.includes('진행중')) imgSrc = consultImg;
+                     else if(item.act_status.includes('완료') || item.act_status.includes('계약')) imgSrc = doneImg;
+                     else if(item.act_status.includes('불가')) imgSrc = closeImg; // Red for blocked
+                }}
                 
                 var markerImage = new kakao.maps.MarkerImage(imgSrc, imgSize);
                 var markerPos = new kakao.maps.LatLng(item.lat, item.lon);
