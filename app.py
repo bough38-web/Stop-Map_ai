@@ -2457,21 +2457,21 @@ if raw_df is not None:
                     final_stack_chart = stacked_bar.interactive().configure_view(stroke=None).configure(background='#F8F9FA')
                     st.altair_chart(final_stack_chart, use_container_width=True)
             
-            st.markdown("##### 👤 영업담당별 실적 Top 10")
-            mgr_counts = df['SP담당'].value_counts().head(10).reset_index()
-            mgr_counts.columns = ['SP담당', 'count']
-            
-            mgr_chart = alt.Chart(mgr_counts).mark_bar(color="#4DB6AC", cornerRadiusTopRight=5, cornerRadiusBottomRight=5).encode(
-                x=alt.X("count", title="업체 수"),
-                y=alt.Y("SP담당", sort='-x', title=None),
-                tooltip=["SP담당", "count"]
-            ).properties(height=200)
-            
-            mgr_text = mgr_chart.mark_text(dx=5, align='left', color='black').encode(
-                text=alt.Text("count", format=",.0f")
-            )
-            
-            st.altair_chart((mgr_chart + mgr_text), use_container_width=True)
+                st.markdown("##### 👤 영업담당별 실적 Top 10")
+                mgr_counts = df['SP담당'].value_counts().head(10).reset_index()
+                mgr_counts.columns = ['SP담당', 'count']
+                
+                mgr_chart = alt.Chart(mgr_counts).mark_bar(color="#4DB6AC", cornerRadiusTopRight=5, cornerRadiusBottomRight=5).encode(
+                    x=alt.X("count", title="업체 수"),
+                    y=alt.Y("SP담당", sort='-x', title=None),
+                    tooltip=["SP담당", "count"]
+                ).properties(height=200)
+                
+                mgr_text = mgr_chart.mark_text(dx=5, align='left', color='black').encode(
+                    text=alt.Text("count", format=",.0f")
+                )
+                
+                st.altair_chart((mgr_chart + mgr_text), use_container_width=True)
             
             else:
                 st.info("조건에 맞는 데이터가 없습니다.")
