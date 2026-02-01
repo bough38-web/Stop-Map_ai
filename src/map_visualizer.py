@@ -731,9 +731,9 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                      listHtml += '    <div style="display:flex;"><span style="color:#888; width:50px;">면적</span> <span style="flex:1;">' + (item.area_py || 0) + '평</span></div>';
                      
                      // Manager Info if available
-                     if(item.branch || item.manager) {
+                     if(item.branch || item.manager) {{
                          listHtml += '    <div style="display:flex; margin-top:4px; padding-top:4px; border-top:1px dashed #eee;"><span style="color:#888; width:50px;">담당</span> <span style="flex:1; color:#1565C0;">' + (item.branch || '') + ' ' + (item.manager || '') + '</span></div>';
-                     }
+                     }}
                      listHtml += '  </div>';
                      
                      listHtml += '</div>';
@@ -742,11 +742,11 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                      listHtml += '<div style="padding:8px 12px; background:#fafafa; border-top:1px solid #eee; display:flex; gap:8px;">';
                      listHtml += '    <a href="javascript:void(0);" onclick="triggerVisit(\'' + item.title + '\', \'' + item.addr + '\')" style="flex:1; text-align:center; padding:6px 0; background:white; border:1px solid #4CAF50; color:#4CAF50; border-radius:4px; font-size:12px; font-weight:bold; text-decoration:none;">✅ 방문처리</a>';
                      
-                     if (dist < 1.0) {
-                         listHtml += '    <a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="flex:1; text-align:center; padding:6px 0; background:#2E7D32; border:1px solid #2E7D32; color:white; border-radius:4px; font-size:12px; font-weight:bold; text-decoration:none;">🚶 도보 길안내</a>';
-                     } else {
+                     if (dist < 1.0) {{
+                         listHtml += '    <a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="flex:1; text-align:center; padding:6px 0; background:#2E7D32; border:1px solid #2E7D32; color:white; border-radius:4px; font-size:12px; font-weight:bold; text-decoration:none;">🚶 도보 길내 (' + Math.ceil(dist*15) + '분)</a>';
+                     }} else {{
                          listHtml += '    <a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="flex:1; text-align:center; padding:6px 0; background:#E65100; border:1px solid #E65100; color:white; border-radius:4px; font-size:12px; font-weight:bold; text-decoration:none;">🚗 차량 길안내</a>';
-                     }
+                     }}
                      listHtml += '</div>';
                      
                      listHtml += '</div>';
