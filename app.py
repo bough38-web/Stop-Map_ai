@@ -87,15 +87,8 @@ if st.session_state.get("visit_active"):
     visit_user = v_data.get('user')
     
     # Generate Key
-    def clean_param(s):
-        if not s: return ""
-        s = str(s)
-        if s.lower() == 'nan': return ""
-        return s.replace('"', '').replace("'", "").replace('\n', ' ')
-
-    c_title = clean_param(q_title)
-    c_addr = clean_param(q_addr)
-    record_key = f"{c_title}_{c_addr}"
+    # Generate Key using Shared Utility (Consistency Fix)
+    record_key = utils.generate_record_key(q_title, q_addr)
     
     # [FEATURE] Visit Report Form (Persistent)
     with st.expander(f"📝 '{q_title}' 방문 결과 입력", expanded=True):
