@@ -58,7 +58,9 @@ if "visit_action" in st.query_params:
             # Ensure we apply the same cleaning logic as activity_logger.get_record_key
             def clean_param(s):
                 if not s: return ""
-                return str(s).replace('"', '').replace("'", "").replace('\n', ' ')
+                s = str(s)
+                if s.lower() == 'nan': return ""
+                return s.replace('"', '').replace("'", "").replace('\n', ' ')
 
             c_title = clean_param(q_title)
             c_addr = clean_param(q_addr)
