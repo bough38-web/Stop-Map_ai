@@ -511,8 +511,8 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
 
             // [FEATURE] Route Optimization Button
             var routeBtn = document.createElement('div');
-            routeBtn.innerHTML = '⚡ 추천 동선 (15곳)';
-            routeBtn.style.cssText = 'position:absolute; top:60px; left:10px; z-index:999; background:white; padding:12px 16px; border-radius:8px; border:1px solid #ccc; cursor:pointer; font-weight:bold; font-size:14px; box-shadow:0 2px 6px rgba(0,0,0,0.2); color:#E65100;';
+            routeBtn.innerHTML = '⚡ 추천 동선 (15곳) [UPDATED]';
+            routeBtn.style.cssText = 'position:absolute; top:60px; left:10px; z-index:999; background:white; padding:12px 16px; border-radius:8px; border:2px solid #FF5722; cursor:pointer; font-weight:bold; font-size:14px; box-shadow:0 2px 6px rgba(0,0,0,0.2); color:#FF5722;';
             routeBtn.onclick = function() {{
                 if (navigator.geolocation) {{
                     // Show loading state
@@ -536,11 +536,11 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                         // 2. Find Optimized Route (Greedy Nearest Neighbor)
                         findOptimizedRoute(startPos);
                         
-                        routeBtn.innerHTML = '⚡ 추천 동선 (15곳)';
+                        routeBtn.innerHTML = '⚡ 추천 동선 (15곳) [UPDATED]';
                         
                     }}, function(err) {{
                         alert('위치 정보를 가져올 수 없습니다: ' + err.message);
-                        routeBtn.innerHTML = '⚡ 추천 동선 (15곳)';
+                        routeBtn.innerHTML = '⚡ 추천 동선 (15곳) [UPDATED]';
                     }});
                 }} else {{
                     alert('이 브라우저는 위치 정보를 지원하지 않습니다.');
