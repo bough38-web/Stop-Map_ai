@@ -456,22 +456,20 @@ def update_manager_with_status(name, status):
 
 # --- Sidebar Filters ---
 with st.sidebar:
+    # [FAILSAFE] Emergency Logout & Debug (Render First - Guaranteed Visibility)
+    if st.session_state.get('user_role'):
+         st.markdown(f"**🟢 [System] {st.session_state.get('user_role')} 접속중**")
+         if st.button("🚨 로그아웃 (Emergency)", key="btn_logout_emergency", type="primary", use_container_width=True):
+             st.session_state.clear()
+             st.rerun()
+         st.divider()
+
     st.header("⚙️ 설정 & 데이터")
     
     # [FEATURE] Placeholder for Admin Global Chart (Populated after data load)
     admin_chart_placeholder = st.sidebar.empty()
     
     st.sidebar.markdown("---")
-    
-    # [FAILSAFE] Logout Button at Top (Emergency Logout)
-    if st.session_state.get('user_role'):
-         c_lo1, c_lo2 = st.sidebar.columns([2, 1])
-         c_lo1.caption(f"접속: {st.session_state.get('user_role')}")
-         if c_lo2.button("로그아웃", key="btn_logout_top", type="secondary"):
-             for key in ['user_role', 'user_branch', 'user_manager_name', 'user_manager_code', 'admin_auth']:
-                 if key in st.session_state:
-                     del st.session_state[key]
-             st.rerun()
 
     with st.sidebar.expander("📂 데이터 소스 및 API 설정", expanded=False):
         st.subheader("데이터 소스 선택")
