@@ -2263,10 +2263,19 @@ if raw_df is not None:
                 sel_map_type = st.selectbox("업종(업태)", map_type_opts, key="map_biz_type")
 
             with c_f_r2_2:
-                 # Status Dropdown
-                 # Usually "Active" vs "Closed".
+                 # Status Dropdown (Public)
                  map_status_opts = ["전체", "영업/정상", "폐업"]
-                 sel_map_status = st.selectbox("영업상태", map_status_opts, key="map_status_filter")
+                 sel_map_status = st.selectbox("영업상태 (공공)", map_status_opts, key="map_status_filter")
+            
+            # [FEATURE] Activity Status Filter (Internal)
+            # Users want to filter map by 'Visit', 'Consulting', etc.
+            # Get unique values from current data
+            act_status_opts = ["전체"]
+            if '활동진행상태' in map_df_base.columns:
+                unique_acts = sorted([x for x in map_df_base['활동진행상태'].unique() if x])
+                act_status_opts += unique_acts
+            
+            sel_act_status = st.selectbox("활동상태 (내부)", act_status_opts, key="map_act_status_filter")
 
             # Final Filtering
             map_df = map_df_base.copy()
@@ -2274,6 +2283,7 @@ if raw_df is not None:
             if sel_map_sales != "전체": map_df = map_df[map_df['SP담당'] == sel_map_sales]
             if sel_map_type != "전체": map_df = map_df[map_df['업태구분명'] == sel_map_type]
             if sel_map_status != "전체": map_df = map_df[map_df['영업상태명'] == sel_map_status]
+            if sel_act_status != "전체": map_df = map_df[map_df['활동진행상태'] == sel_act_status]
             
             # [OVERHAUL] Pre-calculate record_key for Map
             # This ensures the key sent from Map matches the key used in Grid
