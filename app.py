@@ -1344,8 +1344,8 @@ if raw_df is not None:
              elif st.session_state.user_manager_name:
                   filter_df = filter_df[filter_df['SP담당'] == st.session_state.user_manager_name]
         
-        # [SECURITY] Global Filter Visibility (Admin Only)
-        if st.session_state.user_role == 'admin':
+        # [SECURITY] Global Filter Visibility (Visible to All)
+        if True: # Was admin check, now open to all with internal constraints
             st.markdown("### 🔍 조회 조건 설정")
                 
             # 1. Branch
