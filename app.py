@@ -1570,21 +1570,54 @@ if raw_df is not None:
     base_df['최종수정시점'] = base_df.apply(get_last_modified_date, axis=1)
 
     # [SECURITY] Hard Filter for Manager Role (Main Data)
+    # [FIX] Also include records where the user has logged activity (e.g. Recommended Course visits)
+    # This prevents visited items from disappearing if they are not assigned or assigned to others.
+    
+    # 1. Get keys touched by user
+    touched_keys = []
+    if st.session_state.user_role in ['manager', 'branch']:
+        u_name = st.session_state.get('user_manager_name') or st.session_state.get('user_branch')
+        if u_name:
+            touched_keys = activity_logger.get_user_activity_keys(u_name)
+
     if st.session_state.user_role == 'manager':
+            # Create mask for assignment
+            mask_assigned = pd.Series(False, index=base_df.index)
+            
             if st.session_state.user_manager_code:
                 if '영업구역 수정' in base_df.columns:
-                    base_df = base_df[base_df['영업구역 수정'] == st.session_state.user_manager_code]
+                    mask_assigned = (base_df['영업구역 수정'] == st.session_state.user_manager_code)
                 else:
-                    base_df = base_df[base_df['SP담당'] == st.session_state.user_manager_name]
+                    mask_assigned = (base_df['SP담당'] == st.session_state.user_manager_name)
             elif st.session_state.user_manager_name:
-                base_df = base_df[base_df['SP담당'] == st.session_state.user_manager_name]
+                mask_assigned = (base_df['SP담당'] == st.session_state.user_manager_name)
+            
+            # Create mask for activity
+            mask_touched = pd.Series(False, index=base_df.index)
+            if touched_keys:
+                 # We need to generate keys for base_df to match
+                 # Optimization: This apply is expensive. But needed.
+                 # Actually, let's assume we have record_key column? No, we generate it on fly mostly.
+                 # Let's generate it once.
+                 temp_keys = base_df.apply(activity_logger.get_record_key, axis=1)
+                 mask_touched = temp_keys.isin(touched_keys)
+            
+            base_df = base_df[mask_assigned | mask_touched]
                 
     # [SECURITY] Hard Filter for Branch Role
     if st.session_state.user_role == 'branch':
         if st.session_state.user_branch:
              # Normalize just in case
              u_branch = unicodedata.normalize('NFC', st.session_state.user_branch)
-             base_df = base_df[base_df['관리지사'] == u_branch]
+             
+             mask_assigned = (base_df['관리지사'] == u_branch)
+             
+             mask_touched = pd.Series(False, index=base_df.index)
+             if touched_keys:
+                 temp_keys = base_df.apply(activity_logger.get_record_key, axis=1)
+                 mask_touched = temp_keys.isin(touched_keys)
+                 
+             base_df = base_df[mask_assigned | mask_touched]
     
     # [FEATURE] Admin Custom Dashboard Override
     if custom_view_mode and admin_auth and (custom_view_managers or exclude_branches):

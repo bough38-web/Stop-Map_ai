@@ -138,6 +138,19 @@ def get_change_history(record_key=None, limit=100):
         history = [h for h in history if h.get("record_key") == record_key]
     
     return history[-limit:] if history else []
+    
+    
+def get_user_activity_keys(user_name):
+    """Get list of record keys that have been modified by this user"""
+    statuses = load_json_file(ACTIVITY_STATUS_FILE)
+    if not statuses: return []
+    
+    keys = []
+    for k, v in statuses.items():
+        if v.get('변경자') == user_name:
+            keys.append(k)
+            
+    return keys
 
 
 
