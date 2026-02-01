@@ -110,6 +110,8 @@ def save_activity_status(record_key, status, notes, user_name):
     if old_data.get("활동진행상태") != status or old_data.get("특이사항") != notes:
         log_change_history(record_key, old_data, new_data, user_name)
 
+    return True
+
 
 def log_change_history(record_key, old_data, new_data, user_name):
     """Log change to history"""
