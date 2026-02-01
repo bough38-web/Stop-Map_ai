@@ -100,6 +100,7 @@ if st.session_state.get("visit_active"):
     # [FEATURE] Visit Report Form (Persistent)
     with st.expander(f"📝 '{q_title}' 방문 결과 입력", expanded=True):
         st.info("방문 결과를 기록하세요. 기록 후 [저장] 버튼을 눌러주세요.")
+        st.caption(f"🔧 Debug Info - Key: {record_key} | User: {visit_user}")
         
         # Add a Close button outside the form to cancel
         if st.button("닫기 (기록 취소)"):
@@ -147,7 +148,7 @@ if st.session_state.get("visit_active"):
                         if success:
                             st.success("방문 결과가 저장되었습니다!")
                             st.session_state.visit_active = False # Close form on success
-                            st.toast("저장 완료!", icon="💾")
+                            st.toast(f"저장 완료! (User: {visit_user})", icon="💾")
                             # [FIX] Clear params on success
                             st.query_params.clear()
                             
