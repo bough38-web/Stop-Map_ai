@@ -78,7 +78,50 @@ if "visit_action" in st.query_params:
             # Let's remove action to prevent double-trigger on refresh, but we might want to keep user info?
             # Actually, once session_state is set, it stays as long as we don't full refresh. 
             # Ideally we want to clean URL.
-            pass
+            st.toast(f"✅ '{q_title}' 방문 처리 완료!", icon="🏃")
+            
+            # [FEATURE] Visit Report Form (Immediate Input)
+            # We show a form in an expander that is open by default
+            with st.expander(f"📝 '{q_title}' 방문 결과 입력", expanded=True):
+                st.info("방문 결과를 기록하세요. 기록 후 [저장] 버튼을 눌러주세요.")
+                
+                with st.form("visit_report_form"):
+                    rep_content = st.text_area("상세 내용 (필수)", height=100, placeholder="면담 내용, 고객 반응, 특이사항 등을 입력하세요.")
+                    
+                    c_audio, c_photo = st.columns(2)
+                    with c_audio:
+                        st.markdown("**🎤 음성 녹음**")
+                        audio_val = st.audio_input("음성 녹음")
+                        
+                    with c_photo:
+                        st.markdown("**📸 현장 사진**")
+                        # Camera input for mobile friendly
+                        photo_val = st.camera_input("사진 촬영", label_visibility="collapsed")
+                        # Fallback/Alternative: File Uploader
+                        if not photo_val:
+                            photo_val = st.file_uploader("또는 사진 업로드", type=['jpg', 'png', 'jpeg'], label_visibility="collapsed")
+    
+                    submitted = st.form_submit_button("💾 방문 결과 저장", type="primary", use_container_width=True)
+                    
+                    if submitted:
+                        if not rep_content:
+                            st.error("내용을 입력해주세요.")
+                        else:
+                            # User Info
+                            u_info = {
+                                "name": visit_user,
+                                "role": st.session_state.get('user_role', 'unknown'),
+                                "branch": st.session_state.get('user_branch', '')
+                            }
+                            
+                            # Re-save status to ensure note is updated
+                            activity_logger.save_activity_status(record_key, "방문", "방문 결과 리포트 작성함", visit_user)
+                            success = activity_logger.save_visit_report(record_key, rep_content, audio_val, photo_val, u_info)
+                            
+                            if success:
+                                st.success("방문 결과가 저장되었습니다!")
+                            else:
+                                st.error("저장 중 오류가 발생했습니다.")
             
     except Exception as e:
         st.error(f"Action Error: {e}")
@@ -1734,66 +1777,11 @@ if raw_df is not None:
         st.stop() 
         
     # Handle Query Parameters for Actions (e.g., Visit Report)
-    # This block should be placed before any st.stop() or major UI rendering
-    query_params = st.query_params
-    q_action = query_params.get("action")
-    q_title = query_params.get("title")
-    q_addr = query_params.get("addr")
-    visit_user = st.session_state.get('user_manager_name', 'Unknown')
-    p_role = st.session_state.get('user_role', 'Unknown')
-
-    if q_action == "visit" and q_title and q_addr:
-        # Save
-        record_key = f"{q_title}_{q_addr}"
-        
-        # [FEATURE] Visit Report Form (Immediate Input)
-        # We show a form in an expander that is open by default
-        with st.expander(f"📝 '{q_title}' 방문 결과 입력", expanded=True):
-            st.info("방문 결과를 기록하세요. 기록 후 [저장] 버튼을 눌러주세요.")
-            
-            with st.form("visit_report_form"):
-                rep_content = st.text_area("상세 내용 (필수)", height=100, placeholder="면담 내용, 고객 반응, 특이사항 등을 입력하세요.")
-                
-                c_audio, c_photo = st.columns(2)
-                with c_audio:
-                    st.markdown("**🎤 음성 녹음**")
-                    # Requires Streamlit >= 1.40. If not available, fallback to file_uploader could be used but user asked for functionality.
-                    # Assuming modern Streamlit environment.
-                    audio_val = st.audio_input("음성 녹음")
-                    
-                with c_photo:
-                    st.markdown("**📸 현장 사진**")
-                    # Camera input for mobile friendly
-                    photo_val = st.camera_input("사진 촬영", label_visibility="collapsed")
-                    # Fallback/Alternative: File Uploader
-                    if not photo_val:
-                        photo_val = st.file_uploader("또는 사진 업로드", type=['jpg', 'png', 'jpeg'], label_visibility="collapsed")
-
-                submitted = st.form_submit_button("💾 방문 결과 저장", type="primary", use_container_width=True)
-                
-                if submitted:
-                    if not rep_content:
-                        st.error("내용을 입력해주세요.")
-                    else:
-                        # User Info
-                        u_info = {
-                            "name": visit_user,
-                            "role": p_role if p_role else "unknown",
-                            "branch": st.session_state.get('user_branch', '')
-                        }
-                        
-                        activity_logger.save_activity_status(record_key, "방문", "방문 결과 리포트 작성함", visit_user)
-                        success = activity_logger.save_visit_report(record_key, rep_content, audio_val, photo_val, u_info)
-                        
-                        if success:
-                            st.success("방문 결과가 저장되었습니다!")
-                            # We can clear params or just let user navigate away.
-                            # To close the form, we might need a rerun, but query params are sticky.
-                            # Let's just show success.
-                        else:
-                            st.error("저장 중 오류가 발생했습니다.")
-
-        # st.toast(f"✅ '{q_title}' 방문 처리 완료!", icon="🏃") # Moved to form context or just confirm
+    # [REMOVED] Dead code block for q_action == "visit" removed. Logic moved to top.
+    try:
+        pass 
+    except Exception as e:
+        st.error(f"Action Error: {e}")
         
     try:
         pass # Placeholder for original try-except block if it existed
