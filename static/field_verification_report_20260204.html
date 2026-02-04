@@ -17,6 +17,9 @@
 
         .gradient-header {
             background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            background-color: #1e293b;
+            /* Fallback */
+            color: white;
         }
 
         .status-badge {
@@ -25,6 +28,33 @@
             border-radius: 0.25rem;
             font-size: 0.75rem;
             font-weight: 700;
+        }
+
+        /* Fallback styles in case Tailwind fails */
+        .text-white {
+            color: white !important;
+        }
+
+        .text-slate-800 {
+            color: #1e293b;
+        }
+
+        .bg-indigo-900 {
+            background-color: #312e81;
+        }
+
+        .bg-slate-800 {
+            background-color: #1e293b;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th,
+        td {
+            padding: 0.75rem 1rem;
         }
     </style>
 </head>
@@ -672,7 +702,8 @@
 
         <!-- 4. Expected Value & Effects -->
         <section
-            class="bg-gradient-to-br from-indigo-900 to-slate-800 rounded-2xl shadow-xl p-8 md:p-12 text-white mb-10 relative overflow-hidden">
+            class="bg-gradient-to-br from-indigo-900 to-slate-800 rounded-2xl shadow-xl p-8 md:p-12 text-white mb-10 relative overflow-hidden"
+            style="background-color: #312e81; color: white;">
             <!-- Background Decoration -->
             <div
                 class="absolute top-0 right-0 w-64 h-64 bg-blue-500 rounded-full blur-3xl opacity-20 pointer-events-none -mr-16 -mt-16">
