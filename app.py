@@ -193,7 +193,8 @@ BRANCH_PASSWORDS = {
     '의정부지사': 'uijeong567',
     '남양주지사': 'namyang890',
     '강릉지사': 'gangneung345',
-    '원주지사': 'wonju678'
+    '원주지사': 'wonju678',
+    '데모지사': 'demo2026'  # Demo account for recruiters
 }
 
 # For managers, use a simple pattern: first 3 chars of name + 1234
@@ -947,9 +948,14 @@ if raw_df is not None:
         st.caption("ⓒ 2026 Field Sales Assistant System")
         st.stop() # Stop here if no role
 
+
     # -------------------------------------------------------------
     # Main Logic (Authenticated)
     # -------------------------------------------------------------
+    
+    # [DEMO MODE] Show banner for demo account
+    if st.session_state.get('user_branch') == '데모지사':
+        st.info("🎮 **데모 모드**: 샘플 데이터로 구성되어 있습니다. 실제 서비스와 동일한 기능을 체험하실 수 있습니다.")
     
     # [FAILSAFE] Admin Dashboard on Main Page (For visibility guarantee)
     if st.session_state.get('user_role') == 'admin':
