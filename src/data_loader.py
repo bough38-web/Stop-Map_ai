@@ -199,9 +199,10 @@ def merge_activity_status(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 @st.cache_data
-def load_and_process_data(zip_file_path_or_obj: Any, district_file_path_or_obj: Any, dist_mtime: Optional[float] = None) -> Tuple[Union[pd.DataFrame, None], List[Dict], Optional[str]]:
+def load_and_process_data(zip_file_path_or_obj: Any, district_file_path_or_obj: Any, dist_mtime: Optional[float] = None) -> Tuple[Union[pd.DataFrame, None], List[Dict], Optional[str], Dict[str, int]]:
     """
     Loads data from uploads, extracts ZIP, processes CSVs, and merges with district data.
+    Returns: (DataFrame, ManagerInfo, ErrorMessage, StatsDict)
     """
     # 1. Process Zip File
     extract_folder = "temp_extracted_data"
@@ -211,11 +212,23 @@ def load_and_process_data(zip_file_path_or_obj: Any, district_file_path_or_obj: 
         except: pass
     os.makedirs(extract_folder, exist_ok=True)
     
+    # Handle single or multiple inputs
+    zip_inputs = zip_file_path_or_obj if isinstance(zip_file_path_or_obj, list) else [zip_file_path_or_obj]
+    
     try:
-        with zipfile.ZipFile(zip_file_path_or_obj, 'r') as zip_ref:
-            zip_ref.extractall(extract_folder)
+        for i, zip_item in enumerate(zip_inputs):
+            # Skip if None
+            if zip_item is None: continue
+            
+            # Create unique subfolder to prevent overwrite
+            # [FIX] Use subfolders for multi-zip mixing
+            sub_zip_folder = os.path.join(extract_folder, f"zip_{i}")
+            os.makedirs(sub_zip_folder, exist_ok=True)
+            
+            with zipfile.ZipFile(zip_item, 'r') as zip_ref:
+                zip_ref.extractall(sub_zip_folder)
     except Exception as e:
-        return None, [], f"ZIP extraction failed: {e}"
+        return None, [], f"ZIP extraction failed: {e}", {}
         
     all_files = glob.glob(os.path.join(extract_folder, "**/*.csv"), recursive=True)
     dfs = []
@@ -239,9 +252,12 @@ def load_and_process_data(zip_file_path_or_obj: Any, district_file_path_or_obj: 
             continue
             
     if not dfs:
-        return None, [], "No valid CSV files found in ZIP."
+        return None, [], "No valid CSV files found in ZIP.", {}
         
     concatenated_df = pd.concat(dfs, ignore_index=True)
+    
+    # [STATS] Before Mix Count
+    count_before = len(concatenated_df)
     
     # [IMPROVED] Use normalized key for better duplicate detection
     # This handles cases where same business has both 소재지주소 and 도로명주소
@@ -259,6 +275,12 @@ def load_and_process_data(zip_file_path_or_obj: Any, district_file_path_or_obj: 
     # Remove duplicates based on normalized key
     concatenated_df.drop_duplicates(subset=['_temp_key'], inplace=True)
     concatenated_df.drop(columns=['_temp_key'], inplace=True)
+    
+    # [STATS] After Mix Count
+    count_after = len(concatenated_df)
+    
+    # st.toast and st.info removed to fix CacheReplayClosureError
+    stats = {'before': count_before, 'after': count_after}
 
     # Dynamic Column Mapping
     all_cols = concatenated_df.columns
@@ -337,7 +359,8 @@ def load_and_process_data(zip_file_path_or_obj: Any, district_file_path_or_obj: 
         target_df['lon'] = None
         
     # Delegate to common processor
-    return _process_and_merge_district_data(target_df, district_file_path_or_obj)
+    final_df, mgr_info, err = _process_and_merge_district_data(target_df, district_file_path_or_obj)
+    return final_df, mgr_info, err, stats
 
 
 def fetch_openapi_data(auth_key: str, local_code: str, start_date: str, end_date: str) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
@@ -420,12 +443,12 @@ def fetch_openapi_data(auth_key: str, local_code: str, start_date: str, end_date
     return pd.DataFrame(all_rows), None
 
 @st.cache_data
-def process_api_data(target_df: pd.DataFrame, district_file_path_or_obj: Any) -> Tuple[Union[pd.DataFrame, None], List[Dict], Optional[str]]:
+def process_api_data(target_df: pd.DataFrame, district_file_path_or_obj: Any) -> Tuple[Union[pd.DataFrame, None], List[Dict], Optional[str], Dict[str, int]]:
     """
     Processes API data and merges with district.
     """
     if target_df is None or target_df.empty:
-        return None, [], "API DataFrame is empty."
+        return None, [], "API DataFrame is empty.", {}
         
     x_col = '좌표정보(X)'
     y_col = '좌표정보(Y)'
@@ -450,4 +473,7 @@ def process_api_data(target_df: pd.DataFrame, district_file_path_or_obj: Any) ->
         target_df.sort_values(by='인허가일자', ascending=False, inplace=True)
 
     # Delegate to common processor
-    return _process_and_merge_district_data(target_df, district_file_path_or_obj)
+    final_df, mgr_info, err = _process_and_merge_district_data(target_df, district_file_path_or_obj)
+    # API data usually comes pre-filtered/limited, so simple stats
+    stats = {'before': len(target_df) if target_df is not None else 0, 'after': len(final_df) if final_df is not None else 0}
+    return final_df, mgr_info, err, stats

@@ -277,9 +277,10 @@ def generate_record_key(title, addr):
         for k, v in replacements.items():
             s = s.replace(k, v)
             
-        # Remove quotes and ALL whitespace for robustness
-        # This fixes issues where "City A" != "CityA"
-        s = s.replace('"', '').replace("'", "").replace('\n', '').replace(' ', '')
+        # Remove quotes for robustness, but KEEP spaces to match legacy keys
+        s = s.replace('"', '').replace("'", "").replace('\n', '')
+        # Only collapse multiple spaces to single space
+        s = re.sub(r'\s+', ' ', s)
         return s.strip()
 
     c_title = clean(title)

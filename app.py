@@ -368,7 +368,7 @@ with st.sidebar:
         if not use_local_dist:
             uploaded_dist = st.file_uploader("영업구역 데이터 (Excel)", type="xlsx", key="dist_uploader")
 
-        uploaded_zip = None
+        uploaded_zip = []
         
         if data_source == "파일 업로드 (File)":
              if local_zips:
@@ -376,13 +376,15 @@ with st.sidebar:
                  if use_local_zip:
                      # Let user choose zip if multiple
                      zip_opts = [os.path.basename(f) for f in local_zips]
-                     sel_zip = st.selectbox("사용할 인허가 파일 (ZIP)", zip_opts, index=0)
-                     uploaded_zip = os.path.join("data", sel_zip)
-                     st.caption(f"ZIP: {sel_zip}")
+                     # [FIX] Allow multiple selection to mix data
+                     sel_zips = st.multiselect("사용할 인허가 파일 (ZIP)", zip_opts, default=zip_opts)
+                     uploaded_zip = [os.path.join("data", z) for z in sel_zips]
+                     if sel_zips:
+                         st.caption(f"선택됨: {', '.join(sel_zips)}")
                  else:
-                     uploaded_zip = st.file_uploader("인허가 데이터 (ZIP)", type="zip")
+                     uploaded_zip = st.file_uploader("인허가 데이터 (ZIP)", type="zip", accept_multiple_files=True)
              else:
-                  uploaded_zip = st.file_uploader("인허가 데이터 (ZIP)", type="zip")
+                  uploaded_zip = st.file_uploader("인허가 데이터 (ZIP)", type="zip", accept_multiple_files=True)
                  
         else: # OpenAPI
             st.info("🌐 지방행정 인허가 데이터 (LocalData)")
@@ -691,18 +693,26 @@ if uploaded_dist:
              if isinstance(uploaded_dist, str) and os.path.exists(uploaded_dist):
                  dist_mtime = os.path.getmtime(uploaded_dist)
                  
-             # [FIX] Unpack 3 values (df, mgr_info, error)
-             raw_df, mgr_info_list, error = data_loader.load_and_process_data(uploaded_zip, uploaded_dist, dist_mtime=dist_mtime)
+             # [FIX] Unpack 4 values (df, mgr_info, error, stats)
+             raw_df, mgr_info_list, error, stats = data_loader.load_and_process_data(uploaded_zip, uploaded_dist, dist_mtime=dist_mtime)
+             
+             if stats:
+                 st.toast(f"데이터 로드: {stats.get('before',0):,}건 → {stats.get('after',0):,}건 (중복 제거됨)", icon="📊")
+                 st.info(f"📊 **데이터 믹스 결과**: 통합 {stats.get('before',0):,}건 → 최종 {stats.get('after',0):,}건 (이전 데이터 및 중복 {stats.get('before',0) - stats.get('after',0):,}건 제외됨)")
              
     elif data_source == "OpenAPI 연동 (Auto)" and api_df is not None:
         with st.spinner("🌐 API 데이터 매칭중..."):
-             # [FIX] Unpack 3 values
+             # [FIX] Unpack 4 values
              # Pass mtime for consistency if using local dist file
              dist_mtime = None
              if isinstance(uploaded_dist, str) and os.path.exists(uploaded_dist):
                  dist_mtime = os.path.getmtime(uploaded_dist)
                  
-             raw_df, mgr_info_list, error = data_loader.process_api_data(api_df, uploaded_dist)
+             raw_df, mgr_info_list, error, stats = data_loader.process_api_data(api_df, uploaded_dist)
+             
+             if stats:
+                 # Minimal toast for API
+                 st.toast(f"API 데이터 매칭 완료: {stats.get('after',0):,}건", icon="🌐")
 
 if error:
     st.error(f"오류 발생: {error}")
