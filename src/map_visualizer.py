@@ -1377,7 +1377,8 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
                         </div>
                         
                         <div style="display:flex; gap:10px; margin-top:20px;">
-                            <a href="javascript:void(0);" onclick="triggerVisit('${{item.title}}', '${{item.addr}}')" class="navi-btn" style="background-color:#4CAF50; color:white;">✅ 방문 처리</a>
+                            <a href="javascript:void(0);" onclick="triggerInterest('${item.title}', '${item.addr}', ${item.lat}, ${item.lon})" class="navi-btn" style="background-color:#FF9800; color:white;">⭐ 관심 업체</a>
+                            <a href="javascript:void(0);" onclick="triggerVisit('${item.title}', '${item.addr}')" class="navi-btn" style="background-color:#4CAF50; color:white;">✅ 방문 처리</a>
                             <a href="https://map.kakao.com/link/to/${{item.title}},${{item.lat}},${{item.lon}}" target="_blank" class="navi-btn">🚗 길찾기</a>
                         </div>
                     </div>
@@ -1434,6 +1435,44 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
                         var s = u.includes('?') ? '&' : '?';
                         window.parent.location.href = u + s + 'visit_action=true&title=' + encodeURIComponent(title) + '&addr=' + encodeURIComponent(addr);
                     }}
+                }}
+            }};
+            
+            // [FEATURE] Interest Trigger Function (Detail View)
+            window.triggerInterest = function(title, addr, lat, lon) {{
+                // No confirmation needed - just mark as interested
+                
+                try {{
+                    var currentUrl = new URL(window.parent.location.href);
+                    var params = currentUrl.searchParams;
+                    
+                    params.set('interest_action', 'true');
+                    params.set('title', title);
+                    params.set('addr', addr);
+                    params.set('lat', lat);
+                    params.set('lon', lon);
+                    
+                    var u_role = "{user_context.get('user_role', '')}";
+                    if(u_role) params.set('user_role', u_role);
+                    
+                    var u_branch = "{user_context.get('user_branch', '')}";
+                    if(u_branch && u_branch != 'None') params.set('user_branch', u_branch);
+                    
+                    var u_mgr = "{user_context.get('user_manager_name', '')}";
+                    if(u_mgr && u_mgr != 'None') params.set('user_manager_name', u_mgr);
+                    
+                    var u_code = "{user_context.get('user_manager_code', '')}";
+                    if(u_code && u_code != 'None') params.set('user_manager_code', u_code);
+                    
+                    var u_auth = "{user_context.get('admin_auth', 'false')}";
+                    params.set('admin_auth', u_auth);
+                    
+                    window.parent.location.href = currentUrl.toString();
+                }} catch(e) {{
+                    console.error("Interest URL failed", e);
+                    var u = window.parent.location.href;
+                    var s = u.includes('?') ? '&' : '?';
+                    window.parent.location.href = u + s + 'interest_action=true&title=' + encodeURIComponent(title) + '&addr=' + encodeURIComponent(addr) + '&lat=' + lat + '&lon=' + lon;
                 }}
             }};
             
