@@ -1377,8 +1377,8 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
                         </div>
                         
                         <div style="display:flex; gap:10px; margin-top:20px;">
-                            <a href="javascript:void(0);" onclick="triggerInterest('${item.title}', '${item.addr}', ${item.lat}, ${item.lon})" class="navi-btn" style="background-color:#FF9800; color:white;">⭐ 관심 업체</a>
-                            <a href="javascript:void(0);" onclick="triggerVisit('${item.title}', '${item.addr}')" class="navi-btn" style="background-color:#4CAF50; color:white;">✅ 방문 처리</a>
+                            <a href="javascript:void(0);" onclick="triggerInterest('${{item.title}}', '${{item.addr}}', ${{item.lat}}, ${{item.lon}})" class="navi-btn" style="background-color:#FF9800; color:white;">⭐ 관심 업체</a>
+                            <a href="javascript:void(0);" onclick="triggerVisit('${{item.title}}', '${{item.addr}}')" class="navi-btn" style="background-color:#4CAF50; color:white;">✅ 방문 처리</a>
                             <a href="https://map.kakao.com/link/to/${{item.title}},${{item.lat}},${{item.lon}}" target="_blank" class="navi-btn">🚗 길찾기</a>
                         </div>
                     </div>
