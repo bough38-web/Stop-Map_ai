@@ -492,7 +492,8 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
             
             // [FEATURE] Interest Trigger Function
             window.triggerInterest = function(title, addr, lat, lon) {{
-                // No confirmation needed - just mark as interested
+                // Immediate Feedback
+                alert("⭐ '" + title + "' 업체를 관심 목록에 등록합니다.\n잠시만 기다려주세요...");
                 var url = window.parent.location.href;
                 var separator = url.includes('?') ? '&' : '?';
                 var newUrl = url + separator + 'interest_action=true&title=' + encodeURIComponent(title) + '&addr=' + encodeURIComponent(addr) + '&lat=' + lat + '&lon=' + lon;
@@ -1440,7 +1441,8 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
             
             // [FEATURE] Interest Trigger Function (Detail View)
             window.triggerInterest = function(title, addr, lat, lon) {{
-                // No confirmation needed - just mark as interested
+                // Immediate Feedback
+                alert("⭐ '" + title + "' 업체를 관심 목록에 등록합니다.\n잠시만 기다려주세요...");
                 
                 try {{
                     var currentUrl = new URL(window.parent.location.href);
