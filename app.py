@@ -14,6 +14,7 @@ from src import data_loader
 from src import map_visualizer
 from src import report_generator
 from src import activity_logger  # Activity logging and status tracking
+from src import usage_logger  # Usage tracking for admin monitoring
 from src import voc_manager  # VOC / Request Manager
 from src.ai_scoring import calculate_ai_scores # [NEW] Expert Feat 1: AI Scoring
 
@@ -906,6 +907,7 @@ if raw_df is not None:
                                 
                                 # Log access
                                 activity_logger.log_access('manager', p_name, 'login')
+                                usage_logger.log_usage('manager', p_name, st.session_state.get('user_branch', ''), 'login', {'manager_code': p_code})
                                 st.rerun()
                             else:
                                 st.error("패스워드가 올바르지 않습니다.")
@@ -924,6 +926,7 @@ if raw_df is not None:
                             st.session_state.sb_branch = s_branch # Pre-set filter
                             # Log access
                             activity_logger.log_access('branch', s_branch, 'login')
+                            usage_logger.log_usage('branch', s_branch, s_branch, 'login')
                             st.rerun()
                         else:
                             st.error("패스워드가 올바르지 않습니다.")
@@ -938,6 +941,7 @@ if raw_df is not None:
                             st.session_state.admin_auth = True
                             # Log access
                             activity_logger.log_access('admin', '관리자', 'login')
+                            usage_logger.log_usage('admin', '관리자', '전체', 'login')
                             st.rerun()
                         else:
                             st.error("암호가 올바르지 않습니다.")
@@ -1155,9 +1159,205 @@ if raw_df is not None:
                     # [MOVED] Admin Log Viewer
                     st.divider()
                     st.markdown("#### 📊 관리 기록 조회 및 시각화")
-                    log_tab1, log_tab2, log_tab3 = st.tabs(["접속 로그", "활동 변경 이력", "조회 기록"])
+                    log_tab1, log_tab2, log_tab3, log_tab4, log_tab5 = st.tabs(["📊 사용량 모니터링", "🚗 네비게이션 이력", "접속 로그", "활동 변경 이력", "조회 기록"])
                     
                     with log_tab1:
+                        st.markdown("### 📊 사용량 모니터링 대시보드")
+                        st.caption("담당자 및 지사의 실제 사용 패턴을 분석합니다.")
+                        
+                        # Period selector
+                        col_period1, col_period2 = st.columns([1, 3])
+                        with col_period1:
+                            monitor_days = st.selectbox("조회 기간", [7, 14, 30, 60, 90], index=2, key="monitor_days")
+                        
+                        # Get usage statistics
+                        stats = usage_logger.get_usage_stats(days=monitor_days)
+                        
+                        # Summary metrics
+                        st.markdown("#### 📈 전체 요약")
+                        metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+                        with metric_col1:
+                            st.metric("총 활동 수", f"{stats['total_actions']:,}건")
+                        with metric_col2:
+                            st.metric("활성 사용자", f"{stats['unique_users']}명")
+                        with metric_col3:
+                            st.metric("활성 지사", f"{stats['unique_branches']}개")
+                        with metric_col4:
+                            avg_per_user = stats['total_actions'] / max(stats['unique_users'], 1)
+                            st.metric("사용자당 평균", f"{avg_per_user:.1f}건")
+                        
+                        st.divider()
+                        
+                        # Two column layout for charts
+                        chart_col1, chart_col2 = st.columns(2)
+                        
+                        with chart_col1:
+                            st.markdown("#### 📊 활동 유형별 분포")
+                            if stats['actions_by_type']:
+                                action_df = pd.DataFrame(list(stats['actions_by_type'].items()), columns=['활동유형', '횟수'])
+                                action_df = action_df.sort_values('횟수', ascending=False)
+                                st.bar_chart(action_df.set_index('활동유형'))
+                            else:
+                                st.info("데이터가 없습니다.")
+                        
+                        with chart_col2:
+                            st.markdown("#### 🏢 지사별 활동")
+                            if stats['actions_by_branch']:
+                                branch_df = pd.DataFrame(list(stats['actions_by_branch'].items()), columns=['지사', '횟수'])
+                                branch_df = branch_df.sort_values('횟수', ascending=False)
+                                st.bar_chart(branch_df.set_index('지사'))
+                            else:
+                                st.info("데이터가 없습니다.")
+                        
+                        st.divider()
+                        
+                        # Daily activity trend
+                        st.markdown("#### 📅 일별 활동 추이")
+                        if stats['daily_activity']:
+                            daily_df = pd.DataFrame(list(stats['daily_activity'].items()), columns=['날짜', '활동수'])
+                            daily_df['날짜'] = pd.to_datetime(daily_df['날짜'])
+                            daily_df = daily_df.sort_values('날짜')
+                            st.line_chart(daily_df.set_index('날짜'))
+                        else:
+                            st.info("데이터가 없습니다.")
+                        
+                        st.divider()
+                        
+                        # Top users table
+                        st.markdown("#### 🏆 활동 상위 사용자 (Top 10)")
+                        if stats['top_users']:
+                            top_users_df = pd.DataFrame(stats['top_users'])
+                            top_users_df.columns = ['사용자명', '지사', '역할', '활동수']
+                            st.dataframe(top_users_df, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("데이터가 없습니다.")
+                        
+                        st.divider()
+                        
+                        # User detail search
+                        st.markdown("#### 🔍 개별 사용자 상세 조회")
+                        search_user = st.text_input("사용자명 입력", key="search_user_detail")
+                        if search_user:
+                            user_timeline = usage_logger.get_user_activity_timeline(search_user, days=7)
+                            if user_timeline:
+                                st.success(f"'{search_user}' 님의 최근 7일 활동 ({len(user_timeline)}건)")
+                                timeline_df = pd.DataFrame(user_timeline)
+                                # Select relevant columns
+                                display_cols = ['timestamp', 'action', 'details']
+                                if all(col in timeline_df.columns for col in display_cols):
+                                    timeline_df = timeline_df[display_cols]
+                                    timeline_df.columns = ['시간', '활동', '상세']
+                                    st.dataframe(timeline_df, use_container_width=True, hide_index=True, height=300)
+                            else:
+                                st.warning(f"'{search_user}' 님의 활동 기록이 없습니다.")
+                    
+                    with log_tab2:
+                        st.markdown("### 🚗 네비게이션 이력 추적")
+                        st.caption("담당자들의 길찾기 사용 이력을 추적하여 실제 방문 의도를 파악합니다.")
+                        
+                        # Period selector
+                        col_nav1, col_nav2 = st.columns([1, 3])
+
+                        with col_nav1:
+                            nav_days = st.selectbox("조회 기간", [7, 14, 30, 60, 90], index=2, key="nav_days")
+                        
+                        # Get navigation statistics
+                        nav_stats = usage_logger.get_navigation_stats(days=nav_days)
+                        nav_history = usage_logger.get_navigation_history(days=nav_days)
+                        
+                        # Summary metrics
+                        st.markdown("#### 📈 네비게이션 요약")
+                        metric_col1, metric_col2, metric_col3 = st.columns(3)
+                        with metric_col1:
+                            st.metric("총 길찾기 횟수", f"{nav_stats['total_navigations']:,}건")
+                        with metric_col2:
+                            st.metric("사용 담당자", f"{nav_stats['unique_users']}명")
+                        with metric_col3:
+                            st.metric("방문 예정 업체", f"{nav_stats['unique_businesses']}곳")
+                        
+                        st.divider()
+                        
+                        # Charts
+                        chart_col1, chart_col2 = st.columns(2)
+                        
+                        with chart_col1:
+                            st.markdown("#### 👤 담당자별 길찾기 사용")
+                            if nav_stats['navigations_by_user']:
+                                user_nav_df = pd.DataFrame(list(nav_stats['navigations_by_user'].items()), columns=['담당자', '횟수'])
+                                user_nav_df = user_nav_df.sort_values('횟수', ascending=False)
+                                st.bar_chart(user_nav_df.set_index('담당자'))
+                            else:
+                                st.info("데이터가 없습니다.")
+                        
+                        with chart_col2:
+                            st.markdown("#### 🏢 지사별 길찾기 사용")
+                            if nav_stats['navigations_by_branch']:
+                                branch_nav_df = pd.DataFrame(list(nav_stats['navigations_by_branch'].items()), columns=['지사', '횟수'])
+                                branch_nav_df = branch_nav_df.sort_values('횟수', ascending=False)
+                                st.bar_chart(branch_nav_df.set_index('지사'))
+                            else:
+                                st.info("데이터가 없습니다.")
+                        
+                        st.divider()
+                        
+                        # Top businesses
+                        st.markdown("#### 🎯 가장 많이 조회된 업체 (Top 20)")
+                        if nav_stats['top_businesses']:
+                            top_biz_df = pd.DataFrame(list(nav_stats['top_businesses'].items()), columns=['업체명', '조회수'])
+                            st.dataframe(top_biz_df, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("데이터가 없습니다.")
+                        
+                        st.divider()
+                        
+                        # Detailed history table
+                        st.markdown("#### 📋 상세 네비게이션 이력")
+                        
+                        # Filters
+                        filter_col1, filter_col2 = st.columns(2)
+                        with filter_col1:
+                            filter_user = st.selectbox("담당자 필터", ["전체"] + list(nav_stats['navigations_by_user'].keys()) if nav_stats['navigations_by_user'] else ["전체"], key="nav_filter_user")
+                        with filter_col2:
+                            filter_branch = st.selectbox("지사 필터", ["전체"] + list(nav_stats['navigations_by_branch'].keys()) if nav_stats['navigations_by_branch'] else ["전체"], key="nav_filter_branch")
+                        
+                        # Apply filters
+                        filtered_history = nav_history
+                        if filter_user != "전체":
+                            filtered_history = [h for h in filtered_history if h['user_name'] == filter_user]
+                        if filter_branch != "전체":
+                            filtered_history = [h for h in filtered_history if h['user_branch'] == filter_branch]
+                        
+                        if filtered_history:
+                            st.success(f"총 {len(filtered_history)}건의 네비게이션 이력")
+                            history_df = pd.DataFrame(filtered_history)
+                            history_df.columns = ['시간', '담당자', '지사', '업체명', '주소', '위도', '경도']
+                            st.dataframe(history_df, use_container_width=True, hide_index=True, height=400)
+                            
+                            # Export option
+                            csv = history_df.to_csv(index=False, encoding='utf-8-sig')
+                            st.download_button(
+                                label="📥 CSV 다운로드",
+                                data=csv,
+                                file_name=f"navigation_history_{nav_days}days.csv",
+                                mime="text/csv"
+                            )
+                        else:
+                            st.info("조건에 맞는 네비게이션 이력이 없습니다.")
+                        
+                        st.divider()
+                        
+                        # Conversion tracking note
+                        st.info("""
+                        💡 **성공율 분석 방법**
+                        
+                        1. 이 네비게이션 이력을 CSV로 다운로드
+                        2. 계약 완료 데이터와 업체명/주소 매칭
+                        3. 네비게이션 사용 → 계약 전환율 계산
+                        4. 담당자별/지사별 성공율 비교 분석
+                        """)
+
+
+                    with log_tab3:
                         st.caption("최근 접속 로그 (최대 50건)")
                         access_logs = activity_logger.get_access_logs(limit=50)
                         if access_logs:
@@ -1166,7 +1366,7 @@ if raw_df is not None:
                         else:
                             st.info("로그 없음")
 
-                    with log_tab2:
+                    with log_tab4:
                         st.caption("최근 변경 이력")
                         change_history = activity_logger.get_change_history(limit=50)
                         if change_history:
@@ -1175,14 +1375,16 @@ if raw_df is not None:
                         else:
                             st.info("이력 없음")
 
-                    with log_tab3:
+                    with log_tab5:
                         st.caption("조회 기록")
                         view_logs = activity_logger.get_view_logs(limit=50)
                         if view_logs:
                             view_df = pd.DataFrame(view_logs)
                             st.dataframe(view_df[::-1], use_container_width=True, height=200)
                         else:
+
                             st.info("기록 없음")
+
         
 
 
@@ -1493,10 +1695,12 @@ if raw_df is not None:
     if filter_changes:
         # User Info
         u_role = st.session_state.get('user_role', 'Unknown')
-        u_name = st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or 'Admin'
+        u_name = st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or '관리자'
+        u_branch = st.session_state.get('user_branch', '')
         
-        # Log
+        # Log to both systems
         activity_logger.log_view(u_role, u_name, "필터/검색", ", ".join(filter_changes))
+        usage_logger.log_usage(u_role, u_name, u_branch, 'filter_change', {'changes': filter_changes})
         
         # Update State
         st.session_state.prev_view_filters = current_filters
@@ -2124,6 +2328,14 @@ if raw_df is not None:
             st.info("작성된 방문 리포트가 없습니다.")
 
     with tab1:
+        # Log tab access
+        if 'last_tab_accessed' not in st.session_state or st.session_state.last_tab_accessed != 'map':
+            u_role = st.session_state.get('user_role', 'Unknown')
+            u_name = st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or '관리자'
+            u_branch = st.session_state.get('user_branch', '')
+            usage_logger.log_usage(u_role, u_name, u_branch, 'tab_access', {'tab': 'map'})
+            st.session_state.last_tab_accessed = 'map'
+        
         with st.expander("🗺️ 조건조회", expanded=True):
             # Marker for Mobile Visibility Control
             st.markdown('<div id="mobile-filter-marker"></div>', unsafe_allow_html=True)
