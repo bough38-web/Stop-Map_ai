@@ -1656,10 +1656,10 @@ if raw_df is not None:
     if only_with_phone:
         base_df = base_df[base_df['소재지전화'].notna() & (base_df['소재지전화'] != "")]
     
-    # [FEATURE] Apply Global Date Range Filter (Modification Period)
+    # [FEATURE] Global Date Range Filter (최종수정일 기준)
     # Applied to base_df so it affects ALL tabs (Map, Stats, Mobile, Grid)
-    if 'sb_mod_period' in st.session_state and len(st.session_state.sb_mod_period) == 2:
-        g_start, g_end = st.session_state.sb_mod_period
+    if 'global_date_range' in st.session_state and len(st.session_state.global_date_range) == 2:
+        g_start, g_end = st.session_state.global_date_range
         
         # Ensure '최종수정시점' is valid datetime
         if '최종수정시점' in base_df.columns:
@@ -1673,7 +1673,7 @@ if raw_df is not None:
              ]
              
              # Show filter info for debugging/confirmation
-             st.sidebar.caption(f"🗓️ 기간 필터: {g_start} ~ {g_end} ({len(base_df)}건)")
+             st.sidebar.success(f"🗓️ 기간 필터 적용: {g_start} ~ {g_end} ({len(base_df):,}건)")
 
     
     # [FEATURE] Area Filter Logic
