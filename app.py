@@ -118,6 +118,17 @@ if "interest_action" in st.query_params:
             u_name = st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or '관리자'
             u_branch = st.session_state.get('user_branch', '')
             
+            # Safe float conversion
+            try:
+                lat_val = float(q_lat)
+            except (ValueError, TypeError):
+                lat_val = 0.0
+                
+            try:
+                lon_val = float(q_lon)
+            except (ValueError, TypeError):
+                lon_val = 0.0
+
             usage_logger.log_interest(
                 user_role=u_role,
                 user_name=u_name,
@@ -125,8 +136,8 @@ if "interest_action" in st.query_params:
                 business_name=q_title,
                 address=q_addr,
                 road_address=q_addr,  # Same as address for now
-                lat=float(q_lat),
-                lon=float(q_lon)
+                lat=lat_val,
+                lon=lon_val
             )
             
             # Show success message
@@ -138,7 +149,9 @@ if "interest_action" in st.query_params:
             st.rerun()
     
     except Exception as e:
-        st.error(f"Error processing interest action: {e}")
+        st.error(f"관심 업체 등록 중 오류 발생: {str(e)}")
+        # print error to console for debugging
+        print(f"Error processing interest action: {e}")
 
 
 # 2. Render Form based on Session State
