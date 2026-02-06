@@ -357,6 +357,7 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                                     (item.close_date ? '<span style="color:#D32F2F; font-size:12px;">❌ 폐업일: ' + item.close_date + '</span>' : '') +
                                     '</div>' +
                                     '<div style="margin-top:10px; display:flex; gap:5px;">' +
+                                    '<a href=\"javascript:void(0);\" onclick=\"triggerInterest(\'' + item.title + '\', \'' + item.addr + '\', ' + item.lat + ', ' + item.lon + ')\" style=\"flex:1; background:#FF9800; color:white; text-decoration:none; padding:8px 0; border-radius:4px; text-align:center; font-size:12px; font-weight:bold;\">⭐ 관심</a>' + 
                                     '<a href="javascript:void(0);" onclick="triggerVisit(\'' + item.title + '\', \'' + item.addr + '\', \'' + item.record_key + '\')" style="flex:1; background:#4CAF50; color:white; text-decoration:none; padding:8px 0; border-radius:4px; text-align:center; font-size:12px; font-weight:bold;">✅ 방문</a>' +
                                     '<a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="flex:1; background:#FEE500; color:black; text-decoration:none; padding:8px 0; border-radius:4px; text-align:center; font-size:12px; font-weight:bold;">🚗 길찾기</a>' +
                                     '</div>' +
@@ -423,6 +424,7 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                     html += '</table>';
                     
                     html += '<div style="display:flex; gap:10px; margin-top:20px;">';
+                    html += '<a href=\"javascript:void(0);\" onclick=\"triggerInterest(\'' + item.title + '\', \'' + item.addr + '\', ' + item.lat + ', ' + item.lon + ')\" class=\"navi-btn\" style=\"background-color:#FF9800; color:white;\">⭐ 관심 업체</a>';
                     html += '<a href="javascript:void(0);" onclick="triggerVisit(\'' + item.title + '\', \'' + item.addr + '\', \'' + item.record_key + '\')" class="navi-btn" style="background-color:#4CAF50; color:white;">✅ 방문 처리</a>';
                     html += '<a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" class="navi-btn">🚗 길찾기</a>';
                     html += '</div>';
@@ -486,6 +488,32 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
 
                     window.parent.location.assign(newUrl);
                 }}
+            }};
+            
+            // [FEATURE] Interest Trigger Function
+            window.triggerInterest = function(title, addr, lat, lon) {{
+                // No confirmation needed - just mark as interested
+                var url = window.parent.location.href;
+                var separator = url.includes('?') ? '&' : '?';
+                var newUrl = url + separator + 'interest_action=true&title=' + encodeURIComponent(title) + '&addr=' + encodeURIComponent(addr) + '&lat=' + lat + '&lon=' + lon;
+                
+                // Append User Context
+                var u_role = "{user_context.get('user_role', '')}";
+                if(u_role) newUrl += '&user_role=' + encodeURIComponent(u_role);
+                
+                var u_branch = "{user_context.get('user_branch', '')}";
+                if(u_branch && u_branch != 'None') newUrl += '&user_branch=' + encodeURIComponent(u_branch);
+                
+                var u_mgr = "{user_context.get('user_manager_name', '')}";
+                if(u_mgr && u_mgr != 'None') newUrl += '&user_manager_name=' + encodeURIComponent(u_mgr);
+                
+                var u_code = "{user_context.get('user_manager_code', '')}";
+                if(u_code && u_code != 'None') newUrl += '&user_manager_code=' + encodeURIComponent(u_code);
+                
+                var u_auth = "{user_context.get('admin_auth', 'false')}";
+                newUrl += '&admin_auth=' + u_auth;
+
+                window.parent.location.assign(newUrl);
             }};
             
             clusterer.addMarkers(markers);

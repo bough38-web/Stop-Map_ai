@@ -89,6 +89,58 @@ if "visit_action" in st.query_params:
     except Exception as e:
         st.error(f"Error processing visit action: {e}")
 
+# [FEATURE] Interest Action Handler
+if "interest_action" in st.query_params:
+    try:
+        q_title = st.query_params.get("title", "")
+        q_addr = st.query_params.get("addr", "")
+        q_lat = st.query_params.get("lat", "0")
+        q_lon = st.query_params.get("lon", "0")
+        
+        # Unicode normalization
+        if q_title: q_title = unicodedata.normalize('NFC', q_title)
+        if q_addr: q_addr = unicodedata.normalize('NFC', q_addr)
+        
+        # Session restoration
+        p_role = st.query_params.get("user_role", None)
+        if p_role:
+            if "user_role" not in st.session_state: st.session_state.user_role = p_role
+            if "user_branch" in st.query_params: st.session_state.user_branch = st.query_params["user_branch"]
+            if "user_manager_name" in st.query_params: st.session_state.user_manager_name = st.query_params["user_manager_name"]
+            if "user_manager_code" in st.query_params: st.session_state.user_manager_code = st.query_params["user_manager_code"]
+            if "admin_auth" in st.query_params:
+                val = st.query_params["admin_auth"]
+                st.session_state.admin_auth = (str(val).lower() == 'true')
+        
+        if q_title:
+            # Log interest
+            u_role = st.session_state.get('user_role', 'Unknown')
+            u_name = st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or '관리자'
+            u_branch = st.session_state.get('user_branch', '')
+            
+            usage_logger.log_interest(
+                user_role=u_role,
+                user_name=u_name,
+                user_branch=u_branch,
+                business_name=q_title,
+                address=q_addr,
+                road_address=q_addr,  # Same as address for now
+                lat=float(q_lat),
+                lon=float(q_lon)
+            )
+            
+            # Show success message
+            st.toast(f"⭐ '{q_title}' 관심 업체로 등록되었습니다!", icon="⭐")
+            
+            # Clear params
+            st.query_params.clear()
+            time.sleep(0.5)
+            st.rerun()
+    
+    except Exception as e:
+        st.error(f"Error processing interest action: {e}")
+
+
 # 2. Render Form based on Session State
 if st.session_state.get("visit_active"):
     v_data = st.session_state.visit_data
@@ -1159,7 +1211,7 @@ if raw_df is not None:
                     # [MOVED] Admin Log Viewer
                     st.divider()
                     st.markdown("#### 📊 관리 기록 조회 및 시각화")
-                    log_tab1, log_tab2, log_tab3, log_tab4, log_tab5 = st.tabs(["📊 사용량 모니터링", "🚗 네비게이션 이력", "접속 로그", "활동 변경 이력", "조회 기록"])
+                    log_tab1, log_tab2, log_tab3, log_tab4, log_tab5, log_tab6 = st.tabs(["📊 사용량 모니터링", "⭐ 관심 업체", "🚗 네비게이션 이력", "접속 로그", "활동 변경 이력", "조회 기록"])
                     
                     with log_tab1:
                         st.markdown("### 📊 사용량 모니터링 대시보드")
@@ -1252,11 +1304,116 @@ if raw_df is not None:
                                 st.warning(f"'{search_user}' 님의 활동 기록이 없습니다.")
                     
                     with log_tab2:
+                        st.markdown("### ⭐ 관심 업체 추적")
+                        st.caption("담당자들이 관심 표시한 업체를 추적하여 영업 타겟을 파악합니다.")
+                        
+                        # Period selector
+                        col_int1, col_int2 = st.columns([1, 3])
+                        with col_int1:
+                            int_days = st.selectbox("조회 기간", [7, 14, 30, 60, 90], index=2, key="int_days")
+                        
+                        # Get interest statistics
+                        int_stats = usage_logger.get_interest_stats(days=int_days)
+                        int_history = usage_logger.get_interest_history(days=int_days)
+                        
+                        # Summary metrics
+                        st.markdown("#### 📈 관심 업체 요약")
+                        metric_col1, metric_col2, metric_col3 = st.columns(3)
+                        with metric_col1:
+                            st.metric("총 관심 표시", f"{int_stats['total_interests']:,}건")
+                        with metric_col2:
+                            st.metric("활동 담당자", f"{int_stats['unique_users']}명")
+                        with metric_col3:
+                            st.metric("관심 업체 수", f"{int_stats['unique_businesses']}곳")
+                        
+                        st.divider()
+                        
+                        # Charts
+                        chart_col1, chart_col2 = st.columns(2)
+                        
+                        with chart_col1:
+                            st.markdown("#### 👤 담당자별 관심 표시")
+                            if int_stats['interests_by_user']:
+                                user_int_df = pd.DataFrame(list(int_stats['interests_by_user'].items()), columns=['담당자', '횟수'])
+                                user_int_df = user_int_df.sort_values('횟수', ascending=False)
+                                st.bar_chart(user_int_df.set_index('담당자'))
+                            else:
+                                st.info("데이터가 없습니다.")
+                        
+                        with chart_col2:
+                            st.markdown("#### 🏢 지사별 관심 표시")
+                            if int_stats['interests_by_branch']:
+                                branch_int_df = pd.DataFrame(list(int_stats['interests_by_branch'].items()), columns=['지사', '횟수'])
+                                branch_int_df = branch_int_df.sort_values('횟수', ascending=False)
+                                st.bar_chart(branch_int_df.set_index('지사'))
+                            else:
+                                st.info("데이터가 없습니다.")
+                        
+                        st.divider()
+                        
+                        # Top businesses
+                        st.markdown("#### 🎯 가장 많이 관심 받은 업체 (Top 20)")
+                        if int_stats['top_businesses']:
+                            top_int_df = pd.DataFrame(list(int_stats['top_businesses'].items()), columns=['업체명', '관심수'])
+                            st.dataframe(top_int_df, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("데이터가 없습니다.")
+                        
+                        st.divider()
+                        
+                        # Detailed history table
+                        st.markdown("#### 📋 상세 관심 업체 이력")
+                        
+                        # Filters
+                        filter_col1, filter_col2 = st.columns(2)
+                        with filter_col1:
+                            filter_user_int = st.selectbox("담당자 필터", ["전체"] + list(int_stats['interests_by_user'].keys()) if int_stats['interests_by_user'] else ["전체"], key="int_filter_user")
+                        with filter_col2:
+                            filter_branch_int = st.selectbox("지사 필터", ["전체"] + list(int_stats['interests_by_branch'].keys()) if int_stats['interests_by_branch'] else ["전체"], key="int_filter_branch")
+                        
+                        # Apply filters
+                        filtered_int_history = int_history
+                        if filter_user_int != "전체":
+                            filtered_int_history = [h for h in filtered_int_history if h['user_name'] == filter_user_int]
+                        if filter_branch_int != "전체":
+                            filtered_int_history = [h for h in filtered_int_history if h['user_branch'] == filter_branch_int]
+                        
+                        if filtered_int_history:
+                            st.success(f"총 {len(filtered_int_history)}건의 관심 업체 이력")
+                            int_history_df = pd.DataFrame(filtered_int_history)
+                            int_history_df.columns = ['시간', '담당자', '지사', '업체명', '주소', '도로명주소', '위도', '경도']
+                            st.dataframe(int_history_df, use_container_width=True, hide_index=True, height=400)
+                            
+                            # Export option
+                            csv = int_history_df.to_csv(index=False, encoding='utf-8-sig')
+                            st.download_button(
+                                label="📥 CSV 다운로드",
+                                data=csv,
+                                file_name=f"interest_history_{int_days}days.csv",
+                                mime="text/csv"
+                            )
+                        else:
+                            st.info("조건에 맞는 관심 업체 이력이 없습니다.")
+                        
+                        st.divider()
+                        
+                        # Usage tip
+                        st.info("""
+                        💡 **활용 방법**
+                        
+                        1. 담당자별로 어떤 업체에 관심이 있는지 파악
+                        2. 중복 관심 업체 = 높은 우선순위 타겟
+                        3. 관심 표시 후 실제 계약 전환율 분석
+                        4. 담당자별 관심 패턴 분석으로 영업 전략 수립
+                        """)
+                    
+                    with log_tab3:
                         st.markdown("### 🚗 네비게이션 이력 추적")
                         st.caption("담당자들의 길찾기 사용 이력을 추적하여 실제 방문 의도를 파악합니다.")
                         
                         # Period selector
                         col_nav1, col_nav2 = st.columns([1, 3])
+
 
                         with col_nav1:
                             nav_days = st.selectbox("조회 기간", [7, 14, 30, 60, 90], index=2, key="nav_days")
@@ -1357,7 +1514,7 @@ if raw_df is not None:
                         """)
 
 
-                    with log_tab3:
+                    with log_tab4:
                         st.caption("최근 접속 로그 (최대 50건)")
                         access_logs = activity_logger.get_access_logs(limit=50)
                         if access_logs:
@@ -1366,7 +1523,7 @@ if raw_df is not None:
                         else:
                             st.info("로그 없음")
 
-                    with log_tab4:
+                    with log_tab5:
                         st.caption("최근 변경 이력")
                         change_history = activity_logger.get_change_history(limit=50)
                         if change_history:
@@ -1375,7 +1532,7 @@ if raw_df is not None:
                         else:
                             st.info("이력 없음")
 
-                    with log_tab5:
+                    with log_tab6:
                         st.caption("조회 기록")
                         view_logs = activity_logger.get_view_logs(limit=50)
                         if view_logs:
