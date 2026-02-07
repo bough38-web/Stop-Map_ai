@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import pandas as pd
 import altair as alt
 import os
 import glob
@@ -198,6 +199,7 @@ if "visit_action" in st.query_params:
 
     except Exception as e:
         st.error(f"Error processing visit action: {e}")
+        st.query_params.clear() # Safety clear on error
 
 # [NEW] Interest Action Handler
 if "interest_action" in st.query_params:
@@ -254,8 +256,11 @@ if "interest_action" in st.query_params:
             
         # Clean URL
         st.query_params.clear()
+        # [FIX] Added Rerun to clear URL from browser bar immediately
+        st.rerun()
     except Exception as e:
         st.error(f"Error processing interest: {e}")
+        st.query_params.clear()
 
 
 
@@ -1186,6 +1191,7 @@ if raw_df is not None:
                                     
                                     activity_logger.log_access('manager', p_name, 'login')
                                     usage_logger.log_usage('manager', p_name, st.session_state.get('user_branch', ''), 'login', {'manager_code': p_code})
+                                    st.query_params.clear() # [FIX] Clear params
                                     st.rerun()
                                 else: st.error("패스워드가 올바르지 않습니다.")
                             else: st.error("담당자 정보를 찾을 수 없습니다.")
@@ -1206,6 +1212,7 @@ if raw_df is not None:
                                 st.session_state.sb_branch = s_branch # Pre-set filter
                                 activity_logger.log_access('branch', s_branch, 'login')
                                 usage_logger.log_usage('branch', s_branch, s_branch, 'login')
+                                st.query_params.clear() # [FIX] Clear params
                                 st.rerun()
                             else: st.error("패스워드가 올바르지 않습니다.")
 
@@ -1223,6 +1230,7 @@ if raw_df is not None:
                                 st.session_state.admin_auth = True
                                 activity_logger.log_access('admin', '관리자', 'login')
                                 usage_logger.log_usage('admin', '관리자', '전체', 'login')
+                                st.query_params.clear() # [FIX] Clear any params before rerun
                                 st.rerun()
                             else: st.error("암호가 올바르지 않습니다.")
 
