@@ -37,29 +37,54 @@ def normalize_status(status_str):
 
 
 def load_json_file(filepath):
-    """Load JSON file, return empty dict/list if not exists"""
+    """Load JSON file, return empty dict/list if not exists or corrupted"""
+    filepath = Path(filepath) # Ensure Path object
     if filepath.exists():
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 return json.load(f)
-        except:
-            return [] if 'logs' in filepath.name or 'history' in filepath.name else {}
-    return [] if 'logs' in filepath.name or 'history' in filepath.name else {}
+        except json.JSONDecodeError as e:
+            print(f"CRITICAL: JSON Decode Error in {filepath}: {e}")
+            # [SAFETY] Backup corrupted file
+            try:
+                backup_path = filepath.with_suffix(f".bak_{datetime.now().strftime('%Y%m%d%H%M%S')}")
+                os.rename(filepath, backup_path)
+                print(f"Backing up corrupted file to {backup_path}")
+            except: pass
+            return [] if 'logs' in str(filepath.name) or 'history' in str(filepath.name) else {}
+        except Exception as e:
+            print(f"Error loading {filepath}: {e}")
+            return [] if 'logs' in str(filepath.name) or 'history' in str(filepath.name) else {}
+    return [] if 'logs' in str(filepath.name) or 'history' in str(filepath.name) else {}
 
 
 def save_json_file(filepath, data):
-    """Save data to JSON file"""
+    """Save data to JSON file atomically (Write to temp -> Rename)"""
+    filepath = Path(filepath) # Ensure Path object
     try:
         # Ensure parent dir exists
         if hasattr(filepath, 'parent'):
             filepath.parent.mkdir(parents=True, exist_ok=True)
             
-        with open(filepath, 'w', encoding='utf-8') as f:
+        # Atomic Write Pattern
+        temp_path = filepath.with_suffix('.tmp')
+        with open(temp_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-        print(f"DEBUG: Successfully saved to {filepath}")
+            f.flush()
+            os.fsync(f.fileno()) # Force write to disk
+            
+        # Rename temp to actual (Atomic on POSIX)
+        os.replace(temp_path, filepath)
+        
+        # print(f"DEBUG: Successfully saved to {filepath}")
         return True
     except Exception as e:
         print(f"DEBUG: Error saving {filepath}: {e}")
+        # Try to clean up temp
+        try:
+            if 'temp_path' in locals() and os.path.exists(temp_path):
+                os.remove(temp_path)
+        except: pass
         return False
 
 

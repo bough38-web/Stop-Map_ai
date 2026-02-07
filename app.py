@@ -26,6 +26,86 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# [DESIGN] Inject Custom CSS for Modern UI
+def inject_custom_css():
+    st.markdown("""
+    <style>
+        /* Modern Dashboard Card */
+        div[data-testid="stExpander"] details {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .dashboard-card {
+            background-color: white;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 1px solid #f0f0f0;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin-bottom: 10px;
+        }
+        .dashboard-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+        }
+        
+        .card-header {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #1a237e; /* Deep Blue */
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #333;
+            margin: 4px 0;
+        }
+        
+        .stat-sub {
+            font-size: 0.85rem;
+            color: #666;
+            display: flex;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            height: 8px;
+            width: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 4px;
+        }
+        .dot-green { background-color: #4CAF50; }
+        .dot-red { background-color: #F44336; }
+        .dot-gray { background-color: #9E9E9E; }
+        
+        /* Button Tweaks */
+        .stButton button {
+            border-radius: 6px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .stButton button:hover {
+            transform: translateY(-1px);
+        }
+        
+        /* Active Branch Highlight */
+        .branch-active {
+            border: 2px solid #3F51B5 !important;
+            background-color: #E8EAF6 !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+inject_custom_css()
+
 # [SYSTEM] Master Reset Handler (Factory Reset for Session/Cache)
 if "reset" in st.query_params:
     st.cache_data.clear()
@@ -2024,12 +2104,17 @@ if raw_df is not None:
             # Create mask for activity
             mask_touched = pd.Series(False, index=base_df.index)
             if touched_keys:
-                 # We need to generate keys for base_df to match
-                 # Optimization: This apply is expensive. But needed.
-                 # Actually, let's assume we have record_key column? No, we generate it on fly mostly.
-                 # Let's generate it once.
-                 temp_keys = base_df.apply(activity_logger.get_record_key, axis=1)
-                 mask_touched = temp_keys.isin(touched_keys)
+                 # [OPTIMIZATION] Vectorized Key Generation
+                 # Replacing slow apply() with vectorized string concatenation
+                 temp_name = base_df['사업장명'].fillna("").astype(str)
+                 temp_addr = base_df['소재지전체주소'].fillna("").astype(str)
+                 
+                 # Strict NFC normalization is hard in vectorization without apply, 
+                 # but most data is consistent.
+                 # If key mismatch occurs, we might need a faster apply.
+                 # Let's use list comp which is faster than pd.apply
+                 temp_keys = [unicodedata.normalize('NFC', f"{n}_{a}") for n, a in zip(temp_name, temp_addr)]
+                 mask_touched = pd.Series(temp_keys, index=base_df.index).isin(touched_keys)
             
             base_df = base_df[mask_assigned | mask_touched]
                 
@@ -2043,8 +2128,10 @@ if raw_df is not None:
              
              mask_touched = pd.Series(False, index=base_df.index)
              if touched_keys:
-                 temp_keys = base_df.apply(activity_logger.get_record_key, axis=1)
-                 mask_touched = temp_keys.isin(touched_keys)
+                 temp_name = base_df['사업장명'].fillna("").astype(str)
+                 temp_addr = base_df['소재지전체주소'].fillna("").astype(str)
+                 temp_keys = [unicodedata.normalize('NFC', f"{n}_{a}") for n, a in zip(temp_name, temp_addr)]
+                 mask_touched = pd.Series(temp_keys, index=base_df.index).isin(touched_keys)
                  
              base_df = base_df[mask_assigned | mask_touched]
     
@@ -2351,69 +2438,61 @@ if raw_df is not None:
             if 'dash_branch' not in st.session_state:
                 st.session_state.dash_branch = sorted_branches[0] if sorted_branches else None
                 
-            b_rows = [sorted_branches[i:i+8] for i in range(0, len(sorted_branches), 8)]
-            for row in b_rows:
-                cols = st.columns(len(row))
-                for idx, btn_name in enumerate(row):
-                    with cols[idx]:
-                        # [FIX] Normalize comparison (use calculated source)
-                        # We defer calculation of raw_dashboard_branch to below (hack for layout order), 
-                        # OR we accept that buttons might flicker if we don't move the logic up.
-                        # Actually, best is to use sel_branch directly here as well:
-                        current_active_btn = sel_branch if sel_branch != "전체" else st.session_state.get('sb_branch', "전체")
-                        current_active_btn = unicodedata.normalize('NFC', current_active_btn)
-                        
-                        # [FIX] Shorten Branch Name for Display (e.g., "중앙지사" -> "중앙")
-                        # But keep full name for logic
-                        disp_name = btn_name.replace("지사", "")
-                        
-                        type_ = "primary" if current_active_btn == btn_name else "secondary"
-                        st.button(
-                            disp_name, 
-                            key=f"btn_{btn_name}", 
-                            type=type_, 
-                            use_container_width=True,
-                            on_click=update_branch_state,
-                            args=(btn_name,)
-                        )
-
-
-            
-            # [FIX] Source of Truth: Prioritize Widget (sel_branch) if active, else Session State
-            if sel_branch != "전체":
-                raw_dashboard_branch = sel_branch
+            # [DESIGN] Modern Grid Layout
+            # Grid of 4 columns
+            if not sorted_branches:
+                st.info("표시할 지사 데이터가 없습니다.")
             else:
-                raw_dashboard_branch = st.session_state.get('sb_branch', "전체")
-            sel_dashboard_branch = unicodedata.normalize('NFC', raw_dashboard_branch)
+                # Prepare grid
+                n_cols = 4
+                rows = [sorted_branches[i:i + n_cols] for i in range(0, len(sorted_branches), n_cols)]
+                
+                # Active Branch Logic (Source of Truth)
+                if sel_branch != "전체":
+                    raw_dashboard_branch = sel_branch
+                else:
+                    raw_dashboard_branch = st.session_state.get('sb_branch', "전체")
+                sel_dashboard_branch = unicodedata.normalize('NFC', raw_dashboard_branch)
 
-            cols = st.columns(len(sorted_branches) if sorted_branches else 1)
-            for i, col in enumerate(cols):
-                if i < len(sorted_branches):
-                    b_name = sorted_branches[i]
-                    # b_name is already normalized
-                    b_df = base_df[base_df['관리지사'] == b_name]
-                    b_total = len(b_df)
-                    count_active = len(b_df[b_df['영업상태명'] == '영업/정상'])
-                    count_closed = len(b_df[b_df['영업상태명'] == '폐업'])
-                    count_others = b_total - count_active - count_closed
-                    
-                    bg_color = "#e8f5e9" if b_name == sel_dashboard_branch else "#ffffff"
-                    border_color = "#2E7D32" if b_name == sel_dashboard_branch else "#e0e0e0"
-                    
-                    status_text = f"<span style='color:#2E7D32'>영업 {count_active}</span> / <span style='color:#d32f2f'>폐업 {count_closed}</span>"
-                    if count_others > 0: status_text += f" / <span style='color:#757575'>기타 {count_others}</span>"
-                    
-                    with col:
-                        branch_html = f'<div style="background-color: {bg_color}; border: 2px solid {border_color}; border-radius: 8px; padding: 10px; text-align: center;"><div style="font-weight:bold; font-size:0.9rem; margin-bottom:5px; color:#333;">{b_name}</div><div style="font-size:1.2rem; font-weight:bold; color:#000;">{b_total:,}</div><div style="font-size:0.8rem; margin-top:4px;">{status_text}</div></div>'
-                        st.markdown(branch_html, unsafe_allow_html=True)
-                        
-                        # [UX] Only show Action Buttons if Selected
-                        if b_name == sel_dashboard_branch:
-                            b_c1, b_c2 = st.columns(2)
-                            with b_c1:
-                                st.button("영업", key=f"btn_br_active_{b_name}", on_click=update_branch_with_status, args=(b_name, '영업/정상'), use_container_width=True)
-                            with b_c2:
-                                st.button("폐업", key=f"btn_br_closed_{b_name}", on_click=update_branch_with_status, args=(b_name, '폐업'), use_container_width=True)
+                for row_branches in rows:
+                    cols = st.columns(n_cols)
+                    for idx, b_name in enumerate(row_branches):
+                        with cols[idx]:
+                            # 1. Calculate Stats
+                            b_df = base_df[base_df['관리지사'] == b_name]
+                            b_total = len(b_df)
+                            count_active = len(b_df[b_df['영업상태명'] == '영업/정상'])
+                            count_closed = len(b_df[b_df['영업상태명'] == '폐업'])
+                            
+                            # 2. Determine Style
+                            is_selected = (b_name == sel_dashboard_branch)
+                            card_class = "dashboard-card branch-active" if is_selected else "dashboard-card"
+                            
+                            # 3. Render Card HTML
+                            disp_name = b_name.replace("지사", "")
+                            card_html = f"""
+                            <div class="{card_class}">
+                                <div class="card-header">
+                                    {disp_name}
+                                    <span style="font-size:1.2rem; color:#333;">{b_total}</span>
+                                </div>
+                                <div class="stat-sub">
+                                    <span style="color:#2E7D32; font-weight:600;"><span class="status-dot dot-green"></span>{count_active}</span>
+                                    <span style="color:#F44336; font-weight:600; margin-left:8px;"><span class="status-dot dot-red"></span>{count_closed}</span>
+                                </div>
+                            </div>
+                            """
+                            st.markdown(card_html, unsafe_allow_html=True)
+                            
+                            # 4. Interaction Buttons
+                            if is_selected:
+                                b_c1, b_c2 = st.columns(2)
+                                with b_c1:
+                                    st.button("영업", key=f"btn_act_{b_name}", on_click=update_branch_with_status, args=(b_name, '영업/정상'), use_container_width=True, type="primary")
+                                with b_c2:
+                                    st.button("폐업", key=f"btn_cls_{b_name}", on_click=update_branch_with_status, args=(b_name, '폐업'), use_container_width=True)
+                            else:
+                                st.button("👆 선택", key=f"btn_sel_{b_name}", on_click=update_branch_state, args=(b_name,), use_container_width=True)
     
     st.markdown("---")
     
