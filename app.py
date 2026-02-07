@@ -1140,7 +1140,7 @@ if raw_df is not None:
         with tab_mgr:
             with st.container(border=True):
                 # Centered Form Layout
-                c_main = st.columns([1, 2, 1])
+                c_main = st.columns([1, 15, 1])
                 with c_main[1]:
                     sel_br_for_mgr = st.selectbox("소속 지사 선택", ["전체"] + global_branch_opts, key="login_br_sel")
                     
@@ -1193,7 +1193,7 @@ if raw_df is not None:
         with tab_br:
             with st.container(border=True):
                 # Centered Form Layout
-                c_main = st.columns([1, 2, 1])
+                c_main = st.columns([1, 15, 1])
                 with c_main[1]:
                     st.info("지사 산하 모든 담당자의 활동과 실적을 모니터링합니다.")
                     with st.form("login_branch_v3"):
