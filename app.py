@@ -92,11 +92,9 @@ if "visit_action" in st.query_params:
                 )
                 st.toast(f"✅ {q_title} : 상태가 '방문'으로 변경되었습니다.")
             
-            # Clear params from URL to prevent loop, but KEEP the session state active
-            # We must be careful not to trigger full rerun immediately which might hide toast
-            # But query params can be cleared safely now that we have session state
-            # [MODIFIED] Do NOT clear params immediately. 
-            pass
+            # Clear params to prevent sticky state loop
+            # This ensures subsequent interactions don't re-trigger this block
+            st.query_params.clear()
 
         # [NEW] Interest Action Handler
         if "interest_action" in st.query_params:
