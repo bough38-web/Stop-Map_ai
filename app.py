@@ -111,13 +111,13 @@ def inject_custom_css():
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            height: 60px;
+            height: 50px; /* [OPTIMIZATION] Reduced height */
             border: 1px solid rgba(49, 51, 63, 0.2);
             border-radius: 8px;
             background-color: white;
             color: #31333F;
             font-weight: 800;
-            font-size: 0.9rem;
+            font-size: 0.85rem; /* [OPTIMIZATION] Reduced size */
             box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
     </style>
@@ -979,10 +979,11 @@ if raw_df is not None:
                 [data-testid="stSidebar"] {display: none;}
                 /* [RESPONSIVE] Web: Ultra-Slim (210px) with App Frame */
                 /* [RESPONSIVE] Web: Standard Desktop (1000px) with App Frame */
+                /* [RESPONSIVE] Web: Standard Desktop (1000px) with App Frame */
                 [data-testid="stAppViewContainer"] .block-container { 
                     max-width: 1000px; 
                     padding-top: 2.5rem; /* Increased top padding to prevent cutting off */
-                    padding-bottom: 2rem; 
+                    padding-bottom: 1rem; /* [OPTIMIZATION] Reduced bottom padding */
                     margin: auto; 
                     border-left: 1px solid #E9ECEF;
                     border-right: 1px solid #E9ECEF;
@@ -1002,11 +1003,11 @@ if raw_df is not None:
 
                 .hero-section {
                     text-align: center;
-                    padding: 1.5rem 1rem; /* Reduced vertical padding */
+                    padding: 1.2rem 1rem; /* [OPTIMIZATION] Compact padding */
                     background: linear-gradient(135deg, #1A73E8 0%, #0d47a1 100%);
-                    border-radius: 24px; /* Premium Rounded Corners */
+                    border-radius: 20px; /* Slightly reduced radius for compact feel */
                     color: white;
-                    margin-bottom: 2rem;
+                    margin-bottom: 1rem; /* [OPTIMIZATION] Reduced margin */
                     box-shadow: 0 12px 24px rgba(0, 50, 100, 0.2);
                     border: 1px solid rgba(255, 255, 255, 0.1);
                     position: relative;
@@ -1021,29 +1022,29 @@ if raw_df is not None:
                 }
 
                 .hero-title { 
-                    font-size: 2.0rem; 
+                    font-size: 1.6rem; /* [OPTIMIZATION] Reduced size */
                     font-weight: 900; 
-                    margin-bottom: 0.8rem; 
+                    margin-bottom: 0.4rem; /* [OPTIMIZATION] Reduced margin */
                     letter-spacing: -0.5px; 
                     text-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 }
                 .hero-subtitle { 
-                    font-size: 1.0rem; 
+                    font-size: 0.9rem; /* [OPTIMIZATION] Reduced size */
                     opacity: 0.95; 
                     font-weight: 400; 
-                    line-height: 1.6; 
+                    line-height: 1.4; 
                     color: rgba(255, 255, 255, 0.9);
                 }
                 
                 .expert-badge {
                     display: inline-block;
-                    padding: 4px 12px;
+                    padding: 4px 10px;
                     background: rgba(255, 255, 255, 0.15);
                     backdrop-filter: blur(4px);
                     border-radius: 20px;
-                    font-size: 0.7rem;
+                    font-size: 0.65rem;
                     font-weight: 700;
-                    margin-bottom: 1rem;
+                    margin-bottom: 0.5rem; /* [OPTIMIZATION] Reduced margin */
                     border: 1px solid rgba(255, 255, 255, 0.3);
                     text-transform: uppercase;
                     letter-spacing: 1px;
@@ -1079,15 +1080,15 @@ if raw_df is not None:
                 /* Enhanced Tab Styling */
                 .stTabs [data-baseweb="tab-list"] {
                     justify-content: center;
-                    gap: 1.0rem;
+                    gap: 0.8rem;
                     border-bottom: none; /* Removed bottom border for cleaner look */
-                    margin-bottom: 1.5rem;
+                    margin-bottom: 1.0rem; /* [OPTIMIZATION] Reduced margin */
                 }
                 .stTabs [data-baseweb="tab"] {
-                    height: 54px;
-                    padding: 0 1.5rem;
+                    height: 46px; /* [OPTIMIZATION] Reduced height */
+                    padding: 0 1rem;
                     font-weight: 800;
-                    font-size: 1.3rem;
+                    font-size: 1.15rem; /* [OPTIMIZATION] Reduced size */
                     color: #495057;
                     background-color: #F8F9FA;
                     border-radius: 12px;
@@ -1114,7 +1115,7 @@ if raw_df is not None:
         # Using custom HTML with flexbox prevents vertical alignment issues
         # and avoids 'Node removeChild' by keeping structure static and simple.
         st.markdown("""
-            <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+            <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
                 <div class="feature-box-centered" style="flex: 1;">
                     <div>🌡️ AI 기회 분석</div>
                 </div>
@@ -1125,7 +1126,7 @@ if raw_df is not None:
         """, unsafe_allow_html=True)
             
         # Login Section Title
-        st.markdown("<h3 style='text-align: center; margin-bottom: 1.5rem; font-weight: 700; font-size: 1.5rem;'>🔑 시스템 로그인</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='text-align: center; margin-bottom: 0.8rem; font-weight: 700; font-size: 1.3rem;'>🔑 시스템 로그인</h3>", unsafe_allow_html=True)
         
         # [FEATURE] System Notice (Centered)
         try:
