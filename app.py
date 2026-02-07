@@ -1932,6 +1932,7 @@ if raw_df is not None:
         
         def reset_manager_filter():
             st.session_state.sb_manager = "전체"
+            st.query_params.clear() # [FIX] Clear params on sidebar change
             
         sel_branch = st.selectbox(
             "관리지사 선택", 
@@ -1971,6 +1972,7 @@ if raw_df is not None:
             manager_opts, 
             index=manager_opts.index(st.session_state.get('sb_manager', "전체")) if st.session_state.get('sb_manager') in manager_opts else 0,
             key="sb_manager",
+            on_change=lambda: st.query_params.clear(), # [FIX] Clear params on change
             disabled=False # Admin can always change
         )
         
