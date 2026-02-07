@@ -95,6 +95,7 @@ if "visit_action" in st.query_params:
             # Clear params to prevent sticky state loop
             # This ensures subsequent interactions don't re-trigger this block
             st.query_params.clear()
+            st.rerun()
 
         # [NEW] Interest Action Handler
         if "interest_action" in st.query_params:
@@ -256,12 +257,20 @@ if st.session_state.get("visit_active"):
             c_audio, c_photo = st.columns(2)
             with c_audio:
                 st.markdown("**🎤 음성 녹음**")
-                audio_val = st.audio_input("음성 녹음")
+                try:
+                    audio_val = st.audio_input("음성 녹음")
+                except AttributeError:
+                    st.caption("음성 녹음 미지원 (file_uploader 사용)")
+                    audio_val = st.file_uploader("음성 파일 업로드", type=['wav', 'mp3', 'm4a'], label_visibility="collapsed")
                 
             with c_photo:
                 st.markdown("**📸 현장 사진**")
-                # Camera input
-                photo_val = st.camera_input("사진 촬영", label_visibility="collapsed")
+                # Camera input or Uploader
+                try:
+                    photo_val = st.camera_input("사진 촬영", label_visibility="collapsed")
+                except AttributeError:
+                    photo_val = None
+                    
                 if not photo_val:
                     photo_val = st.file_uploader("또는 사진 업로드", type=['jpg', 'png', 'jpeg'], label_visibility="collapsed")
 
