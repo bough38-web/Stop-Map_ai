@@ -112,15 +112,60 @@ def inject_custom_css():
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            height: 50px; /* [OPTIMIZATION] Reduced height */
+            height: 50px;
             border: 1px solid rgba(49, 51, 63, 0.2);
             border-radius: 8px;
             background-color: white;
             color: #31333F;
             font-weight: 800;
-            font-size: 0.85rem; /* [OPTIMIZATION] Reduced size */
+            font-size: 0.85rem;
             box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
+
+        /* Mobile Grid Card Styles */
+        .card-tile {
+            background-color: white;
+            border: 1px solid #eee;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: all 0.2s ease;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .card-tile:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-color: #3F51B5;
+        }
+        .card-title-grid {
+            font-weight: 800;
+            font-size: 0.95rem;
+            color: #222;
+            margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .card-meta-grid {
+            font-size: 0.75rem;
+            color: #666;
+            line-height: 1.4;
+            margin-bottom: 5px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 4px;
+        }
+        .status-open { background-color: #4CAF50; }
+        .status-closed { background-color: #F44336; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -3566,55 +3611,59 @@ if raw_df is not None:
                 st.session_state.page -= 1
                 st.rerun()
         with col_n:
+            if st.button("Next Pages"):
                 st.session_state.page += 1
                 st.rerun()
-                
-        # [FIX] Mobile List Revert: Vertical List instead of Grid
-        # Removed st.columns(4) loop.
-        for idx, row in page_df.iterrows():
-            # Use container for each row
-            with st.container():
-                cols = st.columns([3, 1]) # Card | Action Buttons
-                
-                status_cls = "status-open" if row['영업상태명'] == '영업/정상' else "status-closed"
-                tel = row['소재지전화'] if pd.notna(row['소재지전화']) else ""
-                
-                def fmt_date(d):
-                    if pd.isna(d): return ""
-                    try:
-                        return d.strftime('%Y-%m-%d')
-                    except:
-                        return ""
+        # [FEATURE] Responsive 6-Column Grid
+        row_step = 6
+        for i in range(0, len(page_df), row_step):
+            cols = st.columns(row_step)
+            for j in range(row_step):
+                if i + j < len(page_df):
+                    idx = page_df.index[i + j]
+                    row = page_df.iloc[i + j]
+                    
+                    with cols[j]:
+                        status_cls = "status-open" if row['영업상태명'] == '영업/정상' else "status-closed"
+                        tel = row['소재지전화'] if pd.notna(row['소재지전화']) else ""
+                        
+                        def fmt_date(d):
+                            if pd.isna(d): return ""
+                            try:
+                                return d.strftime('%y-%m-%d') # Shorter year for grid
+                            except:
+                                return ""
 
-                permit_date = fmt_date(row.get('인허가일자'))
-                close_date = fmt_date(row.get('폐업일자'))
-                last_modified = fmt_date(row.get('최종수정시점'))
-                
-                date_html = ""
-                if last_modified:
-                    date_html += f"<span style='color:#7C4DFF; font-weight:bold'>🔄 수정: {last_modified}</span><br>"
-                if permit_date:
-                    date_html += f"<span style='color:#1565C0'>인허가: {permit_date}</span> "
-                if close_date:
-                    date_html += f"<span style='color:#d32f2f'>폐업: {close_date}</span>"
-                
-                # Card HTML (Full Width)
-                tel_html = ('<br>📞 ' + tel) if tel else ''
-                footer_html = f'<div class="card-container" style="padding: 10px; margin-bottom: 5px;"><div class="card-title" style="font-size:1rem; margin-bottom: 5px;">{row["사업장명"]}<div class="card-badges"><span class="status-badge {status_cls}">{row["영업상태명"]}</span></div></div><div class="card-meta" style="font-size:0.8rem; margin-bottom: 5px;">{row["업태구분명"]} | {row["평수"]}평 | {row["관리지사"]} ({row["SP담당"]})</div><div class="card-meta" style="font-size:0.75rem; font-weight:bold;">{date_html}</div><div class="card-address" style="color:#666;">{row["소재지전체주소"]}{tel_html}</div></div>'
-                
-                st.markdown(footer_html, unsafe_allow_html=True)
-                
-                # Action Buttons Row
-                b1, b2, b3 = st.columns([1,1,2])
-                with b1:
-                    if tel: st.link_button("📞", f"tel:{tel}", use_container_width=True)
-                    else: st.button("📞", disabled=True, key=f"nc_{idx}", use_container_width=True)
-                with b2:
-                     st.link_button("🗺️", f"https://map.naver.com/v5/search/{row['소재지전체주소']}", use_container_width=True)
-                with b3:
-                     st.link_button("🔍 검색", f"https://search.naver.com/search.naver?query={row['사업장명']}", use_container_width=True)
-                
-                st.divider()
+                        permit_date = fmt_date(row.get('인허가일자'))
+                        last_modified = fmt_date(row.get('최종수정시점'))
+                        
+                        # Compact Card HTML
+                        card_html = f"""
+                        <div class="card-tile">
+                            <div class="status-badge {status_cls}">{row['영업상태명']}</div>
+                            <div class="card-title-grid" title="{row['사업장명']}">{row['사업장명']}</div>
+                            <div class="card-meta-grid">
+                                {row['업태구분명']} | {row['평수']}평<br>
+                                {row['관리지사']} ({row['SP담당']})<br>
+                                <span style="color:#7C4DFF">🔄 {last_modified or '-'}</span> | 
+                                <span style="color:#1565C0">✨ {permit_date or '-'}</span>
+                            </div>
+                            <div style="font-size:0.7rem; color:#888; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; height:32px; margin-bottom:10px;">
+                                {row['소재지전체주소']}
+                            </div>
+                        </div>
+                        """
+                        st.markdown(card_html, unsafe_allow_html=True)
+                        
+                        # Mini Action Buttons
+                        b1, b2, b3 = st.columns([1,1,1])
+                        with b1:
+                            if tel: st.link_button("📞", f"tel:{tel}", use_container_width=True)
+                            else: st.button("📞", disabled=True, key=f"nc_{idx}", use_container_width=True)
+                        with b2:
+                             st.link_button("🗺️", f"https://map.naver.com/v5/search/{row['소재지전체주소']}", use_container_width=True)
+                        with b3:
+                             st.link_button("🔍", f"https://search.naver.com/search.naver?query={row['사업장명']}", use_container_width=True)
     
     with tab3:
         st.markdown("### 📋 전체 데이터")
