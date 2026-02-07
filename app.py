@@ -981,7 +981,7 @@ if raw_df is not None:
                 /* [RESPONSIVE] Web: Standard Desktop (1000px) with App Frame */
                 [data-testid="stAppViewContainer"] .block-container { 
                     max-width: 1000px; 
-                    padding-top: 1rem; 
+                    padding-top: 2.5rem; /* Increased top padding to prevent cutting off */
                     padding-bottom: 2rem; 
                     margin: auto; 
                     border-left: 1px solid #E9ECEF;
@@ -1002,7 +1002,7 @@ if raw_df is not None:
 
                 .hero-section {
                     text-align: center;
-                    padding: 2.5rem 1.5rem;
+                    padding: 1.5rem 1rem; /* Reduced vertical padding */
                     background: linear-gradient(135deg, #1A73E8 0%, #0d47a1 100%);
                     border-radius: 24px; /* Premium Rounded Corners */
                     color: white;
