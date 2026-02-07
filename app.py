@@ -3682,14 +3682,13 @@ if raw_df is not None:
         ]
         
         # [FEATURE] Activity Status Filter & Visualization
-        st.markdown("##### 📊 활동 현황 분석")
+        # [FEATURE] Activity Status Filter & Visualization
         
         # [MIGRATION] Convert plain status to Emoji status for display consistency
         # Use Centralized Normalizer
         if '활동진행상태' in grid_df.columns:
             grid_df['활동진행상태'] = grid_df['활동진행상태'].apply(activity_logger.normalize_status)
 
-        
         # Layout: Filter & Search
         c_filter, c_search = st.columns([1, 1])
         
@@ -3701,44 +3700,46 @@ if raw_df is not None:
         with c_search:
             grid_search_kw = st.text_input("검색 (업체명/주소/상태/특이사항)", placeholder="검색어 입력")
         
-        
-        c_chart1, c_chart2 = st.columns([1, 2])
-        
-        # Prepare Data for Charts (Use grid_df before final filtering for global view)
-        chart_data = grid_df['활동진행상태'].value_counts().reset_index()
-        chart_data.columns = ['status', 'count']
-        chart_data = chart_data[chart_data['status'] != ''] # Exclude empty
-        
-        with c_chart1:
-            if not chart_data.empty:
-                # Donut Chart
-                base = alt.Chart(chart_data).encode(
-                    theta=alt.Theta("count", stack=True),
-                    color=alt.Color("status", scale=alt.Scale(
-                        domain=list(activity_logger.ACTIVITY_STATUS_MAP.values()), 
-                        range=['#29B6F6', '#FFB74D', '#5C6BC0', '#E57373', '#81C784']
-                    ), legend=None)
-                )
-                pie = base.mark_arc(outerRadius=80, innerRadius=40)
-                text = base.mark_text(radius=100).encode(
-                    text=alt.Text("count", format=",.0f"),
-                    order=alt.Order("status"),
-                    color=alt.value("black")
-                )
-                st.altair_chart(pie + text, use_container_width=True)
-            else:
-                st.caption("집계된 활동 내역이 없습니다.")
-                
-        with c_chart2:
-            if not chart_data.empty:
-                # Bar Chart
-                bar_chart = alt.Chart(chart_data).mark_bar().encode(
-                    x=alt.X('count', title='건수'),
-                    y=alt.Y('status', sort='-x', title='상태'),
-                    color=alt.Color('status', legend=None),
-                    tooltip=['status', 'count']
-                )
-                st.altair_chart(bar_chart, use_container_width=True)
+        with st.expander("📊 활동 현황 분석 (차트 보기)", expanded=False):
+            st.markdown("##### 📊 활동 현황 분석")
+            
+            c_chart1, c_chart2 = st.columns([1, 2])
+            
+            # Prepare Data for Charts (Use grid_df before final filtering for global view)
+            chart_data = grid_df['활동진행상태'].value_counts().reset_index()
+            chart_data.columns = ['status', 'count']
+            chart_data = chart_data[chart_data['status'] != ''] # Exclude empty
+            
+            with c_chart1:
+                if not chart_data.empty:
+                    # Donut Chart
+                    base = alt.Chart(chart_data).encode(
+                        theta=alt.Theta("count", stack=True),
+                        color=alt.Color("status", scale=alt.Scale(
+                            domain=list(activity_logger.ACTIVITY_STATUS_MAP.values()), 
+                            range=['#29B6F6', '#FFB74D', '#5C6BC0', '#E57373', '#81C784']
+                        ), legend=None)
+                    )
+                    pie = base.mark_arc(outerRadius=80, innerRadius=40)
+                    text = base.mark_text(radius=100).encode(
+                        text=alt.Text("count", format=",.0f"),
+                        order=alt.Order("status"),
+                        color=alt.value("black")
+                    )
+                    st.altair_chart(pie + text, use_container_width=True)
+                else:
+                    st.caption("집계된 활동 내역이 없습니다.")
+                    
+            with c_chart2:
+                if not chart_data.empty:
+                    # Bar Chart
+                    bar_chart = alt.Chart(chart_data).mark_bar().encode(
+                        x=alt.X('count', title='건수'),
+                        y=alt.Y('status', sort='-x', title='상태'),
+                        color=alt.Color('status', legend=None),
+                        tooltip=['status', 'count']
+                    )
+                    st.altair_chart(bar_chart, use_container_width=True)
         
         # [DEBUG] Check Mapping Results
         st.caption(f"🔧 Debug Statuses: {sorted(grid_df['활동진행상태'].unique())}")
