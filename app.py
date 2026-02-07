@@ -461,16 +461,19 @@ def mask_name(name):
     return name_str[0] + "*" * (len(name_str) - 2) + name_str[-1]
 
 # State Update Callbacks
+# State Update Callbacks
 def update_branch_state(name):
     # [FIX] Force NFC to match selectbox options strictly
     normalized_name = unicodedata.normalize('NFC', name)
     st.session_state.sb_branch = normalized_name
     st.session_state.sb_manager = "전체"
     st.session_state.dash_branch = normalized_name
+    st.session_state.page = 0 # [FIX] Reset page
     st.query_params.clear() # [FIX] Clear params
     
 def update_manager_state(name):
     st.session_state.sb_manager = name
+    st.session_state.page = 0 # [FIX] Reset page
     st.query_params.clear() # [FIX] Clear params
 
 def update_branch_with_status(name, status):
@@ -478,11 +481,13 @@ def update_branch_with_status(name, status):
     st.session_state.sb_manager = "전체"
     st.session_state.dash_branch = name
     st.session_state.sb_status = status
+    st.session_state.page = 0 # [FIX] Reset page
     st.query_params.clear() # [FIX] Clear params
     
 def update_manager_with_status(name, status):
     st.session_state.sb_manager = name
     st.session_state.sb_status = status
+    st.session_state.page = 0 # [FIX] Reset page
     st.query_params.clear() # [FIX] Clear params
 
 # --- Sidebar Filters ---
@@ -1932,7 +1937,8 @@ if raw_df is not None:
         
         def reset_manager_filter():
             st.session_state.sb_manager = "전체"
-            st.query_params.clear() # [FIX] Clear params on sidebar change
+            st.session_state.page = 0 # [FIX] Reset pagination
+            st.query_params.clear()
             
         sel_branch = st.selectbox(
             "관리지사 선택", 
@@ -1966,13 +1972,17 @@ if raw_df is not None:
         
         if 'sb_manager' not in st.session_state: st.session_state.sb_manager = "전체"
 
+        def on_manager_change():
+             st.session_state.page = 0
+             st.query_params.clear()
+
         # [ROLE_CONSTRAINT] Manager (Admin can always change)
         sel_manager_label = st.selectbox(
             "영업구역/담당", 
             manager_opts, 
             index=manager_opts.index(st.session_state.get('sb_manager', "전체")) if st.session_state.get('sb_manager') in manager_opts else 0,
             key="sb_manager",
-            on_change=lambda: st.query_params.clear(), # [FIX] Clear params on change
+            on_change=on_manager_change, # [FIX] Reset page & params
             disabled=False # Admin can always change
         )
         
