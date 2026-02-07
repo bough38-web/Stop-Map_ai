@@ -75,16 +75,86 @@ if "visit_action" in st.query_params:
                 'user': st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or "Field Agent"
             }
             
-            # Initial Quick Log (Once) - Logic to prevent duplicate logging could be added here if needed
-            # For now, we update the logic below to handle the actual processing
+            # [NEW] Immediate Status Update for "Visit Processing"
+            # User Request: "방문처리 선택하면 지도상에 방문처리 마커 표시"
+            # We should update the status to '방문' immediately when clicked on map.
+            if q_key:
+                u_name = st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or "Unknown"
+                activity_logger.save_activity_status(q_key, '방문', f"모바일 지도에서 방문 처리 ({u_name})", u_name)
+                # Also log a system visit report? User said "방문 이력에 나오도록"
+                activity_logger.save_visit_report(
+                    record_key=q_key,
+                    user_name=u_name,
+                    user_branch=st.session_state.get('user_branch'),
+                    content=f"[시스템] 모바일 지도에서 '방문' 상태로 변경했습니다.",
+                    photo_path=None,
+                    audio_path=None
+                )
+                st.toast(f"✅ {q_title} : 상태가 '방문'으로 변경되었습니다.")
             
             # Clear params from URL to prevent loop, but KEEP the session state active
             # We must be careful not to trigger full rerun immediately which might hide toast
             # But query params can be cleared safely now that we have session state
             # [MODIFIED] Do NOT clear params immediately. 
-            # Clearing params triggers a rerun which might cause state loss in some envs.
-            # We will clear params ONLY when the user explicitly Closes or Saves.
             pass
+
+        # [NEW] Interest Action Handler
+        if "interest_action" in st.query_params:
+            try:
+                i_title = st.query_params.get("title", "")
+                i_addr = st.query_params.get("addr", "")
+                i_lat = st.query_params.get("lat", 0)
+                i_lon = st.query_params.get("lon", 0)
+                
+                # Normalize
+                if i_title: i_title = unicodedata.normalize('NFC', i_title)
+                if i_addr: i_addr = unicodedata.normalize('NFC', i_addr)
+                
+                # Restore Session
+                p_role = st.query_params.get("user_role", None)
+                if p_role:
+                     if "user_role" not in st.session_state: st.session_state.user_role = p_role
+                     if "user_branch" in st.query_params: st.session_state.user_branch = st.query_params["user_branch"]
+                     if "user_manager_name" in st.query_params: st.session_state.user_manager_name = st.query_params["user_manager_name"]
+                     if "user_manager_code" in st.query_params: st.session_state.user_manager_code = st.query_params["user_manager_code"]
+
+                # Log Interest
+                usage_logger.log_interest(
+                    st.session_state.get('user_role'),
+                    st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or "Unknown",
+                    st.session_state.get('user_branch'),
+                    i_title, i_addr, i_lat, i_lon
+                )
+                
+                # [NEW] Also log to Visit History as "Interest Marked"
+                # Use a specific status or just a log? User said "appear in visit history".
+                # We'll create a system-generated visit report.
+                u_name = st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or "Unknown"
+                if i_title and i_addr:
+                    # Generate key
+                    from src import utils
+                    row_key = utils.generate_record_key(i_title, i_addr)
+                    
+                    # 1. Update Status to 'Interest' (Optional, or just log?)
+                    # User said "Interest button selection -> Visit History".
+                    # Let's save it as a "관심" status update too?
+                    # "Interest" isn't in standard activity statuses usually (Open/Closed/Consulting...).
+                    # But we can add a report.
+                    activity_logger.save_visit_report(
+                        record_key=row_key,
+                        user_name=u_name,
+                        user_branch=st.session_state.get('user_branch'),
+                        content=f"[시스템] 모바일 지도에서 '관심 업체'로 등록했습니다.",
+                        photo_path=None,
+                        audio_path=None
+                    )
+                    
+                    st.toast(f"⭐ {i_title} : 관심 업체 등록 및 방문 이력 저장 완료!")
+                    
+                # Clean URL
+                st.query_params.clear()
+            except Exception as e:
+                st.error(f"Error processing interest: {e}")
 
     except Exception as e:
         st.error(f"Error processing visit action: {e}")
@@ -2528,58 +2598,7 @@ if raw_df is not None:
             )
             st.divider()
 
-            # [FEATURE] Local AI Activity Guide
-            # Only show for Manager/Branch roles to provide personalized insight
-            if st.session_state.user_role in ['manager', 'branch']:
-
-                # Calculate stats (Last 15 days)
-                ai_now = pd.Timestamp.now()
-                ai_cutoff = ai_now - pd.Timedelta(days=15)
-
-                # Use df (which is already filtered for the user in base_df logic, and tab1 inherits valid df)
-                # Ensure we are using the base data relevant to the user
-                ai_df = df.copy() 
-
-                # Helper to count recent events
-                def count_recent_events(col_name):
-                    if col_name in ai_df.columns:
-                        # Convert only if not already datetime
-                        series = ai_df[col_name]
-                        if not pd.api.types.is_datetime64_any_dtype(series):
-                            series = pd.to_datetime(series, errors='coerce')
-                        return len(series[series >= ai_cutoff])
-                    return 0
-
-                cnt_new = count_recent_events('인허가일자')
-                cnt_closed = count_recent_events('폐업일자')
-                cnt_mod = count_recent_events('최종수정시점')
-
-                user_display_name = st.session_state.user_manager_name or st.session_state.user_branch or "담당자"
-
-                # Generate Message
-                guide_msg = f"**{user_display_name}**님, 최근 15일간 데이터 분석 결과입니다.\n\n"
-                stats_msg = []
-                if cnt_new > 0: stats_msg.append(f"🆕 **신규 인허가 {cnt_new}건**")
-                if cnt_closed > 0: stats_msg.append(f"🚫 **폐업 {cnt_closed}건**")
-                if cnt_mod > 0: stats_msg.append(f"🔄 **정보 수정 {cnt_mod}건**")
-
-                if not stats_msg:
-                    guide_msg += "최근 15일간 감지된 주요 변동 사항(신규/폐업/수정)이 없습니다."
-                else:
-                    guide_msg += ", ".join(stats_msg) + "이(가) 감지되었습니다."
-
-                # Recommend Strategy
-                recommendation = ""
-                if cnt_new > 0:
-                    recommendation = "💡 **AI 추천**: 신규 인허가 업체는 초기 진입 선점이 가장 중요합니다. 최근 등록된 업체를 **최우선 방문**하여 경쟁사보다 먼저 컨택하세요."
-                elif cnt_closed > 0 and cnt_closed >= cnt_mod:
-                    recommendation = "💡 **AI 추천**: 폐업이 발생하는 구역은 시장 변화의 신호일 수 있습니다. **자산 회수** 기회를 점검하거나, 해당 상권의 경쟁 구도 변화를 분석해보세요."
-                elif cnt_mod > 0:
-                    recommendation = "💡 **AI 추천**: 정보가 수정된 업체는 영업 환경이나 담당자가 변경되었을 가능성이 높습니다. **재컨택**을 통해 변동 사항을 확인하고 관계를 강화하세요."
-                else:
-                    recommendation = "💡 **AI 추천**: 특이사항이 없는 안정적인 시기입니다. **기존 우수 고객(Key Account)** 관리와 잠재 고객 발굴을 위한 정기 순회 활동을 권장합니다."
-
-                st.info(guide_msg + "\n\n" + recommendation, icon="🤖")
+            # [MOVED] AI Analysis Block removed from here
 
 
             # [FEATURE] Condition View Toolbar (Quick Filters)
@@ -3299,6 +3318,27 @@ if raw_df is not None:
                                  u_info,
                                  forced_status=raw_status # Persist the exact status string
                              )
+                        # [NEW] Check if this is an Interest Registration
+                        elif "관심" in raw_status:
+                             # Register Interest (Status + Interest Log + Visit History Draft)
+                             # 1. Status Update
+                             activity_logger.save_activity_status(
+                                row['record_key'],
+                                raw_status,
+                                row['특이사항'],
+                                current_user
+                            )
+                            # 2. Log Interest explicitly if not already? 
+                            # (Optional, but user asked for "Interest" to be tracked. 
+                            # Grid edit might not have lat/lon easily, so skip spatial log, just status/visit history.)
+                             activity_logger.save_visit_report(
+                                record_key=row['record_key'],
+                                user_name=current_user,
+                                user_branch=st.session_state.get('user_branch'),
+                                content=f"[시스템] 데이터 그리드에서 '관심' 상태로 변경했습니다.",
+                                photo_path=None,
+                                audio_path=None
+                            )
                         else:
                              # Just Status Update (Atomic: Status + History)
                              activity_logger.save_activity_status(
