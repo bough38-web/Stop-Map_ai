@@ -2791,12 +2791,58 @@ if raw_df is not None:
 
     st.markdown("---")
 
-    # [LAYOUT] Tab Structure
-    # Ensure tabs are available for all roles
+    # [LAYOUT] Tab Structure Re-implementation for Compatibility (v1.31.0)
+    # Using a high-persistence Radio Navigation to prevent Tab Jumping
+    nav_labels = ["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기", "📝 방문 이력"]
     if st.session_state.user_role == 'admin':
-        tab1, tab_stats, tab2, tab3, tab_voc, tab_history, tab_monitor = st.tabs(["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기", "📝 방문 이력", "👁️ 모니터링"])
-    else:
-        tab1, tab_stats, tab2, tab3, tab_voc, tab_history = st.tabs(["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기", "📝 방문 이력"])
+        nav_labels.append("👁️ 모니터링")
+        
+    # CSS for Tab-like Radio Buttons
+    st.markdown("""
+    <style>
+        div[data-testid="stRadio"] > div[role="radiogroup"] {
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-start;
+            gap: 10px;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid #ddd;
+        }
+        div[data-testid="stRadio"] > div[role="radiogroup"] > label {
+            background-color: white;
+            padding: 5px 15px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            margin: 0;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    active_nav = st.radio("Navigation", nav_labels, horizontal=True, label_visibility="collapsed", key="v131_main_nav")
+    
+    # Dummy Object for Inactive Tabs to avoid re-indenting blocks
+    class DummyTab:
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def __getattr__(self, name):
+            return lambda *args, **kwargs: None
+    
+    # Initialize all tabs to dummy
+    tab1 = tab_stats = tab2 = tab3 = tab_voc = tab_history = tab_monitor = DummyTab()
+    
+    # Activate ONLY the selected tab via st.container()
+    if active_nav == "🗺️ 지도 & 분석": tab1 = st.container()
+    elif active_nav == "📈 상세통계": tab_stats = st.container()
+    elif active_nav == "📱 모바일 리스트": tab2 = st.container()
+    elif active_nav == "📋 데이터 그리드": tab3 = st.container()
+    elif active_nav == "🗣️ 관리자에게 요청하기": tab_voc = st.container()
+    elif active_nav == "📝 방문 이력": tab_history = st.container()
+    elif active_nav == "👁️ 모니터링": tab_monitor = st.container()
     
     # [TAB] Visit History
     with tab_history:
