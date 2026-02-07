@@ -5,9 +5,11 @@ from pathlib import Path
 
 # Storage directory
 # Use absolute path resolution to avoid issues with Streamlit execution context
-BASE_DIR = Path(os.path.abspath(__file__)).parent.parent
-STORAGE_DIR = BASE_DIR / "storage"
-STORAGE_DIR.mkdir(exist_ok=True)
+# Storage directory - [FIX] Move outside project to prevent Streamlit reload loops
+# BASE_DIR = Path(os.path.abspath(__file__)).parent.parent
+# STORAGE_DIR = BASE_DIR / "storage"
+STORAGE_DIR = Path(os.path.expanduser("~")) / ".sales_assistant_data"
+STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 ACCESS_LOG_FILE = STORAGE_DIR / "access_logs.json"
 ACTIVITY_STATUS_FILE = STORAGE_DIR / "activity_status.json"

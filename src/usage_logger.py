@@ -5,9 +5,11 @@ from pathlib import Path
 import pandas as pd
 
 # Storage directory
-BASE_DIR = Path(os.path.abspath(__file__)).parent.parent
-STORAGE_DIR = BASE_DIR / "storage"
-STORAGE_DIR.mkdir(exist_ok=True)
+# Storage directory - [FIX] Move outside project to prevent Streamlit reload loops
+# BASE_DIR = Path(os.path.abspath(__file__)).parent.parent
+# STORAGE_DIR = BASE_DIR / "storage"
+STORAGE_DIR = Path(os.path.expanduser("~")) / ".sales_assistant_data"
+STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 USAGE_LOG_FILE = STORAGE_DIR / "usage_logs.json"
 

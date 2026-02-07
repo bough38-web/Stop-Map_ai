@@ -4,7 +4,9 @@ import json
 from datetime import datetime
 import streamlit as st
 
-DATA_DIR = "data"
+
+DATA_DIR = os.path.join(os.path.expanduser("~"), ".sales_assistant_data")
+os.makedirs(DATA_DIR, exist_ok=True)
 VOC_FILE = os.path.join(DATA_DIR, "voc_requests.json")
 
 def load_voc_requests():

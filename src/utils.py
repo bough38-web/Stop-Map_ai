@@ -152,7 +152,11 @@ def calculate_area(row):
         return 0
 
 # --- System Configuration ---
-DATA_DIR = "data"
+# --- System Configuration ---
+# [FIX] Move dynamic data outside project to prevent reload loops
+# DATA_DIR = "data"
+DATA_DIR = os.path.join(os.path.expanduser("~"), ".sales_assistant_data")
+os.makedirs(DATA_DIR, exist_ok=True)
 CONFIG_FILE = os.path.join(DATA_DIR, "system_config.json")
 
 def load_system_config():

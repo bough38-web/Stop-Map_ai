@@ -243,7 +243,10 @@ def load_and_process_data(zip_file_path_or_obj: Any, district_file_path_or_obj: 
     Returns: (DataFrame, ManagerInfo, ErrorMessage, StatsDict)
     """
     # 1. Process Zip File
-    extract_folder = "temp_extracted_data"
+    # [FIX] Use system temp directory or external storage to prevent Streamlit watcher loops
+    # extract_folder = "temp_extracted_data"
+    import tempfile
+    extract_folder = os.path.join(tempfile.gettempdir(), "sales_assistant_extract")
     
     if os.path.exists(extract_folder):
         try: shutil.rmtree(extract_folder)
