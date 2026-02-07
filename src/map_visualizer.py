@@ -1356,6 +1356,7 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
                 
                 // Click Event
                 marker.on('click', function(e) {{
+                    L.DomEvent.stopPropagation(e);
                     var statusColor = (item.is_large) ? "#9C27B0" : (isOpen ? "#AED581" : "#EF9A9A");
                     
                     var html = `
@@ -1488,7 +1489,8 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
             locBtn.innerHTML = '🎯 내 위치';
             locBtn.innerHTML = '🎯 내 위치';
             locBtn.style.cssText = 'position:absolute; top:10px; left:10px; z-index:1000; background:white; padding:12px 16px; border-radius:8px; border:1px solid #ccc; cursor:pointer; font-weight:bold; font-size:14px; box-shadow:0 2px 6px rgba(0,0,0,0.2);';
-            locBtn.onclick = function() {{
+            locBtn.onclick = function(e) {{
+                if(e) e.stopPropagation();
                 if (navigator.geolocation) {{
                     navigator.geolocation.getCurrentPosition(function(position) {{
                         var lat = position.coords.latitude; 
