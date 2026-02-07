@@ -155,41 +155,59 @@ def merge_activity_status(df: pd.DataFrame) -> pd.DataFrame:
         # Load all statuses once
         saved_statuses = activity_logger.load_json_file(activity_logger.ACTIVITY_STATUS_FILE)
         
-        if saved_statuses:
-            # Helper to match key: "store_name_address"
-            def get_saved_status(row):
-                key = activity_logger.get_record_key(row)
-                record = saved_statuses.get(key)
-                if record and record.get('활동진행상태'):
-                    return activity_logger.normalize_status(record.get('활동진행상태'))
-                return row['영업상태명'] if '영업상태명' in row else '' # Default fall back
+        if not saved_statuses:
+             if '활동진행상태' not in df.columns:
+                 df['활동진행상태'] = ''
+             return df
 
-            # Apply to new column '활동진행상태'
-            # [FIX] Force update even if column exists
-            
-            def get_saved_status(row):
-                key = activity_logger.get_record_key(row)
-                record = saved_statuses.get(key)
+        # [OPTIMIZATION] Vectorized Mapping
+        # 1. Ensure 'record_key' exists
+        if 'record_key' not in df.columns:
+            # Fallback generation if not pre-calculated
+            # Use vectorized string operations if possible, or apply as last resort
+            # Since utils.generate_record_key has complex regex/dict replacement, we stick to apply 
+            # but only for the key generation part.
+            df['record_key'] = df.apply(
+                lambda row: utils.generate_record_key(
+                    row.get('사업장명', ''),
+                    row.get('소재지전체주소', '') or row.get('도로명전체주소', '') or row.get('주소', '')
+                ),
+                axis=1
+            )
+        
+        # 2. Prepare Mapping Dictionaries
+        status_map = {}
+        note_map = {}
+        date_map = {}
+        
+        for k, v in saved_statuses.items():
+            if v.get('활동진행상태'):
+                status_map[k] = activity_logger.normalize_status(v.get('활동진행상태'))
+            if v.get('특이사항'):
+                note_map[k] = v.get('특이사항')
+            if v.get('변경일시'):
+                date_map[k] = v.get('변경일시')
                 
-                if record:
-                    if '활동진행상태' in record:
-                        return activity_logger.normalize_status(record.get('활동진행상태'))
-                return row['영업상태명'] if '영업상태명' in row else '' # Default fall back
-            
-            df['활동진행상태'] = df.apply(get_saved_status, axis=1)
-            
-            # If nothing found, it might be empty string. Fill with '-' or keep empty?
-            # Let's fill NaNs with empty string
-            df['활동진행상태'] = df['활동진행상태'].fillna('')
-            
-            # [NEW] Also merge '특이사항' and '변경일시' for Data Grid freshness
-            def get_saved_note(row, field):
-                key = activity_logger.get_record_key(row)
-                record = saved_statuses.get(key)
-                return record.get(field, '') if record else ''
+        # 3. Apply Mappings (Vectorized)
+        # Using .map allows O(1) lookup per row compared to python function call overhead
+        if status_map:
+            df['활동진행상태'] = df['record_key'].map(status_map).fillna(df.get('영업상태명', ''))
+        else:
+            if '활동진행상태' not in df.columns:
+                 df['활동진행상태'] = df.get('영업상태명', '')
 
-            df['특이사항'] = df.apply(lambda r: get_saved_note(r, '특이사항'), axis=1)
-            df['변경일시'] = df.apply(lambda r: get_saved_note(r, '변경일시'), axis=1)
+        if note_map:
+            df['특이사항'] = df['record_key'].map(note_map).fillna('')
+        else:
+            df['특이사항'] = ''
+            
+        if date_map:
+            df['변경일시'] = df['record_key'].map(date_map).fillna('')
+        else:
+            df['변경일시'] = ''
+
+        # NaNs handling
+        df['활동진행상태'] = df['활동진행상태'].fillna('')
             
     except Exception as e:
         print(f"Failed to merge activity status: {e}")
@@ -274,7 +292,9 @@ def load_and_process_data(zip_file_path_or_obj: Any, district_file_path_or_obj: 
     
     # Remove duplicates based on normalized key
     concatenated_df.drop_duplicates(subset=['_temp_key'], inplace=True)
-    concatenated_df.drop(columns=['_temp_key'], inplace=True)
+    # [OPTIMIZATION] Keep key for later use to avoid re-calculation
+    concatenated_df.rename(columns={'_temp_key': 'record_key'}, inplace=True)
+    # concatenated_df.drop(columns=['_temp_key'], inplace=True)
     
     # [STATS] After Mix Count
     count_after = len(concatenated_df)
@@ -301,6 +321,9 @@ def load_and_process_data(zip_file_path_or_obj: Any, district_file_path_or_obj: 
             
     if x_col: selected_cols.append(x_col)
     if y_col: selected_cols.append(y_col)
+    
+    # [OPTIMIZATION] Include record_key
+    selected_cols.append('record_key')
     
     target_df = concatenated_df[list(set(selected_cols))].copy()
     target_df.rename(columns=rename_map, inplace=True)
@@ -471,6 +494,17 @@ def process_api_data(target_df: pd.DataFrame, district_file_path_or_obj: Any) ->
             
     if '인허가일자' in target_df.columns:
         target_df.sort_values(by='인허가일자', ascending=False, inplace=True)
+
+    # [OPTIMIZATION] Generate record_key for API data
+    if 'record_key' not in target_df.columns:
+        from . import utils
+        target_df['record_key'] = target_df.apply(
+            lambda row: utils.generate_record_key(
+                row.get('사업장명', ''),
+                row.get('소재지전체주소', '') or row.get('도로명전체주소', '') or row.get('주소', '')
+            ),
+            axis=1
+        )
 
     # Delegate to common processor
     final_df, mgr_info, err = _process_and_merge_district_data(target_df, district_file_path_or_obj)

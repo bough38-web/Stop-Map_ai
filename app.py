@@ -806,11 +806,14 @@ if raw_df is not None:
     custom_branch_order = ['중앙지사', '강북지사', '서대문지사', '고양지사', '의정부지사', '남양주지사', '강릉지사', '원주지사']
     custom_branch_order = [unicodedata.normalize('NFC', b) for b in custom_branch_order]
     
-    current_branches_raw = [unicodedata.normalize('NFC', str(b)) for b in raw_df['관리지사'].unique() if pd.notna(b)]
-    
-    global_branch_opts = [b for b in custom_branch_order if b in current_branches_raw]
-    others = [b for b in current_branches_raw if b not in custom_branch_order]
-    global_branch_opts.extend(others)
+    if raw_df is not None and not raw_df.empty:
+        current_branches_raw = [unicodedata.normalize('NFC', str(b)) for b in raw_df['관리지사'].unique() if pd.notna(b)]
+        
+        global_branch_opts = [b for b in custom_branch_order if b in current_branches_raw]
+        others = [b for b in current_branches_raw if b not in custom_branch_order]
+        global_branch_opts.extend(others)
+    else:
+        global_branch_opts = custom_branch_order
     
     # [FEATURE] Admin Global Sidebar Chart (Populated via Placeholder)
     # Uses admin_chart_placeholder defined at top of sidebar
@@ -1588,18 +1591,21 @@ if raw_df is not None:
             st.session_state.global_date_range = ()
         global_date_range = st.session_state.global_date_range
         
-        filter_df = raw_df.copy()
-        
-        # [SECURITY] Hard Filter for Manager Role
-        # This ensures sidebar options are restricted even if UI logic fails.
-        if st.session_state.user_role == 'manager':
-             if st.session_state.user_manager_code:
-                  if '영업구역 수정' in filter_df.columns:
-                      filter_df = filter_df[filter_df['영업구역 수정'] == st.session_state.user_manager_code]
-                  else:
+        if raw_df is not None and not raw_df.empty:
+            filter_df = raw_df.copy()
+            
+            # [SECURITY] Hard Filter for Manager Role
+            # This ensures sidebar options are restricted even if UI logic fails.
+            if st.session_state.user_role == 'manager':
+                 if st.session_state.user_manager_code:
+                      if '영업구역 수정' in filter_df.columns:
+                          filter_df = filter_df[filter_df['영업구역 수정'] == st.session_state.user_manager_code]
+                      else:
+                          filter_df = filter_df[filter_df['SP담당'] == st.session_state.user_manager_name]
+                 elif st.session_state.user_manager_name:
                       filter_df = filter_df[filter_df['SP담당'] == st.session_state.user_manager_name]
-             elif st.session_state.user_manager_name:
-                  filter_df = filter_df[filter_df['SP담당'] == st.session_state.user_manager_name]
+        else:
+            filter_df = pd.DataFrame()
         
         # [SECURITY] Global Filter Visibility (Admin Only)
         st.markdown("### 🔍 조회 조건 설정")
