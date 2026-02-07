@@ -45,6 +45,7 @@ def inject_custom_css():
             border: 1px solid #f0f0f0;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
             margin-bottom: 10px;
+            text-align: center; /* [FIX] Center Alignment */
         }
         .dashboard-card:hover {
             transform: translateY(-2px);
@@ -57,7 +58,8 @@ def inject_custom_css():
             color: #1a237e; /* Deep Blue */
             margin-bottom: 8px;
             display: flex;
-            justify-content: space-between;
+            flex-direction: column; /* [FIX] Vertical Stack for Centering */
+            justify-content: center;
             align-items: center;
         }
         
@@ -73,6 +75,7 @@ def inject_custom_css():
             color: #666;
             display: flex;
             gap: 8px;
+            justify-content: center; /* [FIX] Center Alignment */
         }
         
         .status-dot {
@@ -2761,9 +2764,11 @@ if raw_df is not None:
             with c_q_r2_1: q_hosp = st.checkbox("🏥 병원만", value=False)
             with c_q_r2_2: q_large = st.checkbox("🏗️ 100평↑", value=False)
 
-            # Remove divider to save space
-
-            map_df_base = df.dropna(subset=['lat', 'lon']).copy()
+            # remove divider to save space
+            
+            # [FIX] CRITICAL: Use base_df (filtered by Sidebar) instead of raw df
+            # This ensures Map respects Branch/Manager/Address filters from Sidebar.
+            map_df_base = base_df.dropna(subset=['lat', 'lon']).copy()
 
             # [FEATURE] Apply Quick Filters (Pre-Filtering for Dynamic Dropdowns)
             # 1. Date Filters (OR Logic: New OR Closed)
@@ -3163,15 +3168,16 @@ if raw_df is not None:
                 st.session_state.page -= 1
                 st.rerun()
         with col_n:
-            if st.button("Next Pages") and st.session_state.page < total_pages - 1:
                 st.session_state.page += 1
                 st.rerun()
                 
-        rows = [page_df.iloc[i:i+4] for i in range(0, len(page_df), 4)]
-        
-        for row_chunk in rows:
-            cols = st.columns(4)
-            for idx, (idx_df, row) in enumerate(row_chunk.iterrows()):
+        # [FIX] Mobile List Revert: Vertical List instead of Grid
+        # Removed st.columns(4) loop.
+        for idx, row in page_df.iterrows():
+            # Use container for each row
+            with st.container():
+                cols = st.columns([3, 1]) # Card | Action Buttons
+                
                 status_cls = "status-open" if row['영업상태명'] == '영업/정상' else "status-closed"
                 tel = row['소재지전화'] if pd.notna(row['소재지전화']) else ""
                 
@@ -3194,19 +3200,23 @@ if raw_df is not None:
                 if close_date:
                     date_html += f"<span style='color:#d32f2f'>폐업: {close_date}</span>"
                 
-                with cols[idx]:
-                    tel_html = ('<br>📞 ' + tel) if tel else ''
-                    footer_html = f'<div class="card-container" style="min-height:120px; padding: 10px;"><div class="card-title" style="font-size:0.95rem; margin-bottom: 4px;">{row["사업장명"]}<div class="card-badges"><span class="status-badge {status_cls}" style="padding: 1px 4px; font-size: 0.65rem;">{row["영업상태명"]}</span></div></div><div class="card-meta" style="font-size:0.75rem; margin-bottom: 4px;">{row["업태구분명"]} | {row["평수"]}평<br>{row["관리지사"]} ({row["SP담당"]})</div><div class="card-meta" style="font-size:0.7rem; margin-bottom: 4px; font-weight:bold;">{date_html}</div><div class="card-address" style="font-size:0.7rem; color:#888;">{row["소재지전체주소"]}{tel_html}</div></div>'
-                    st.markdown(footer_html, unsafe_allow_html=True)
-                    
-                    b1, b2, b3 = st.columns([1,1,2])
-                    with b1:
-                        if tel: st.link_button("📞", f"tel:{tel}", use_container_width=True)
-                        else: st.button("📞", disabled=True, key=f"nc_{idx_df}", use_container_width=True)
-                    with b2:
-                         st.link_button("🗺️", f"https://map.naver.com/v5/search/{row['소재지전체주소']}", use_container_width=True)
-                    with b3:
-                         st.link_button("🔍 검색", f"https://search.naver.com/search.naver?query={row['사업장명']}", use_container_width=True)
+                # Card HTML (Full Width)
+                tel_html = ('<br>📞 ' + tel) if tel else ''
+                footer_html = f'<div class="card-container" style="padding: 10px; margin-bottom: 5px;"><div class="card-title" style="font-size:1rem; margin-bottom: 5px;">{row["사업장명"]}<div class="card-badges"><span class="status-badge {status_cls}">{row["영업상태명"]}</span></div></div><div class="card-meta" style="font-size:0.8rem; margin-bottom: 5px;">{row["업태구분명"]} | {row["평수"]}평 | {row["관리지사"]} ({row["SP담당"]})</div><div class="card-meta" style="font-size:0.75rem; font-weight:bold;">{date_html}</div><div class="card-address" style="color:#666;">{row["소재지전체주소"]}{tel_html}</div></div>'
+                
+                st.markdown(footer_html, unsafe_allow_html=True)
+                
+                # Action Buttons Row
+                b1, b2, b3 = st.columns([1,1,2])
+                with b1:
+                    if tel: st.link_button("📞", f"tel:{tel}", use_container_width=True)
+                    else: st.button("📞", disabled=True, key=f"nc_{idx}", use_container_width=True)
+                with b2:
+                     st.link_button("🗺️", f"https://map.naver.com/v5/search/{row['소재지전체주소']}", use_container_width=True)
+                with b3:
+                     st.link_button("🔍 검색", f"https://search.naver.com/search.naver?query={row['사업장명']}", use_container_width=True)
+                
+                st.divider()
     
     with tab3:
         st.markdown("### 📋 전체 데이터")
@@ -3374,7 +3384,7 @@ if raw_df is not None:
                 "평수": st.column_config.NumberColumn(format="%.1f평"),
                 "활동진행상태": st.column_config.SelectboxColumn(
                     "활동상태",
-                    options=[""] + list(activity_logger.ACTIVITY_STATUS_MAP.values()),
+                    options=sorted(list(set([""] + list(activity_logger.ACTIVITY_STATUS_MAP.values()) + list(df_display['활동진행상태'].unique())))),
                     required=False
                 ),
                 "특이사항": st.column_config.TextColumn(
@@ -3485,10 +3495,21 @@ if raw_df is not None:
             csv = df_display.drop(columns=['record_key']).to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
             st.download_button("📥 CSV 다운로드", csv, "영업기회_처리결과.csv", "text/csv")
     
-    # [TAB] VOC Request (Only for Non-Admin Users)
-    if st.session_state.user_role != 'admin':
-        with tab_voc:
-            st.subheader("🗣️ 관리자에게 요청하기")
+    # [TAB] VOC Request (Admin + Users)
+    # [FIX] Allow Admin to see the tab content (as View Mode)
+    with tab_voc:
+        st.subheader("🗣️ 관리자에게 요청하기 (VOC)")
+        
+        if st.session_state.user_role == 'admin':
+            st.info("👮 관리자 모드: 접수된 요청 내역을 확인합니다.")
+            # Admin view implementation can be added here
+            all_requests = voc_manager.load_voc_requests()
+            if all_requests:
+                st.dataframe(all_requests)
+            else:
+                st.info("접수된 요청이 없습니다.")
+        else:
+            # User View (Original Logic)
             
             # Show existing requests first
             st.markdown("### 📋 나의 요청 내역")
