@@ -357,8 +357,6 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                                     (item.close_date ? '<span style="color:#D32F2F; font-size:12px;">❌ 폐업일: ' + item.close_date + '</span>' : '') +
                                     '</div>' +
                                     '<div style="margin-top:10px; display:flex; gap:5px;">' +
-                                    '<a href=\"javascript:void(0);\" onclick=\"triggerInterest(\'' + item.title + '\', \'' + item.addr + '\', ' + item.lat + ', ' + item.lon + ')\" style=\"flex:1; background:#FF9800; color:white; text-decoration:none; padding:8px 0; border-radius:4px; text-align:center; font-size:12px; font-weight:bold;\">⭐ 관심</a>' + 
-                                    '<a href="javascript:void(0);" onclick="triggerVisit(\'' + item.title + '\', \'' + item.addr + '\', \'' + item.record_key + '\')" style="flex:1; background:#4CAF50; color:white; text-decoration:none; padding:8px 0; border-radius:4px; text-align:center; font-size:12px; font-weight:bold;">✅ 방문</a>' +
                                     '<a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="flex:1; background:#FEE500; color:black; text-decoration:none; padding:8px 0; border-radius:4px; text-align:center; font-size:12px; font-weight:bold;">🚗 길찾기</a>' +
                                     '</div>' +
                                     '</div>';
@@ -424,8 +422,6 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                     html += '</table>';
                     
                     html += '<div style="display:flex; gap:10px; margin-top:20px;">';
-                    html += '<a href=\"javascript:void(0);\" onclick=\"triggerInterest(\'' + item.title + '\', \'' + item.addr + '\', ' + item.lat + ', ' + item.lon + ')\" class=\"navi-btn\" style=\"background-color:#FF9800; color:white;\">⭐ 관심 업체</a>';
-                    html += '<a href="javascript:void(0);" onclick="triggerVisit(\'' + item.title + '\', \'' + item.addr + '\', \'' + item.record_key + '\')" class="navi-btn" style="background-color:#4CAF50; color:white;">✅ 방문 처리</a>';
                     html += '<a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" class="navi-btn">🚗 길찾기</a>';
                     html += '</div>';
                     
@@ -787,9 +783,9 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                     bodyHtml += '  </div>';
                     bodyHtml += '</div>'; // End Card Body
 
+
                     // Card Footer
                     bodyHtml += '<div style="padding:8px 12px; background:#fafafa; border-top:1px solid #eee; display:flex; gap:8px;">';
-                    bodyHtml += '    <a href="javascript:void(0);" onclick="triggerVisit(\'' + item.title + '\', \'' + item.addr + '\')" style="flex:1; text-align:center; padding:6px 0; background:white; border:1px solid #4CAF50; color:#4CAF50; border-radius:4px; font-size:12px; font-weight:bold; text-decoration:none;">✅ 방문처리</a>';
                     
                     if (dist < 1.0) {{
                         bodyHtml += '    <a href="https://map.kakao.com/link/to/' + item.title + ',' + item.lat + ',' + item.lon + '" target="_blank" style="flex:1; text-align:center; padding:6px 0; background:#2E7D32; border:1px solid #2E7D32; color:white; border-radius:4px; font-size:12px; font-weight:bold; text-decoration:none;">🚶 도보 길안내</a>';
@@ -1347,7 +1343,6 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
                             ${{item.close_date ? '<span style="color:#D32F2F; font-size:11px;">❌ 폐업일: ' + item.close_date + '</span>' : ''}}
                         </div>
                         <div style="display:flex; gap:5px;">
-                            <a href="javascript:void(0);" onclick="triggerVisit('${{item.title}}', '${{item.addr}}')" style="flex:1; background:#4CAF50; color:white; text-decoration:none; padding:6px 0; border-radius:4px; text-align:center; font-size:11px; font-weight:bold; display:block;">✅ 방문</a>
                             <a href="https://map.kakao.com/link/to/${{item.title}},${{item.lat}},${{item.lon}}" target="_blank" style="flex:1; background:#FEE500; color:black; text-decoration:none; padding:6px 0; border-radius:4px; text-align:center; font-size:11px; font-weight:bold; display:block;">🚗 길찾기</a>
                         </div>
                     </div>
@@ -1378,8 +1373,6 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
                         </div>
                         
                         <div style="display:flex; gap:10px; margin-top:20px;">
-                            <a href="javascript:void(0);" onclick="triggerInterest('${{item.title}}', '${{item.addr}}', ${{item.lat}}, ${{item.lon}})" class="navi-btn" style="background-color:#FF9800; color:white;">⭐ 관심 업체</a>
-                            <a href="javascript:void(0);" onclick="triggerVisit('${{item.title}}', '${{item.addr}}')" class="navi-btn" style="background-color:#4CAF50; color:white;">✅ 방문 처리</a>
                             <a href="https://map.kakao.com/link/to/${{item.title}},${{item.lat}},${{item.lon}}" target="_blank" class="navi-btn">🚗 길찾기</a>
                         </div>
                     </div>
@@ -1745,8 +1738,7 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
                                 ${{item.close_date ? '<span style="color:#D32F2F;">❌ 폐업일: ' + item.close_date + '</span>' : ''}}
                             </div>
 
-                            <div style="display:flex; gap:5px;">
-                                <a href="javascript:void(0);" onclick="triggerVisit('${{item.title}}', '${{item.addr}}')" style="flex:1; background:#4CAF50; color:white; text-decoration:none; padding:5px 0; border-radius:4px; text-align:center; font-size:11px; font-weight:bold;">✅ 방문</a>
+                             <div style="display:flex; gap:5px;">
                                 
                                 ${{ (dist < 1.0) 
                                     ? `<a href="https://map.kakao.com/link/to/${{item.title}},${{item.lat}},${{item.lon}}" target="_blank" style="flex:1; background:#C8E6C9; color:#1B5E20; text-decoration:none; padding:5px 0; border-radius:4px; text-align:center; font-size:11px; font-weight:bold;">🚶 도보 (${{Math.ceil(dist*15)}}분)</a>` 

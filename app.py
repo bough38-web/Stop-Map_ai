@@ -243,68 +243,7 @@ if "visit_action" in st.query_params:
 
 # [FEATURE] Interest Action Handler
 if "interest_action" in st.query_params:
-    try:
-        q_title = st.query_params.get("title", "")
-        q_addr = st.query_params.get("addr", "")
-        q_lat = st.query_params.get("lat", "0")
-        q_lon = st.query_params.get("lon", "0")
-        
-        # Unicode normalization
-        if q_title: q_title = unicodedata.normalize('NFC', q_title)
-        if q_addr: q_addr = unicodedata.normalize('NFC', q_addr)
-        
-        # Session restoration
-        p_role = st.query_params.get("user_role", None)
-        if p_role:
-            if "user_role" not in st.session_state: st.session_state.user_role = p_role
-            if "user_branch" in st.query_params: st.session_state.user_branch = st.query_params["user_branch"]
-            if "user_manager_name" in st.query_params: st.session_state.user_manager_name = st.query_params["user_manager_name"]
-            if "user_manager_code" in st.query_params: st.session_state.user_manager_code = st.query_params["user_manager_code"]
-            if "admin_auth" in st.query_params:
-                val = st.query_params["admin_auth"]
-                st.session_state.admin_auth = (str(val).lower() == 'true')
-        
-        if q_title:
-            # Log interest
-            u_role = st.session_state.get('user_role', 'Unknown')
-            u_name = st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or '관리자'
-            u_branch = st.session_state.get('user_branch', '')
-            
-            # Safe float conversion
-            try:
-                lat_val = float(q_lat)
-            except (ValueError, TypeError):
-                lat_val = 0.0
-                
-            try:
-                lon_val = float(q_lon)
-            except (ValueError, TypeError):
-                lon_val = 0.0
-
-            usage_logger.log_interest(
-                user_role=u_role,
-                user_name=u_name,
-                user_branch=u_branch,
-                business_name=q_title,
-                address=q_addr,
-                road_address=q_addr,  # Same as address for now
-                lat=lat_val,
-                lon=lon_val
-            )
-            
-            # Show success message
-            st.toast(f"⭐ '{q_title}' 관심 업체로 등록되었습니다!", icon="⭐")
-            
-            # Clear params
-            st.query_params.clear()
-            time.sleep(0.5)
-            st.rerun()
-    
-    except Exception as e:
-        st.error(f"관심 업체 등록 중 오류 발생: {str(e)}")
-        # print error to console for debugging
-        print(f"Error processing interest action: {e}")
-
+    pass
 
 # 2. Render Form based on Session State
 if st.session_state.get("visit_active"):
@@ -374,7 +313,15 @@ if st.session_state.get("visit_active"):
                     # Save Logic
                     try:
                         # [REDESIGN] Atomic Visit Registration
-                        success, msg = activity_logger.register_visit(record_key, rep_content, audio_val, photo_val, u_info)
+                        # [FIX] Add forced_status to ensure grid displays the visit
+                        success, msg = activity_logger.register_visit(
+                            record_key, 
+                            rep_content, 
+                            audio_val, 
+                            photo_val, 
+                            u_info,
+                            forced_status="✅ 방문"  # Ensure status is saved to activity_status.json
+                        )
                         
                         if success:
                             st.success("방문 결과가 저장되었습니다!")
@@ -388,12 +335,9 @@ if st.session_state.get("visit_active"):
                             # [FIX] Clear params on success
                             st.query_params.clear()
                             
-                            # Rerun immediately to reflect changes in Grid
-                            st.rerun()
-                            
-                            # Short delay then rerun to refresh history
+                            # Rerun to reflect changes
                             import time
-                            time.sleep(1)
+                            time.sleep(0.3)
                             st.rerun()
                         else:
                             st.error(f"저장 중 오류가 발생했습니다: {msg}")
@@ -924,8 +868,8 @@ if uploaded_dist:
              raw_df, mgr_info_list, error, stats = data_loader.load_and_process_data(uploaded_zip, uploaded_dist, dist_mtime=dist_mtime)
              
              if stats:
-                 st.toast(f"데이터 로드: {stats.get('before',0):,}건 → {stats.get('after',0):,}건 (중복 제거됨)", icon="📊")
-                 st.info(f"📊 **데이터 믹스 결과**: 통합 {stats.get('before',0):,}건 → 최종 {stats.get('after',0):,}건 (이전 데이터 및 중복 {stats.get('before',0) - stats.get('after',0):,}건 제외됨)")
+                 # [FEATURE] Store data stats in session state for later "Help" (?) query
+                 st.session_state['data_load_stats'] = stats
              
     elif data_source == "OpenAPI 연동 (Auto)" and api_df is not None:
         with st.spinner("🌐 API 데이터 매칭중..."):
@@ -1014,171 +958,244 @@ if raw_df is not None:
             st.session_state.show_manual_landing = False
 
     if st.session_state.user_role is None:
-        st.markdown(
-            """
+        st.markdown("""
             <style>
                 [data-testid="stSidebar"] {display: none;}
-                .main .block-container {max_width: 800px; padding-top: 0px;}
+                /* [RESPONSIVE] Web: Ultra-Slim (210px) with App Frame */
+                /* [RESPONSIVE] Web: Standard Desktop (1000px) with App Frame */
+                [data-testid="stAppViewContainer"] .block-container { 
+                    max-width: 1000px; 
+                    padding-top: 1rem; 
+                    padding-bottom: 2rem; 
+                    margin: auto; 
+                    border-left: 1px solid #E9ECEF;
+                    border-right: 1px solid #E9ECEF;
+                    box-shadow: 0 0 40px rgba(0,0,0,0.03);
+                    background: #FFFFFF;
+                    min-height: 100vh;
+                }
+                @media (max-width: 640px) {
+                    [data-testid="stAppViewContainer"] .block-container { 
+                        max-width: 100%; 
+                        padding-left: 0.6rem; 
+                        padding-right: 0.6rem; 
+                        border: none;
+                        box-shadow: none;
+                    }
+                }
+
+                .hero-section {
+                    text-align: center;
+                    padding: 2rem 1rem;
+                    background: linear-gradient(135deg, #228BE6 0%, #174EA6 100%);
+                    border-radius: 12px;
+                    color: white;
+                    margin-bottom: 1.5rem;
+                    box-shadow: 0 4px 15px rgba(23, 78, 166, 0.15);
+                }
+                .hero-title { font-size: 1.8rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.5px; }
+                .hero-subtitle { font-size: 0.95rem; opacity: 0.9; font-weight: 400; line-height: 1.4; }
+                
+                .expert-badge {
+                    display: inline-block;
+                    padding: 1px 6px;
+                    background: rgba(255, 255, 255, 0.25);
+                    border-radius: 50px;
+                    font-size: 0.5rem;
+                    font-weight: 800;
+                    margin-bottom: 0.2rem;
+                    border: 1px solid rgba(255, 255, 255, 0.4);
+                    text-transform: uppercase;
+                }
+                
+                .feature-grid {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 0.3rem;
+                    margin-bottom: 0.4rem;
+                }
+                .feature-card {
+                    background: #F8F9FA;
+                    padding: 0.3rem;
+                    border-radius: 6px;
+                    text-align: center;
+                    border: 1px solid #E9ECEF;
+                }
+                .feature-icon { font-size: 0.9rem; margin-bottom: 0px; }
+                .feature-name { font-weight: 800; color: #212529; margin-bottom: 0px; font-size: 0.7rem; }
+                .feature-desc { display: none; } /* Hide descriptions on micro-view */
+                
+                .login-container {
+                    background: rgba(255, 255, 255, 0.8);
+                    backdrop-filter: blur(8px);
+                    padding: 0.3rem;
+                    border-radius: 10px;
+                    border: 1px solid #E9ECEF;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+                }
+                
+                /* Enhanced Tab Styling */
+                .stTabs [data-baseweb="tab-list"] {
+                    justify-content: center;
+                    gap: 1.0rem;
+                    border-bottom: none; /* Removed bottom border for cleaner look */
+                    margin-bottom: 1.5rem;
+                }
+                .stTabs [data-baseweb="tab"] {
+                    height: 54px;
+                    padding: 0 1.5rem;
+                    font-weight: 800;
+                    font-size: 1.3rem;
+                    color: #495057;
+                    background-color: #F8F9FA;
+                    border-radius: 12px;
+                    transition: all 0.2s ease;
+                }
+                .stTabs [aria-selected="true"] {
+                    color: #228BE6 !important;
+                    background-color: #E7F5FF !important;
+                    border: 1px solid #D0EBFF;
+                }
             </style>
-            """, 
-            unsafe_allow_html=True
-        )
-        
-        _, main_col, _ = st.columns([1, 2, 1])
-        
-             
-        
-        with main_col:
-            st.markdown("<h1 style='text-align: center; margin-top: -30px; margin-bottom: 5px;'>영업기회 비서</h1>", unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
             
-            # [FEATURE] System Notice
-            try:
-                sys_config_notice = load_system_config()
-                if sys_config_notice.get("show_notice") and sys_config_notice.get("notice_content"):
-                     # Determine type based on title or default to info
-                     notice_type = "info"
-                     n_title = sys_config_notice.get("notice_title", "")
-                     if "점검" in n_title or "긴급" in n_title:
-                         notice_type = "warning"
-                     
-                     if n_title:
-                         st.markdown(f"""
-                         <div style="padding: 10px; border-radius: 5px; background-color: {'#fff3cd' if notice_type=='warning' else '#cff4fc'}; border: 1px solid {'#ffecb5' if notice_type=='warning' else '#b6effb'}; margin-bottom: 15px;">
-                            <strong style="color: {'#664d03' if notice_type=='warning' else '#055160'};">📢 {n_title}</strong><br>
-                            <span style="font-size: 0.9em; color: {'#664d03' if notice_type=='warning' else '#055160'};">{sys_config_notice['notice_content']}</span>
-                         </div>
-                         """, unsafe_allow_html=True)
-                     else:
-                         if notice_type == "warning":
-                             st.warning(f"📢 {sys_config_notice['notice_content']}")
-                         else:
-                             st.info(f"📢 {sys_config_notice['notice_content']}")
-            except Exception as e:
-                print(f"Notice Error: {e}")
+        # Hero Section
+        st.markdown(f"""
+            <div class="hero-section">
+                <div class="expert-badge">PREMIUM AI EXPERT SYSTEM</div>
+                <div class="hero-title">영업기회 비서</div>
+                <div class="hero-subtitle">데이터 분석과 인공지능이 제안하는 과학적인 영업 파트너</div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # Expert Feature Highlights
+        st.markdown("""
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🌡️</div>
+                    <div class="feature-name">AI 기회 분석</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <div class="feature-name">상권 밀집도</div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+            
+        # Login Section Title
+        st.markdown("<h3 style='text-align: center; margin-bottom: 1.5rem; font-weight: 700; font-size: 1.5rem;'>🔑 시스템 로그인</h3>", unsafe_allow_html=True)
+        
+        # [FEATURE] System Notice (Centered)
+        try:
+            sys_config_notice = load_system_config()
+            if sys_config_notice.get("show_notice") and sys_config_notice.get("notice_content"):
+                with st.container():
+                     st.info(f"📢 **{sys_config_notice.get('notice_title', '공지사항')}**: {sys_config_notice['notice_content']}")
+        except: pass
 
-            with st.expander("ℹ️ 서비스 소개 (클릭)", expanded=False):
-                st.markdown("<p style='text-align: center; color: #666; margin-bottom: 20px;'>행정안전부 공공DATA 기반 고객 및 시장의 변화 신호(신규,폐업 징후)를 조기에 감지하여<br>영업기회 발굴</p>", unsafe_allow_html=True)
-            
-            # [FEATURE] Manual Button
-            c_man1, c_man2, c_man3 = st.columns([1, 2, 1])
-            with c_man2:
-                 if st.button("📘 이용 가이드 (설명서 Full Screen) 보기", use_container_width=True):
-                     st.switch_page("pages/99_사용_가이드.py")
-
-            st.markdown("<div style='margin-bottom: 30px;'></div>", unsafe_allow_html=True)
-            
-            tab_mgr, tab_br, tab_adm = st.tabs(["👤 담당자(Manager)", "🏢 지사(Branch)", "👮 관리자(Admin)"])
-            
-            with tab_mgr:
-                st.info("본인의 영업구역/담당 데이터만 조회합니다.")
-                
-                # Helper for Manager Selection
-                # 1. Filter Branch First (Optional)
-                sel_br_for_mgr = st.selectbox("소속 지사 (필터용)", ["전체"] + global_branch_opts)
-                
-                if raw_df is not None:
-                    # [FIX] Use authoritative manager list from Excel if available
-                    if 'mgr_info_list' in locals() and mgr_info_list:
-                        mgr_candidates = pd.DataFrame(mgr_info_list)
+        # Centered Login Tabs with better layout
+        tab_mgr, tab_br, tab_adm = st.tabs(["👤 담당자", "🏢 지사", "👮 관리자"])
+        
+        with tab_mgr:
+            with st.container(border=True):
+                # Centered Form Layout
+                c_main = st.columns([1, 2, 1])
+                with c_main[1]:
+                    sel_br_for_mgr = st.selectbox("소속 지사 선택", ["전체"] + global_branch_opts, key="login_br_sel")
+                    
+                    if raw_df is not None:
+                        mgr_candidates = pd.DataFrame(mgr_info_list) if 'mgr_info_list' in locals() and mgr_info_list else raw_df.copy()
+                        if sel_br_for_mgr != "전체":
+                            mgr_candidates = mgr_candidates[mgr_candidates['관리지사'] == sel_br_for_mgr]
+                        
+                        if '영업구역 수정' in mgr_candidates.columns:
+                            mgr_candidates['display'] = mgr_candidates.apply(lambda x: f"{mask_name(x['SP담당'])} ({x['영업구역 수정']})" if pd.notna(x['영업구역 수정']) and x['영업구역 수정'] else mask_name(x['SP담당']), axis=1)
+                        else:
+                            mgr_candidates['display'] = mgr_candidates['SP담당'].apply(mask_name)
+                        
+                        display_to_real_map = dict(zip(mgr_candidates['display'], mgr_candidates['SP담당']))
+                        mgr_list = sorted(mgr_candidates['display'].unique().tolist())
                     else:
-                        mgr_candidates = raw_df.copy()
+                        mgr_list = []
+                        display_to_real_map = {}
                     
-                    if sel_br_for_mgr != "전체":
-                        mgr_candidates = mgr_candidates[mgr_candidates['관리지사'] == sel_br_for_mgr]
-                    
-                    # Generate Logic: Name + Code
-                    if '영업구역 수정' in mgr_candidates.columns:
-                        mgr_candidates['display'] = mgr_candidates.apply(lambda x: f"{mask_name(x['SP담당'])} ({x['영업구역 수정']})" if pd.notna(x['영업구역 수정']) and x['영업구역 수정'] else mask_name(x['SP담당']), axis=1)
-                    else:
-                        mgr_candidates['display'] = mgr_candidates['SP담당'].apply(mask_name)
-                    
-                    # Create mapping for real name retrieval
-                    display_to_real_map = dict(zip(mgr_candidates['display'], mgr_candidates['SP담당']))
-                        
-                    mgr_list = sorted(mgr_candidates['display'].unique().tolist())
-                else:
-                    st.warning("데이터가 로드되지 않아 담당자 목록을 불러올 수 없습니다.")
-                    mgr_list = []
-                    display_to_real_map = {}
-                
-                with st.form("login_manager"):
-                    s_manager_display = st.selectbox("담당자 선택", mgr_list)
-                    manager_pw = st.text_input("담당자 패스워드", type="password", help="예: kim1234")
-                    if st.form_submit_button("담당자 접속", type="primary", use_container_width=True):
-                        # Get real name
-                        p_name = display_to_real_map.get(s_manager_display)
-                        
-                        # Parse Code if present in display string for context
-                        if s_manager_display and "(" in s_manager_display and ")" in s_manager_display:
-                            p_code = s_manager_display.split("(")[1].replace(")", "").strip()
-                        else:
-                            p_code = None
-                        
-                        if not p_name:
-                            st.error("담당자 정보를 찾을 수 없습니다.")
-                        else:
-                            # Validate password using REAL name
-                            expected_pw = get_manager_password(p_name)
-                            if manager_pw == expected_pw:
-                                st.session_state.user_role = 'manager'
-                                st.session_state.user_manager_name = p_name
-                                st.session_state.user_manager_code = p_code
-                                
-                                # Pre-set filters
-                                # Find branch for this manager to set context if possible
-                                user_br_find = raw_df[raw_df['SP담당'] == p_name]['관리지사'].mode()
-                                if not user_br_find.empty:
-                                    st.session_state.user_branch = user_br_find[0]
-                                    st.session_state.sb_branch = user_br_find[0]
-                                    
-                                st.session_state.sb_manager = p_name # This usually takes Name in main logic
-                                
-                                # Log access
-                                activity_logger.log_access('manager', p_name, 'login')
-                                usage_logger.log_usage('manager', p_name, st.session_state.get('user_branch', ''), 'login', {'manager_code': p_code})
-                                st.rerun()
-                            else:
-                                st.error("패스워드가 올바르지 않습니다.")
-
-            with tab_br:
-                st.info("특정 지사의 데이터만 조회합니다.")
-                with st.form("login_branch"):
-                    s_branch = st.selectbox("지사 선택", global_branch_opts)
-                    branch_pw = st.text_input("지사 패스워드", type="password", help="예: central123")
-                    if st.form_submit_button("지사 접속", type="primary", use_container_width=True):
-                        # Validate password
-                        expected_pw = BRANCH_PASSWORDS.get(s_branch, "")
-                        if branch_pw == expected_pw:
-                            st.session_state.user_role = 'branch'
-                            st.session_state.user_branch = s_branch
-                            st.session_state.sb_branch = s_branch # Pre-set filter
-                            # Log access
-                            activity_logger.log_access('branch', s_branch, 'login')
-                            usage_logger.log_usage('branch', s_branch, s_branch, 'login')
-                            st.rerun()
-                        else:
-                            st.error("패스워드가 올바르지 않습니다.")
+                    with st.form("login_manager_v3"):
+                        s_manager_display = st.selectbox("담당자 성함", mgr_list, key="mgr_login_sel")
+                        manager_pw = st.text_input("접속 패스워드", type="password", key="mgr_login_pw")
+                        if st.form_submit_button("담당자 시스템 접속 🚀", type="primary", use_container_width=True):
+                            p_name = display_to_real_map.get(s_manager_display)
                             
-            with tab_adm:
-                st.info("관리자 권한으로 접속합니다. (모든 데이터 열람 가능)")
-                with st.form("login_admin"):
-                    pw = st.text_input("관리자 암호", type="password")
-                    if st.form_submit_button("관리자 로그인", type="primary", use_container_width=True):
-                        if pw == "admin1234!!":
-                            st.session_state.user_role = 'admin'
-                            st.session_state.admin_auth = True
-                            # Log access
-                            activity_logger.log_access('admin', '관리자', 'login')
-                            usage_logger.log_usage('admin', '관리자', '전체', 'login')
-                            st.rerun()
-                        else:
-                            st.error("암호가 올바르지 않습니다.")
+                            # Parse Code if present in display string for context
+                            p_code = None
+                            if s_manager_display and "(" in s_manager_display and ")" in s_manager_display:
+                                p_code = s_manager_display.split("(")[1].replace(")", "").strip()
+                                
+                            if p_name:
+                                if manager_pw == get_manager_password(p_name):
+                                    st.session_state.user_role = 'manager'
+                                    st.session_state.user_manager_name = p_name
+                                    st.session_state.user_manager_code = p_code
+                                    
+                                    # Pre-set filters for better UX
+                                    user_br_find = raw_df[raw_df['SP담당'] == p_name]['관리지사'].mode()
+                                    if not user_br_find.empty:
+                                        st.session_state.user_branch = user_br_find[0]
+                                        st.session_state.sb_branch = user_br_find[0]
+                                    st.session_state.sb_manager = p_name
+                                    
+                                    activity_logger.log_access('manager', p_name, 'login')
+                                    usage_logger.log_usage('manager', p_name, st.session_state.get('user_branch', ''), 'login', {'manager_code': p_code})
+                                    st.rerun()
+                                else: st.error("패스워드가 올바르지 않습니다.")
+                            else: st.error("담당자 정보를 찾을 수 없습니다.")
 
-        # ... (Rest of logic) ...
-                    
-        st.markdown("---")
-        st.caption("ⓒ 2026 Field Sales Assistant System")
+        with tab_br:
+            with st.container(border=True):
+                # Centered Form Layout
+                c_main = st.columns([1, 2, 1])
+                with c_main[1]:
+                    st.info("지사 산하 모든 담당자의 활동과 실적을 모니터링합니다.")
+                    with st.form("login_branch_v3"):
+                        s_branch = st.selectbox("지사 선택", global_branch_opts, key="br_login_sel")
+                        branch_pw = st.text_input("지사 공용 패스워드", type="password", key="br_login_pw")
+                        if st.form_submit_button("지사 통합 시스템 접속 🚀", type="primary", use_container_width=True):
+                            if branch_pw == BRANCH_PASSWORDS.get(s_branch, ""):
+                                st.session_state.user_role = 'branch'
+                                st.session_state.user_branch = s_branch
+                                st.session_state.sb_branch = s_branch # Pre-set filter
+                                activity_logger.log_access('branch', s_branch, 'login')
+                                usage_logger.log_usage('branch', s_branch, s_branch, 'login')
+                                st.rerun()
+                            else: st.error("패스워드가 올바르지 않습니다.")
+
+        with tab_adm:
+            with st.container(border=True):
+                # Centered Form Layout
+                c_main = st.columns([1, 2, 1])
+                with c_main[1]:
+                    st.warning("시스템 설정 및 전사 통합 데이터 관리를 위한 전용 채널입니다.")
+                    with st.form("login_admin_v3"):
+                        pw = st.text_input("최고 관리자 암호", type="password", key="adm_login_pw")
+                        if st.form_submit_button("통합 관리 시스템 접속 👑", type="primary", use_container_width=True):
+                            if pw == "admin1234!!":
+                                st.session_state.user_role = 'admin'
+                                st.session_state.admin_auth = True
+                                activity_logger.log_access('admin', '관리자', 'login')
+                                usage_logger.log_usage('admin', '관리자', '전체', 'login')
+                                st.rerun()
+                            else: st.error("암호가 올바르지 않습니다.")
+
+        # Footer
+        st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: center; color: #ADB5BD; font-size: 0.85rem;'>ⓒ 2026 Field Sales Assistant System • Premium AI Expert Edition</div>", unsafe_allow_html=True)
+        
+        # Minimalist Guide Center Button
+        c1, c2, c3 = st.columns([2, 1, 2])
+        with c2:
+            if st.button("📘 이용 가이드 보기", key="guide_btn_landing", use_container_width=True):
+                st.switch_page("pages/99_사용_가이드.py")
         st.stop() # Stop here if no role
+
 
 
     # -------------------------------------------------------------
@@ -1237,10 +1254,24 @@ if raw_df is not None:
             st.sidebar.caption(f"담당: {st.session_state.user_manager_name}")
 
         if st.sidebar.button("로그아웃 (처음으로)", key="btn_logout", type="primary"):
-            for key in ['user_role', 'user_branch', 'user_manager_name', 'user_manager_code', 'admin_auth']:
+            for key in ['user_role', 'user_branch', 'user_manager_name', 'user_manager_code', 'admin_auth', 'data_load_stats']:
                 if key in st.session_state:
                     del st.session_state[key]
             st.rerun()
+
+        # [NEW] Hidden Data Load Stats (?) Trigger
+        if 'data_load_stats' in st.session_state:
+            st.sidebar.markdown("---")
+            if st.sidebar.button("❓ 데이터 무결성 정보", help="클릭하여 서비스 데이터 로드 현황을 확인합니다."):
+                stats = st.session_state['data_load_stats']
+                diff = stats.get('before',0) - stats.get('after',0)
+                st.toast(
+                    f"📊 **데이터 로드 완료**\n\n"
+                    f"- 통합: {stats.get('before',0):,}건\n"
+                    f"- 최종: {stats.get('after',0):,}건\n"
+                    f"- 제외: {diff:,}건",
+                    icon="🔍"
+                )
 
         # [SECURITY] Session-based Admin Auth
         if 'admin_auth' not in st.session_state:
@@ -1424,7 +1455,13 @@ if raw_df is not None:
                             if stats['actions_by_type']:
                                 action_df = pd.DataFrame(list(stats['actions_by_type'].items()), columns=['활동유형', '횟수'])
                                 action_df = action_df.sort_values('횟수', ascending=False)
-                                st.bar_chart(action_df.set_index('활동유형'))
+                                chart = alt.Chart(action_df).mark_bar().encode(
+                                    x=alt.X('활동유형:N', sort='-y'),
+                                    y='횟수:Q',
+                                    tooltip=['활동유형', '횟수']
+                                ).properties(height=300)
+                                text = chart.mark_text(dy=-5).encode(text='횟수:Q')
+                                st.altair_chart(chart + text, use_container_width=True)
                             else:
                                 st.info("데이터가 없습니다.")
                         
@@ -1433,7 +1470,13 @@ if raw_df is not None:
                             if stats['actions_by_branch']:
                                 branch_df = pd.DataFrame(list(stats['actions_by_branch'].items()), columns=['지사', '횟수'])
                                 branch_df = branch_df.sort_values('횟수', ascending=False)
-                                st.bar_chart(branch_df.set_index('지사'))
+                                chart = alt.Chart(branch_df).mark_bar().encode(
+                                    x=alt.X('지사:N', sort='-y'),
+                                    y='횟수:Q',
+                                    tooltip=['지사', '횟수']
+                                ).properties(height=300)
+                                text = chart.mark_text(dy=-5).encode(text='횟수:Q')
+                                st.altair_chart(chart + text, use_container_width=True)
                             else:
                                 st.info("데이터가 없습니다.")
                         
@@ -1512,7 +1555,13 @@ if raw_df is not None:
                             if int_stats['interests_by_user']:
                                 user_int_df = pd.DataFrame(list(int_stats['interests_by_user'].items()), columns=['담당자', '횟수'])
                                 user_int_df = user_int_df.sort_values('횟수', ascending=False)
-                                st.bar_chart(user_int_df.set_index('담당자'))
+                                chart = alt.Chart(user_int_df).mark_bar().encode(
+                                    x=alt.X('담당자:N', sort='-y'),
+                                    y='횟수:Q',
+                                    tooltip=['담당자', '횟수']
+                                ).properties(height=300)
+                                text = chart.mark_text(dy=-5).encode(text='횟수:Q')
+                                st.altair_chart(chart + text, use_container_width=True)
                             else:
                                 st.info("데이터가 없습니다.")
                         
@@ -1521,7 +1570,13 @@ if raw_df is not None:
                             if int_stats['interests_by_branch']:
                                 branch_int_df = pd.DataFrame(list(int_stats['interests_by_branch'].items()), columns=['지사', '횟수'])
                                 branch_int_df = branch_int_df.sort_values('횟수', ascending=False)
-                                st.bar_chart(branch_int_df.set_index('지사'))
+                                chart = alt.Chart(branch_int_df).mark_bar().encode(
+                                    x=alt.X('지사:N', sort='-y'),
+                                    y='횟수:Q',
+                                    tooltip=['지사', '횟수']
+                                ).properties(height=300)
+                                text = chart.mark_text(dy=-5).encode(text='횟수:Q')
+                                st.altair_chart(chart + text, use_container_width=True)
                             else:
                                 st.info("데이터가 없습니다.")
                         
@@ -1618,7 +1673,13 @@ if raw_df is not None:
                             if nav_stats['navigations_by_user']:
                                 user_nav_df = pd.DataFrame(list(nav_stats['navigations_by_user'].items()), columns=['담당자', '횟수'])
                                 user_nav_df = user_nav_df.sort_values('횟수', ascending=False)
-                                st.bar_chart(user_nav_df.set_index('담당자'))
+                                chart = alt.Chart(user_nav_df).mark_bar().encode(
+                                    x=alt.X('담당자:N', sort='-y'),
+                                    y='횟수:Q',
+                                    tooltip=['담당자', '횟수']
+                                ).properties(height=300)
+                                text = chart.mark_text(dy=-5).encode(text='횟수:Q')
+                                st.altair_chart(chart + text, use_container_width=True)
                             else:
                                 st.info("데이터가 없습니다.")
                         
@@ -1627,7 +1688,13 @@ if raw_df is not None:
                             if nav_stats['navigations_by_branch']:
                                 branch_nav_df = pd.DataFrame(list(nav_stats['navigations_by_branch'].items()), columns=['지사', '횟수'])
                                 branch_nav_df = branch_nav_df.sort_values('횟수', ascending=False)
-                                st.bar_chart(branch_nav_df.set_index('지사'))
+                                chart = alt.Chart(branch_nav_df).mark_bar().encode(
+                                    x=alt.X('지사:N', sort='-y'),
+                                    y='횟수:Q',
+                                    tooltip=['지사', '횟수']
+                                ).properties(height=300)
+                                text = chart.mark_text(dy=-5).encode(text='횟수:Q')
+                                st.altair_chart(chart + text, use_container_width=True)
                             else:
                                 st.info("데이터가 없습니다.")
                         
@@ -2633,84 +2700,361 @@ if raw_df is not None:
     # [LAYOUT] Tab Structure
     # Ensure tabs are available for all roles
     if st.session_state.user_role == 'admin':
-        tab1, tab_stats, tab2, tab3, tab_voc, tab_history = st.tabs(["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기", "📝 방문 이력"])
+        tab1, tab_stats, tab2, tab3, tab_voc, tab_history, tab_monitor = st.tabs(["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기", "📝 방문 이력", "👁️ 모니터링"])
     else:
         tab1, tab_stats, tab2, tab3, tab_voc, tab_history = st.tabs(["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기", "📝 방문 이력"])
     
     # [TAB] Visit History
     with tab_history:
-        st.subheader("📝 최근 방문 및 리포트 이력")
+        st.subheader("📝 방문 이력 관리")
         
-        # Filter for current user unless admin
-        req_user_name = None
-        req_user_branch = None
-        
-        if st.session_state.user_role == 'branch':
-             req_user_branch = st.session_state.get('user_branch')
+        # [SECURITY] Role-based access control
+        if st.session_state.user_role == 'admin':
+            # Admin sees all reports
+            all_reports = activity_logger.get_visit_reports(limit=200)
+            st.caption("🔓 관리자 권한: 전체 활동 이력 조회 (방문, 상담중, 관심 등 모든 기록)")
         elif st.session_state.user_role == 'manager':
-             req_user_name = st.session_state.get('user_manager_name')
-        # Admin sees all (req_user_name=None, req_user_branch=None)
-
-        # [FEATURE] Visibility Control
-        show_all_history = st.checkbox("👥 전체 담당자 이력 보기 (다른 지사/담당자 포함)", value=False, help="체크하면 본인 이외의 다른 담당자가 작성한 방문 기록도 모두 볼 수 있습니다.")
-
-        # Filter logic
-        if show_all_history:
-             reports = activity_logger.get_visit_reports(limit=100) # No user filter
+            # Manager sees only their own reports
+            user_name = st.session_state.get('user_manager_name')
+            all_reports = activity_logger.get_visit_reports(user_name=user_name, limit=200)
+            st.caption(f"🔒 담당자 '{user_name}' 님의 활동 이력 (방문, 상담, 관심 등)")
+        elif st.session_state.user_role == 'branch':
+            # Branch user sees only their branch reports
+            user_branch = st.session_state.get('user_branch')
+            all_reports = activity_logger.get_visit_reports(user_branch=user_branch, limit=200)
+            st.caption(f"🔒 '{user_branch}' 지사의 활동 이력 (방문, 상담, 관심 등)")
         else:
-             reports = activity_logger.get_visit_reports(user_name=req_user_name, user_branch=req_user_branch, limit=50)
+            # Unknown role - no access
+            all_reports = []
+            st.warning("⚠️ 권한이 없습니다.")
         
-        # [DEBUG] Force Inject Dummy Record logic removed (Cleanup) or kept if needed.
-        # Let's keep it minimal or remove debug as verified.
-        
-        if reports:
-            for rep in reports:
-                # [FEATURE] Edit / Add Photo UI
-                # Need unique key for each expander state? Streamlit reruns on interaction.
+        if all_reports:
+            # [NEW] Filter Section
+            st.markdown("### 🔍 필터")
+            col_f1, col_f2, col_f3 = st.columns(3)
+            
+            with col_f1:
+                branches = ["전체"] + sorted(list(set([r.get('user_branch', '') for r in all_reports if r.get('user_branch')])))
+                sel_branch = st.selectbox("🏢 지사", branches, key="visit_branch_filter")
+            
+            with col_f2:
+                managers = ["전체"] + sorted(list(set([r.get('user_name', '') for r in all_reports if r.get('user_name')])))
+                sel_manager = st.selectbox("👤 담당자", managers, key="visit_manager_filter")
+            
+            with col_f3:
+                period_opts = ["전체", "최근 7일", "최근 30일", "최근 90일"]
+                sel_period = st.selectbox("📅 기간", period_opts, key="visit_period_filter")
+            
+            # Apply filters
+            filtered_reports = all_reports
+            
+            # Branch filter
+            if sel_branch != "전체":
+                filtered_reports = [r for r in filtered_reports if r.get('user_branch') == sel_branch]
+            
+            # Manager filter
+            if sel_manager != "전체":
+                filtered_reports = [r for r in filtered_reports if r.get('user_name') == sel_manager]
+            
+            # Period filter
+            if sel_period != "전체":
+                from datetime import datetime, timedelta
+                days_map = {"최근 7일": 7, "최근 30일": 30, "최근 90일": 90}
+                cutoff_days = days_map[sel_period]
+                cutoff_date = datetime.now() - timedelta(days=cutoff_days)
                 
-                with st.expander(f"📍 {rep.get('record_key')} - {rep.get('timestamp')} ({rep.get('user_name')})"):
-                    st.write(rep.get("content"))
+                filtered_reports = [
+                    r for r in filtered_reports 
+                    if datetime.strptime(r.get('timestamp', '2020-01-01 00:00:00'), "%Y-%m-%d %H:%M:%S") >= cutoff_date
+                ]
+            
+            st.markdown(f"**📋 조회 결과: {len(filtered_reports)}건**")
+            st.divider()
+            
+            # [IMPROVED] Card-style layout
+            if filtered_reports:
+                for idx, rep in enumerate(filtered_reports):
+                    # Card header with status badge
+                    status_badge = rep.get('resulting_status', '')
+                    header = f"**{idx+1}.** 🏢 {rep.get('user_branch', 'N/A')} | 👤 {rep.get('user_name')} | 📅 {rep.get('timestamp')} | 상태: {status_badge}"
                     
-                    # Media Display
-                    if rep.get("audio_path"):
-                        audio_p = activity_logger.get_media_path(rep.get("audio_path"))
-                        if audio_p and os.path.exists(audio_p):
-                            st.audio(audio_p)
-                            
-                    if rep.get("photo_path"):
-                         photo_p = activity_logger.get_media_path(rep.get("photo_path"))
-                         if photo_p and os.path.exists(photo_p):
-                             try:
-                                 st.image(photo_p, caption="현장 사진", use_container_width=True)
-                             except Exception as e:
-                                 st.warning(f"⚠️ 이미지를 불러올 수 없습니다: {rep.get('photo_path')}")
-                    
-                    # [NEW] Edit Button
-                    # Only show for own reports or admin? Let's allow all for now as requested "add photo".
-                    if st.button("📸 사진/내용 추가", key=f"btn_edit_{rep['id']}"):
-                        st.session_state[f"edit_mode_{rep['id']}"] = True
-                    
-                    if st.session_state.get(f"edit_mode_{rep['id']}", False):
-                        with st.form(key=f"form_edit_{rep['id']}"):
-                            st.caption("기존 내용을 수정하거나 사진을 추가하세요.")
-                            new_text = st.text_area("내용 수정/추가", value=rep.get("content", ""))
-                            new_photo = st.file_uploader("사진 추가", type=['jpg', 'png', 'jpeg'], key=f"uploader_{rep['id']}")
-                            
-                            c1, c2 = st.columns(2)
-                            if c1.form_submit_button("💾 저장"):
-                                succ, msg = activity_logger.update_visit_report(rep['id'], new_text, new_photo)
-                                if succ:
-                                    st.success("수정되었습니다!")
+                    with st.expander(header, expanded=False):
+                        # Content display
+                        st.markdown("**📝 방문 내용:**")
+                        st.info(rep.get('content', ''))
+                        
+                        # Media display
+                        media_col1, media_col2 = st.columns(2)
+                        
+                        with media_col1:
+                            if rep.get("audio_path"):
+                                audio_p = activity_logger.get_media_path(rep.get("audio_path"))
+                                if audio_p and os.path.exists(audio_p):
+                                    st.markdown("**🎤 음성 녹음:**")
+                                    st.audio(audio_p)
+                        
+                        with media_col2:
+                            if rep.get("photo_path"):
+                                photo_p = activity_logger.get_media_path(rep.get("photo_path"))
+                                if photo_p and os.path.exists(photo_p):
+                                    try:
+                                        st.markdown("**📸 현장 사진:**")
+                                        st.image(photo_p, use_container_width=True)
+                                    except:
+                                        st.caption(f"⚠️ 이미지 로드 실패: {rep.get('photo_path')}")
+                        
+                        st.divider()
+                        
+                        # [NEW] Action buttons in columns
+                        btn_col1, btn_col2, btn_col3 = st.columns(3)
+                        
+                        with btn_col1:
+                            if st.button("✏️ 내용 수정", key=f"edit_content_{rep['id']}", use_container_width=True):
+                                st.session_state[f"edit_mode_{rep['id']}"] = True
+                        
+                        with btn_col2:
+                            if st.button("📸 사진 추가", key=f"add_photo_{rep['id']}", use_container_width=True):
+                                st.session_state[f"photo_mode_{rep['id']}"] = True
+                        
+                        with btn_col3:
+                            if st.button("🔄 상태 변경", key=f"status_change_{rep['id']}", use_container_width=True):
+                                st.session_state[f"status_mode_{rep['id']}"] = True
+                        
+                        # [FEATURE] Edit mode - Content
+                        if st.session_state.get(f"edit_mode_{rep['id']}", False):
+                            with st.form(key=f"form_edit_{rep['id']}"):
+                                st.caption("📝 방문 내용을 수정하세요")
+                                new_text = st.text_area("내용", value=rep.get("content", ""), height=150)
+                                
+                                col_save, col_cancel = st.columns(2)
+                                if col_save.form_submit_button("💾 저장", use_container_width=True):
+                                    succ, msg = activity_logger.update_visit_report(rep['id'], new_text, None)
+                                    if succ:
+                                        st.success("✅ 수정되었습니다!")
+                                        st.session_state[f"edit_mode_{rep['id']}"] = False
+                                        st.rerun()
+                                    else:
+                                        st.error(f"❌ 오류: {msg}")
+                                
+                                if col_cancel.form_submit_button("취소", use_container_width=True):
                                     st.session_state[f"edit_mode_{rep['id']}"] = False
                                     st.rerun()
-                                else:
-                                    st.error(f"오류: {msg}")
+                        
+                        # [FEATURE] Photo mode
+                        if st.session_state.get(f"photo_mode_{rep['id']}", False):
+                            with st.form(key=f"form_photo_{rep['id']}"):
+                                st.caption("📸 사진을 추가하세요")
+                                new_photo = st.file_uploader("사진 선택", type=['jpg', 'png', 'jpeg'], key=f"uploader_{rep['id']}")
+                                
+                                col_save, col_cancel = st.columns(2)
+                                if col_save.form_submit_button("💾 저장", use_container_width=True):
+                                    if new_photo:
+                                        succ, msg = activity_logger.update_visit_report(rep['id'], None, new_photo)
+                                        if succ:
+                                            st.success("✅ 사진이 추가되었습니다!")
+                                            st.session_state[f"photo_mode_{rep['id']}"] = False
+                                            st.rerun()
+                                        else:
+                                            st.error(f"❌ 오류: {msg}")
+                                    else:
+                                        st.warning("사진을 선택해주세요")
+                                
+                                if col_cancel.form_submit_button("취소", use_container_width=True):
+                                    st.session_state[f"photo_mode_{rep['id']}"] = False
+                                    st.rerun()
+                        
+                        # [FEATURE] Status change mode
+                        if st.session_state.get(f"status_mode_{rep['id']}", False):
+                            with st.form(key=f"form_status_{rep['id']}"):
+                                st.caption("🔄 활동 상태를 변경하세요")
+                                status_opts = list(activity_logger.ACTIVITY_STATUS_MAP.values())
+                                current_status = rep.get('resulting_status', '')
+                                current_idx = status_opts.index(current_status) if current_status in status_opts else 0
+                                
+                                new_status = st.selectbox("새 상태", status_opts, index=current_idx)
+                                status_note = st.text_area("변경 사유 (선택)", placeholder="상태 변경 사유를 입력하세요")
+                                
+                                col_save, col_cancel = st.columns(2)
+                                if col_save.form_submit_button("💾 저장", use_container_width=True):
+                                    # Update activity status
+                                    record_key = rep.get('record_key')
+                                    current_user = st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or '관리자'
                                     
-                            if c2.form_submit_button("취소"):
-                                st.session_state[f"edit_mode_{rep['id']}"] = False
-                                st.rerun()
+                                    activity_logger.save_activity_status(
+                                        record_key=record_key,
+                                        status=new_status,
+                                        notes=status_note or rep.get('content', ''),
+                                        user_name=current_user
+                                    )
+                                    
+                                    st.success(f"✅ 상태가 '{new_status}'로 변경되었습니다!")
+                                    st.session_state[f"status_mode_{rep['id']}"] = False
+                                    st.cache_data.clear()
+                                    st.rerun()
+                                
+                                if col_cancel.form_submit_button("취소", use_container_width=True):
+                                    st.session_state[f"status_mode_{rep['id']}"] = False
+                                    st.rerun()
+            else:
+                st.info("선택한 조건에 맞는 방문 기록이 없습니다.")
         else:
             st.info("작성된 방문 리포트가 없습니다.")
+    
+    # [TAB] Admin Monitoring Dashboard (Only for Admin)
+    if st.session_state.user_role == 'admin':
+        with tab_monitor:
+            st.subheader("👁️ 시스템 활동 모니터링")
+            
+            # Period selection
+            col_p1, col_p2 = st.columns([3, 1])
+            with col_p1:
+                period_days = st.selectbox(
+                    "📅 조회 기간",
+                    [7, 30, 90],
+                    format_func=lambda x: f"최근 {x}일",
+                    key="monitor_period"
+                )
+            with col_p2:
+                if st.button("🔄 새로고침", use_container_width=True):
+                    st.rerun()
+            
+            st.divider()
+            
+            # Get usage statistics
+            usage_stats = usage_logger.get_usage_stats(days=period_days)
+            
+            # Top metrics
+            st.markdown("### 📊 전체 활동 요약")
+            metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+            
+            with metric_col1:
+                st.metric("총 활동 수", f"{usage_stats['total_actions']:,}건")
+            with metric_col2:
+                st.metric("활성 사용자", f"{usage_stats['unique_users']}명")
+            with metric_col3:
+                st.metric("활성 지사", f"{usage_stats['unique_branches']}개")
+            with metric_col4:
+                visit_reports = activity_logger.get_visit_reports(limit=1000)
+                st.metric("방문 리포트", f"{len(visit_reports)}건")
+            
+            st.divider()
+            
+            # User activity table
+            st.markdown("### 👥 사용자별 활동")
+            
+            if usage_stats['top_users']:
+                # Create dataframe from top_users
+                top_users_df = pd.DataFrame(usage_stats['top_users'])
+                top_users_df.columns = ['사용자명', '지사', '역할', '활동수']
+                top_users_df = top_users_df.sort_values('활동수', ascending=False)
+                
+                # Display as formatted table
+                st.dataframe(
+                    top_users_df,
+                    use_container_width=True,
+                    hide_index=True
+                )
+                
+                # Bar chart
+                fig_users = alt.Chart(top_users_df.head(10)).mark_bar().encode(
+                    x=alt.X('활동수:Q', title='활동 횟수'),
+                    y=alt.Y('사용자명:N', sort='-x', title='사용자'),
+                    color=alt.Color('지사:N', legend=alt.Legend(title="지사")),
+                    tooltip=['사용자명', '지사', '역할', '활동수']
+                ).properties(height=400)
+                
+                st.altair_chart(fig_users, use_container_width=True)
+            else:
+                st.info("활동 데이터가 없습니다.")
+            
+            st.divider()
+            
+            # Branch activity
+            col_b1, col_b2 = st.columns(2)
+            
+            with col_b1:
+                st.markdown("### 🏢 지사별 활동")
+                if usage_stats['actions_by_branch']:
+                    branch_df = pd.DataFrame(
+                        list(usage_stats['actions_by_branch'].items()),
+                        columns=['지사', '활동수']
+                    ).sort_values('활동수', ascending=False)
+                    
+                    st.dataframe(branch_df, use_container_width=True, hide_index=True)
+                else:
+                    st.info("데이터 없음")
+            
+            with col_b2:
+                st.markdown("### 📋 활동 유형별")
+                if usage_stats['actions_by_type']:
+                    action_df = pd.DataFrame(
+                        list(usage_stats['actions_by_type'].items()),
+                        columns=['유형', '횟수']
+                    ).sort_values('횟수', ascending=False)
+                    
+                    st.dataframe(action_df, use_container_width=True, hide_index=True)
+                else:
+                    st.info("데이터 없음")
+            
+            st.divider()
+            
+            # Visit report statistics by user
+            st.markdown("### 📝 방문 리포트 현황")
+            
+            if visit_reports:
+                # Group by user
+                visit_by_user = {}
+                for rep in visit_reports:
+                    u_name = rep.get('user_name', 'Unknown')
+                    u_branch = rep.get('user_branch', '')
+                    
+                    if u_name not in visit_by_user:
+                        visit_by_user[u_name] = {'branch': u_branch, 'count': 0}
+                    visit_by_user[u_name]['count'] += 1
+                
+                # Convert to DataFrame
+                visit_stats_df = pd.DataFrame([
+                    {'사용자명': k, '지사': v['branch'], '방문 리포트 수': v['count']}
+                    for k, v in visit_by_user.items()
+                ]).sort_values('방문 리포트 수', ascending=False)
+                
+                col_v1, col_v2 = st.columns([2, 1])
+                
+                with col_v1:
+                    st.dataframe(visit_stats_df, use_container_width=True, hide_index=True)
+                
+                with col_v2:
+                    # Pie chart
+                    fig_pie = alt.Chart(visit_stats_df.head(10)).mark_arc().encode(
+                        theta='방문 리포트 수:Q',
+                        color='사용자명:N',
+                        tooltip=['사용자명', '지사', '방문 리포트 수']
+                    ).properties(height=300)
+                    
+                    st.altair_chart(fig_pie, use_container_width=True)
+            else:
+                st.info("방문 리포트가 없습니다.")
+            
+            st.divider()
+            
+            # Recent activity timeline
+            st.markdown("### ⏱️ 최근 활동 타임라인")
+            
+            recent_logs = usage_logger.get_usage_logs(days=period_days)
+            
+            if recent_logs:
+                # Show last 30 activities
+                for log in sorted(recent_logs, key=lambda x: x['timestamp'], reverse=True)[:30]:
+                    timestamp = log['timestamp']
+                    user_name = log['user_name']
+                    branch = log['user_branch']
+                    action = log['action']
+                    
+                    st.caption(f"🕐 {timestamp} | 👤 {user_name} ({branch}) - **{action}**")
+            else:
+                st.info("활동 로그가 없습니다.")
+
+
 
     with tab1:
         # Log tab access
@@ -2880,9 +3224,16 @@ if raw_df is not None:
             
             # [FEATURE] Activity Status Filter (Internal)
             # Use Centralized Map for Options
-            act_status_opts = ["전체"] + list(activity_logger.ACTIVITY_STATUS_MAP.values())
+            # [IMPROVED] Multi-select for activity status (better UX)
+            act_status_opts = list(activity_logger.ACTIVITY_STATUS_MAP.values()) + ["⭐ 관심"]
             
-            sel_act_status = st.selectbox("활동상태 (내부)", act_status_opts, key="map_act_status_filter")
+            sel_act_statuses = st.multiselect(
+                "활동상태 필터 (복수 선택 가능)", 
+                act_status_opts, 
+                default=[],
+                key="map_act_status_filter",
+                help="선택한 상태만 지도에 표시됩니다. 비워두면 전체 표시."
+            )
 
             # Final Filtering
             map_df = map_df_base.copy()
@@ -2890,7 +3241,9 @@ if raw_df is not None:
             if sel_map_sales != "전체": map_df = map_df[map_df['SP담당'] == sel_map_sales]
             if sel_map_type != "전체": map_df = map_df[map_df['업태구분명'] == sel_map_type]
             if sel_map_status != "전체": map_df = map_df[map_df['영업상태명'] == sel_map_status]
-            if sel_act_status != "전체": map_df = map_df[map_df['활동진행상태'] == sel_act_status]
+            # Apply activity status filter (multi-select)
+            if sel_act_statuses:
+                map_df = map_df[map_df['활동진행상태'].isin(sel_act_statuses)]
             
             # [OVERHAUL] Pre-calculate record_key for Map
             # This ensures the key sent from Map matches the key used in Grid
@@ -3003,9 +3356,14 @@ if raw_df is not None:
                     tooltip=['date_str', 'status', 'count']
                 ).properties(
                     height=200
-                ).interactive()
+                )
                 
-                st.altair_chart(trend_chart, use_container_width=True)
+                # Add text labels on bars
+                text = trend_chart.mark_text(dy=-5, fontSize=10).encode(
+                    text='count:Q'
+                )
+                
+                st.altair_chart(trend_chart + text, use_container_width=True)
             else:
                 st.info("최근 7일간 변동 데이터가 없습니다.")
                 
@@ -3373,7 +3731,12 @@ if raw_df is not None:
         df_display = df_display.fillna('')
         df_display = df_display.replace(['None', 'nan', 'NaN'], '')
         
-        # Render Editable Grid (Full Width for All Users)
+        # [FIX] Use Categorical Dtype to FORCE Dropdown in Data Editor
+        # This is more robust than column_config.SelectboxColumn alone
+        valid_statuses = sorted(list(set([""] + list(activity_logger.ACTIVITY_STATUS_MAP.values()))))
+        df_display['활동진행상태'] = pd.Categorical(df_display['활동진행상태'], categories=valid_statuses, ordered=True)
+
+        # Render Editable Grid
         st.caption(f"총 {len(df_display):,}건 (수정 가능)")
         
         edited_df = st.data_editor(
@@ -3384,13 +3747,14 @@ if raw_df is not None:
                 "평수": st.column_config.NumberColumn(format="%.1f평"),
                 "활동진행상태": st.column_config.SelectboxColumn(
                     "활동상태",
-                    options=sorted(list(set([""] + list(activity_logger.ACTIVITY_STATUS_MAP.values()) + list(df_display['활동진행상태'].unique())))),
+                    options=sorted(list(set([""] + list(activity_logger.ACTIVITY_STATUS_MAP.values())))),
+                    width="medium",
                     required=False
                 ),
                 "특이사항": st.column_config.TextColumn(
-                    "특이사항",
-                    help="특이사항을 입력하세요",
-                    max_chars=200
+                    "상세내역(상담이력을 활동내역에 더블클릭하여 등록해 주세요)",
+                    help="상담이력을 활동내역에 더블클릭하여 등록해 주세요",
+                    max_chars=500
                 ),
                 "record_key": None,  # Hide this column
                 "상태변경일시": st.column_config.TextColumn("변경일시", disabled=True),
@@ -3404,12 +3768,13 @@ if raw_df is not None:
         col1, col2 = st.columns([1, 4])
         with col1:
             if st.button("💾 변경사항 저장", use_container_width=True):
-                st.toast("DEBUG: Grid Save Clicked", icon="🐛")
+                # [OPTIMIZATION] Changes handled inside loop
                 saved_count = 0
                 debug_log = []
                 
                 for idx, row in edited_df.iterrows():
                     orig_row = df_display.iloc[idx]
+                    
                     if (row['활동진행상태'] != orig_row['활동진행상태'] or 
                         row['특이사항'] != orig_row['특이사항']):
                         
@@ -3476,15 +3841,8 @@ if raw_df is not None:
                         saved_count += 1
                 
                 if saved_count > 0:
-                    st.success(f"✅ {saved_count}건의 변경사항이 저장되었습니다!")
-                    
-                    # [FIX] Force Reload to visible updates
+                    st.success(f"✅ {saved_count}건의 데이터가 성공적으로 저장되었습니다.")
                     st.cache_data.clear()
-                    
-                    with st.expander("🛠️ 저장 상세 로그 (Debug)", expanded=True):
-                        for log in debug_log:
-                            st.write(log)
-                            
                     import time
                     time.sleep(1)
                     st.rerun()
@@ -3492,8 +3850,7 @@ if raw_df is not None:
                     st.info("변경된 항목이 없습니다.")
         
         with col2:
-            csv = df_display.drop(columns=['record_key']).to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
-            st.download_button("📥 CSV 다운로드", csv, "영업기회_처리결과.csv", "text/csv")
+            st.download_button("📥 CSV 다운로드", df_display.to_csv(index=False).encode('utf-8-sig'), "영업기회_처리결과.csv", "text/csv", use_container_width=True)
     
     # [TAB] VOC Request (Admin + Users)
     # [FIX] Allow Admin to see the tab content (as View Mode)

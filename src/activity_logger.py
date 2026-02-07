@@ -325,6 +325,79 @@ def register_visit(record_key, content, audio_file, photo_file, user_info, force
         print(f"CRITICAL ERROR in register_visit: {e}")
         return False, str(e)
 
+def register_visit_batch(batch_list):
+    """
+    BATCH OPERATION: Register multiple visits efficiently.
+    - batch_list: list of dicts {record_key, content, user_info, forced_status}
+    
+    1. Load all files once
+    2. Process updates in memory
+    3. Save files once
+    """
+    if not batch_list:
+        return True, "No changes"
+        
+    try:
+        # 1. Load data
+        reports = load_json_file(VISIT_REPORT_FILE)
+        if not isinstance(reports, list): reports = []
+        
+        statuses = load_json_file(ACTIVITY_STATUS_FILE)
+        
+        timestamp = datetime.now()
+        ts_str = timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        
+        # 2. Process changes
+        for item in batch_list:
+            record_key = item['record_key']
+            content = item['content']
+            user_info = item['user_info']
+            forced_status = item.get('forced_status')
+            
+            # Determine Status
+            new_status = forced_status if forced_status else ACTIVITY_STATUS_MAP["방문"]
+            new_status = normalize_status(new_status)
+            
+            # Create Report Entry
+            visit_entry = {
+                "id": f"rep_{timestamp.timestamp()}_{item.get('record_key', 'unk')[:5]}",
+                "timestamp": ts_str,
+                "record_key": record_key,
+                "content": content,
+                "audio_path": None,
+                "photo_path": None,
+                "user_name": user_info.get("name"),
+                "user_role": user_info.get("role"),
+                "user_branch": user_info.get("branch"),
+                "resulting_status": new_status
+            }
+            reports.append(visit_entry)
+            
+            # Update Status Entry
+            old_status_data = statuses.get(record_key, {})
+            new_status_data = {
+                "활동진행상태": new_status,
+                "특이사항": content,
+                "변경일시": ts_str,
+                "변경자": user_info.get("name")
+            }
+            statuses[record_key] = new_status_data
+            
+            # Log History if changed
+            if old_status_data.get("활동진행상태") != new_status or \
+               old_status_data.get("특이사항") != content:
+                log_change_history(record_key, old_status_data, new_status_data, user_info.get("name"))
+                
+        # 3. Save files
+        save_json_file(VISIT_REPORT_FILE, reports)
+        save_json_file(ACTIVITY_STATUS_FILE, statuses)
+        
+        return True, f"{len(batch_list)}건 저장 완료"
+        
+    except Exception as e:
+        print(f"CRITICAL ERROR in register_visit_batch: {e}")
+        return False, str(e)
+
 def update_visit_report(report_id, new_content, new_photo_file=None):
     """
     Update an existing visit report.
