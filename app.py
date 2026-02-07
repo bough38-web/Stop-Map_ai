@@ -2794,9 +2794,9 @@ if raw_df is not None:
     # [LAYOUT] Tab Structure
     # Ensure tabs are available for all roles
     if st.session_state.user_role == 'admin':
-        tab1, tab_stats, tab2, tab3, tab_voc, tab_history, tab_monitor = st.tabs(["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기", "📝 방문 이력", "👁️ 모니터링"])
+        tab1, tab_stats, tab2, tab3, tab_voc, tab_history, tab_monitor = st.tabs(["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기", "📝 방문 이력", "👁️ 모니터링"], key=f"main_tabs_admin")
     else:
-        tab1, tab_stats, tab2, tab3, tab_voc, tab_history = st.tabs(["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기", "📝 방문 이력"])
+        tab1, tab_stats, tab2, tab3, tab_voc, tab_history = st.tabs(["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기", "📝 방문 이력"], key=f"main_tabs_{st.session_state.user_role}")
     
     # [TAB] Visit History
     with tab_history:
@@ -3744,10 +3744,10 @@ if raw_df is not None:
         status_filter_opts = list(activity_logger.ACTIVITY_STATUS_MAP.values())
         
         with c_filter:
-            sel_grid_status = st.multiselect("진행상태 필터", status_filter_opts, placeholder="전체 보기 (미선택 시)")
+            sel_grid_status = st.multiselect("진행상태 필터", status_filter_opts, placeholder="전체 보기 (미선택 시)", key="grid_status_multiselect")
         
         with c_search:
-            grid_search_kw = st.text_input("검색 (업체명/주소/상태/특이사항)", placeholder="검색어 입력")
+            grid_search_kw = st.text_input("검색 (업체명/주소/상태/특이사항)", placeholder="검색어 입력", key="grid_search_input")
         
         with st.expander("📊 활동 현황 분석 (차트 보기)", expanded=False):
             st.markdown("##### 📊 활동 현황 분석")
@@ -3933,8 +3933,6 @@ if raw_df is not None:
                 if saved_count > 0:
                     st.success(f"✅ {saved_count}건의 데이터가 성공적으로 저장되었습니다.")
                     st.cache_data.clear()
-                    import time
-                    time.sleep(1)
                     st.rerun()
                 else:
                     st.info("변경된 항목이 없습니다.")
