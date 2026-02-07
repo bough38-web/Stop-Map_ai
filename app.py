@@ -2288,6 +2288,55 @@ if raw_df is not None:
         </div>
         """, unsafe_allow_html=True)
 
+    # [FEATURE] Local AI Activity Guide (Restored & Moved)
+    # Only show for Manager/Branch roles to provide personalized insight
+    if st.session_state.user_role in ['manager', 'branch'] and not df.empty:
+        # Calculate stats (Last 15 days)
+        ai_now = pd.Timestamp.now()
+        ai_cutoff = ai_now - pd.Timedelta(days=15)
+        
+        ai_df = df.copy() # Use the currently filtered df
+
+        # Helper to count recent events
+        def count_recent_events(col_name):
+            if col_name in ai_df.columns:
+                series = ai_df[col_name]
+                if not pd.api.types.is_datetime64_any_dtype(series):
+                    series = pd.to_datetime(series, errors='coerce')
+                return len(series[series >= ai_cutoff])
+            return 0
+
+        cnt_new = count_recent_events('인허가일자')
+        cnt_closed = count_recent_events('폐업일자')
+        cnt_mod = count_recent_events('최종수정시점')
+
+        user_display_name = st.session_state.user_manager_name or st.session_state.user_branch or "담당자"
+
+        # Generate Message
+        guide_msg = f"**{user_display_name}**님, 최근 15일간 데이터 분석 결과입니다.\n\n"
+        stats_msg = []
+        if cnt_new > 0: stats_msg.append(f"🆕 **신규 인허가 {cnt_new}건**")
+        if cnt_closed > 0: stats_msg.append(f"🚫 **폐업 {cnt_closed}건**")
+        if cnt_mod > 0: stats_msg.append(f"🔄 **정보 수정 {cnt_mod}건**")
+
+        if not stats_msg:
+            guide_msg += "최근 15일간 감지된 주요 변동 사항(신규/폐업/수정)이 없습니다."
+        else:
+            guide_msg += ", ".join(stats_msg) + "이(가) 감지되었습니다."
+
+        # Recommend Strategy
+        recommendation = ""
+        if cnt_new > 0:
+            recommendation = "💡 **AI 추천**: 신규 인허가 업체는 초기 진입 선점이 가장 중요합니다. 최근 등록된 업체를 **최우선 방문**하여 경쟁사보다 먼저 컨택하세요."
+        elif cnt_closed > 0 and cnt_closed >= cnt_mod:
+            recommendation = "💡 **AI 추천**: 폐업이 발생하는 구역은 시장 변화의 신호일 수 있습니다. **자산 회수** 기회를 점검하거나, 해당 상권의 경쟁 구도 변화를 분석해보세요."
+        elif cnt_mod > 0:
+            recommendation = "💡 **AI 추천**: 정보가 수정된 업체는 영업 환경이나 담당자가 변경되었을 가능성이 높습니다. **재컨택**을 통해 변동 사항을 확인하고 관계를 강화하세요."
+        else:
+            recommendation = "💡 **AI 추천**: 특이사항이 없는 안정적인 시기입니다. **기존 우수 고객(Key Account)** 관리와 잠재 고객 발굴을 위한 정기 순회 활동을 권장합니다."
+
+        st.info(guide_msg + "\n\n" + recommendation, icon="🤖")
+
     # [DASHBOARD] Branch Status Cards (Hide for Manager role)
     if st.session_state.user_role != 'manager':
         with st.expander("🏭 지사별 현황", expanded=True):
@@ -2492,12 +2541,13 @@ if raw_df is not None:
 
     st.markdown("---")
 
-    # [LAYOUT] Tab Structure - Different for Admin vs Non-Admin
+    # [LAYOUT] Tab Structure
+    # Ensure tabs are available for all roles
     if st.session_state.user_role == 'admin':
         tab1, tab_stats, tab2, tab3, tab_voc, tab_history = st.tabs(["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기", "📝 방문 이력"])
     else:
         tab1, tab_stats, tab2, tab3, tab_voc, tab_history = st.tabs(["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기", "📝 방문 이력"])
-        
+    
     # [TAB] Visit History
     with tab_history:
         st.subheader("📝 최근 방문 및 리포트 이력")
