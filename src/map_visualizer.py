@@ -485,7 +485,7 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                     var u_auth = "{user_context.get('admin_auth', 'false')}";
                     newUrl += '&admin_auth=' + u_auth;
 
-                    window.parent.location.assign(newUrl);
+                    window.parent.location.replace(newUrl); // [FIX] Use replace to avoid history loop
                 }}
             }};
             
@@ -513,7 +513,7 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                 var u_auth = "{user_context.get('admin_auth', 'false')}";
                 newUrl += '&admin_auth=' + u_auth;
 
-                window.parent.location.assign(newUrl);
+                window.parent.location.replace(newUrl); // [FIX] Use replace to avoid history loop
             }};
             
             clusterer.addMarkers(markers);
@@ -1428,12 +1428,12 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
                         var u_auth = "{user_context.get('admin_auth', 'false')}";
                         params.set('admin_auth', u_auth);
                         
-                        window.parent.location.href = currentUrl.toString();
+                        window.parent.location.replace(currentUrl.toString()); // [FIX] Use replace
                     }} catch(e) {{
                         console.error("URL failed", e);
                         var u = window.parent.location.href;
                         var s = u.includes('?') ? '&' : '?';
-                        window.parent.location.href = u + s + 'visit_action=true&title=' + encodeURIComponent(title) + '&addr=' + encodeURIComponent(addr);
+                        window.parent.location.replace(u + s + 'visit_action=true&title=' + encodeURIComponent(title) + '&addr=' + encodeURIComponent(addr)); // [FIX] Use replace
                     }}
                 }}
             }};
@@ -1468,12 +1468,12 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
                     var u_auth = "{user_context.get('admin_auth', 'false')}";
                     params.set('admin_auth', u_auth);
                     
-                    window.parent.location.href = currentUrl.toString();
+                    window.parent.location.replace(currentUrl.toString()); // [FIX] Use replace
                 }} catch(e) {{
                     console.error("Interest URL failed", e);
                     var u = window.parent.location.href;
                     var s = u.includes('?') ? '&' : '?';
-                    window.parent.location.href = u + s + 'interest_action=true&title=' + encodeURIComponent(title) + '&addr=' + encodeURIComponent(addr) + '&lat=' + lat + '&lon=' + lon;
+                    window.parent.location.replace(u + s + 'interest_action=true&title=' + encodeURIComponent(title) + '&addr=' + encodeURIComponent(addr) + '&lat=' + lat + '&lon=' + lon); // [FIX] Use replace
                 }}
             }};
             
