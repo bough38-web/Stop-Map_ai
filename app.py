@@ -1073,10 +1073,12 @@ if raw_df is not None:
         f_col1, f_col2 = st.columns(2)
         with f_col1:
             with st.container(border=True):
-                st.markdown("<div style='text-align:center; font-weight:800; font-size:0.9rem;'>🌡️ AI 기회 분석</div>", unsafe_allow_html=True)
+                # Adjusted padding for better vertical centering
+                st.markdown("<div style='text-align:center; font-weight:800; font-size:0.9rem; padding: 0.5rem 0;'>🌡️ AI 기회 분석</div>", unsafe_allow_html=True)
         with f_col2:
             with st.container(border=True):
-                st.markdown("<div style='text-align:center; font-weight:800; font-size:0.9rem;'>⚡ 상권 밀집도</div>", unsafe_allow_html=True)
+                # Adjusted padding for better vertical centering
+                st.markdown("<div style='text-align:center; font-weight:800; font-size:0.9rem; padding: 0.5rem 0;'>⚡ 상권 밀집도</div>", unsafe_allow_html=True)
                 
         st.markdown("<div style='margin-bottom: 1.5rem;'></div>", unsafe_allow_html=True)
             
