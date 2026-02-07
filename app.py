@@ -1002,26 +1002,52 @@ if raw_df is not None:
 
                 .hero-section {
                     text-align: center;
-                    padding: 2rem 1rem;
-                    background: linear-gradient(135deg, #228BE6 0%, #174EA6 100%);
-                    border-radius: 12px;
+                    padding: 2.5rem 1.5rem;
+                    background: linear-gradient(135deg, #1A73E8 0%, #0d47a1 100%);
+                    border-radius: 24px; /* Premium Rounded Corners */
                     color: white;
-                    margin-bottom: 1.5rem;
-                    box-shadow: 0 4px 15px rgba(23, 78, 166, 0.15);
+                    margin-bottom: 2rem;
+                    box-shadow: 0 12px 24px rgba(0, 50, 100, 0.2);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    position: relative;
+                    overflow: hidden;
                 }
-                .hero-title { font-size: 1.8rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.5px; }
-                .hero-subtitle { font-size: 0.95rem; opacity: 0.9; font-weight: 400; line-height: 1.4; }
+                /* Subtle top slight highlight for 3D effect */
+                .hero-section::before {
+                    content: "";
+                    position: absolute;
+                    top: 0; left: 0; right: 0; height: 1px;
+                    background: rgba(255, 255, 255, 0.3);
+                }
+
+                .hero-title { 
+                    font-size: 2.0rem; 
+                    font-weight: 900; 
+                    margin-bottom: 0.8rem; 
+                    letter-spacing: -0.5px; 
+                    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }
+                .hero-subtitle { 
+                    font-size: 1.0rem; 
+                    opacity: 0.95; 
+                    font-weight: 400; 
+                    line-height: 1.6; 
+                    color: rgba(255, 255, 255, 0.9);
+                }
                 
                 .expert-badge {
                     display: inline-block;
-                    padding: 1px 6px;
-                    background: rgba(255, 255, 255, 0.25);
-                    border-radius: 50px;
-                    font-size: 0.5rem;
-                    font-weight: 800;
-                    margin-bottom: 0.2rem;
-                    border: 1px solid rgba(255, 255, 255, 0.4);
+                    padding: 4px 12px;
+                    background: rgba(255, 255, 255, 0.15);
+                    backdrop-filter: blur(4px);
+                    border-radius: 20px;
+                    font-size: 0.7rem;
+                    font-weight: 700;
+                    margin-bottom: 1rem;
+                    border: 1px solid rgba(255, 255, 255, 0.3);
                     text-transform: uppercase;
+                    letter-spacing: 1px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
                 }
                 
                 .feature-grid {
