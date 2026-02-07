@@ -104,6 +104,22 @@ def inject_custom_css():
             border: 2px solid #3F51B5 !important;
             background-color: #E8EAF6 !important;
         }
+        
+        /* [FIX] Feature Box Vertical Centering */
+        .feature-box-centered {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 60px;
+            border: 1px solid rgba(49, 51, 63, 0.2);
+            border-radius: 8px;
+            background-color: white;
+            color: #31333F;
+            font-weight: 800;
+            font-size: 0.9rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
     </style>
     """, unsafe_allow_html=True)
 
@@ -1068,19 +1084,19 @@ if raw_df is not None:
             </div>
         """, unsafe_allow_html=True)
         
-        # Expert Feature Highlights (Native Streamlit Components for Stability)
-        # Using native components prevents 'Node removeChild' DOM errors
-        f_col1, f_col2 = st.columns(2)
-        with f_col1:
-            with st.container(border=True):
-                # Adjusted padding for better vertical centering
-                st.markdown("<div style='text-align:center; font-weight:800; font-size:0.9rem; padding: 0.5rem 0;'>🌡️ AI 기회 분석</div>", unsafe_allow_html=True)
-        with f_col2:
-            with st.container(border=True):
-                # Adjusted padding for better vertical centering
-                st.markdown("<div style='text-align:center; font-weight:800; font-size:0.9rem; padding: 0.5rem 0;'>⚡ 상권 밀집도</div>", unsafe_allow_html=True)
-                
-        st.markdown("<div style='margin-bottom: 1.5rem;'></div>", unsafe_allow_html=True)
+        # Expert Feature Highlights (Flexbox for Perfect Centering)
+        # Using custom HTML with flexbox prevents vertical alignment issues
+        # and avoids 'Node removeChild' by keeping structure static and simple.
+        st.markdown("""
+            <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+                <div class="feature-box-centered" style="flex: 1;">
+                    <div>🌡️ AI 기회 분석</div>
+                </div>
+                <div class="feature-box-centered" style="flex: 1;">
+                    <div>⚡ 상권 밀집도</div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
             
         # Login Section Title
         st.markdown("<h3 style='text-align: center; margin-bottom: 1.5rem; font-weight: 700; font-size: 1.5rem;'>🔑 시스템 로그인</h3>", unsafe_allow_html=True)
