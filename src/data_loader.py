@@ -139,6 +139,26 @@ def _process_and_merge_district_data(target_df: pd.DataFrame, district_file_path
     # 8. Merge Persistent Activity Status
     # [FEATURE] Load saved activity status (e.g. Visit) and merge
     final_df = merge_activity_status(final_df)
+    
+    # 9. [OPTIMIZATION] Calculate Last Modified Date (Vectorized)
+    # Replaces the slow row-by-row apply in app.py
+    # Logic: Max of (In-permission Date, Closed Date, Activity Change Date, Current Time if all null)
+    
+    # Ensure datetime format
+    for col in ['인허가일자', '폐업일자', '변경일시']:
+        if col in final_df.columns:
+            final_df[col] = pd.to_datetime(final_df[col], errors='coerce')
+            
+    # Create a temporary dataframe for max calculation
+    # We use a default date (e.g. NaT)
+    date_cols = [c for c in ['인허가일자', '폐업일자', '변경일시'] if c in final_df.columns]
+    
+    if date_cols:
+        final_df['최종수정시점'] = final_df[date_cols].max(axis=1)
+        # Fill NaT with Now
+        final_df['최종수정시점'] = final_df['최종수정시점'].fillna(pd.Timestamp.now())
+    else:
+        final_df['최종수정시점'] = pd.Timestamp.now()
             
     return final_df, mgr_info, None
 

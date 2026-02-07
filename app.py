@@ -2170,26 +2170,10 @@ if raw_df is not None:
     
     # [FEATURE] Add 최종수정시점 column (Last Modified Date)
     # Use the most recent date from 인허가일자 or 폐업일자, or current date if both are missing
-    def get_last_modified_date(row):
-        dates = []
-        if pd.notna(row.get('인허가일자')):
-            dates.append(row['인허가일자'])
-        if pd.notna(row.get('폐업일자')):
-            dates.append(row['폐업일자'])
-            
-        # [FIX] Include Activity Change Date
-        if pd.notna(row.get('변경일시')):
-            try:
-                d = pd.to_datetime(row['변경일시'])
-                dates.append(d)
-            except: pass
-        
-        if dates:
-            return max(dates)
-        else:
-            return pd.Timestamp.now()
-    
-    base_df['최종수정시점'] = base_df.apply(get_last_modified_date, axis=1)
+    # [OPTIMIZATION] '최종수정시점' is now pre-calculated in data_loader using vectorized operations
+    # We no longer need the slow row-by-row apply here.
+    if '최종수정시점' not in base_df.columns:
+        base_df['최종수정시점'] = pd.Timestamp.now()
 
     # [SECURITY] Hard Filter for Manager Role (Main Data)
     # [FIX] Also include records where the user has logged activity (e.g. Recommended Course visits)
@@ -3101,12 +3085,7 @@ if raw_df is not None:
 
     with tab1:
         # Log tab access
-        if 'last_tab_accessed' not in st.session_state or st.session_state.last_tab_accessed != 'map':
-            u_role = st.session_state.get('user_role', 'Unknown')
-            u_name = st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or '관리자'
-            u_branch = st.session_state.get('user_branch', '')
-            usage_logger.log_usage(u_role, u_name, u_branch, 'tab_access', {'tab': 'map'})
-            st.session_state.last_tab_accessed = 'map'
+
         
         with st.expander("🗺️ 조건조회", expanded=True):
             # Marker for Mobile Visibility Control
@@ -3331,12 +3310,8 @@ if raw_df is not None:
         if not map_df.empty:
             if kakao_key:
                 # Pass heatmap flag to visualizer
-                import importlib
-                importlib.reload(map_visualizer)
                 map_visualizer.render_kakao_map(map_df, kakao_key, use_heatmap=use_heatmap, user_context=user_context)
             else:
-                import importlib
-                importlib.reload(map_visualizer)
                 map_visualizer.render_folium_map(map_df, use_heatmap=use_heatmap, user_context=user_context) # [FIX] Correct function name
         else:
             st.warning("표시할 데이터가 없습니다.")

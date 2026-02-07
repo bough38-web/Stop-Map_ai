@@ -6,6 +6,82 @@ import folium
 from streamlit_folium import st_folium
 from folium.plugins import MarkerCluster, HeatMap
 
+@st.cache_data(show_spinner=False)
+def generate_map_html(map_df, kakao_key, use_heatmap, center_lat, center_lon):
+    """
+    Generates the HTML string for the Kakao Map. Cached to prevent re-computation.
+    """
+    # Prepare JSON for JS
+    # Escape helper
+    def clean_str(s):
+        return str(s).replace('"', '').replace("'", "").replace('\n', ' ')
+
+    map_df['title'] = map_df['사업장명'].apply(clean_str)
+    map_df['addr'] = map_df['소재지전체주소'].fillna('').apply(clean_str)
+    map_df['tel'] = map_df['소재지전화'].fillna('')
+    map_df['status'] = map_df['영업상태명'].fillna('')
+    
+    # Date Formatting
+    def format_date(d):
+        if pd.isna(d): return ''
+        s = str(d).replace('.0', '').strip()[:10]
+        return s
+    
+    map_df['close_date'] = map_df['폐업일자'].apply(format_date) if '폐업일자' in map_df.columns else ''
+    map_df['permit_date'] = map_df['인허가일자'].apply(format_date) if '인허가일자' in map_df.columns else ''
+    map_df['reopen_date'] = map_df['재개업일자'].apply(format_date) if '재개업일자' in map_df.columns else ''
+    map_df['modified_date'] = map_df['최종수정시점'].apply(format_date) if '최종수정시점' in map_df.columns else ''
+    
+    # [FEATURE] Business Type
+    map_df['biz_type'] = map_df['업태구분명'].fillna('') if '업태구분명' in map_df.columns else ''
+    
+    # [FEATURE] Branch & Manager info
+    map_df['branch'] = map_df['관리지사'].fillna('') if '관리지사' in map_df.columns else ''
+    map_df['manager'] = map_df['SP담당'].fillna('') if 'SP담당' in map_df.columns else ''
+    
+    # [FEATURE] Large Area Flag (>= 100py approx 330m2)
+    def check_large(row):
+        try:
+            val = float(row.get('소재지면적', 0))
+            if val >= 330.0: return True
+        except: pass
+        return False
+        
+    map_df['is_large'] = map_df.apply(check_large, axis=1)
+    
+    # [FEATURE] Area (Py) for display
+    def calc_py(row):
+        try:
+            val = float(row.get('소재지면적', 0))
+            return round(val / 3.3058, 1)
+        except:
+            return 0.0
+            
+    if '평수' in map_df.columns:
+        map_df['area_py'] = map_df['평수'].fillna(0).astype(float).round(1)
+    else:
+        map_df['area_py'] = map_df.apply(calc_py, axis=1)
+
+    # [NEW] AI Score & Comment
+    if 'AI_Score' not in map_df.columns:
+        map_df['AI_Score'] = 0
+        map_df['AI_Comment'] = ''
+        
+    # [FIX] data integrity
+    if 'record_key' not in map_df.columns:
+        map_df['record_key'] = map_df.apply(lambda row: str(row['title']) + "_" + str(row['addr']), axis=1)
+
+    # [FEATURE] Pass Activity Status to JS
+    if '활동진행상태' in map_df.columns:
+        map_df['act_status'] = map_df['활동진행상태'].fillna('')
+    else:
+        map_df['act_status'] = ''
+
+    map_data = map_df[['lat', 'lon', 'title', 'status', 'act_status', 'addr', 'tel', 'close_date', 'permit_date', 'reopen_date', 'modified_date', 'biz_type', 'branch', 'manager', 'is_large', 'area_py', 'AI_Score', 'AI_Comment', 'record_key']].to_dict(orient='records')
+    json_data = json.dumps(map_data, ensure_ascii=False)
+
+    return json_data
+
 def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
     """
     Renders a Kakao Map using HTML/JS injection.
@@ -24,88 +100,15 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
         display_df = display_df.head(limit)
         
     # [FIX] Center Calculation: Default to Seoul (Sudo-gwon)
-    # User requested "Start at Sudo-gwon". 
-    # If we have data, we usually center on it. But if user insists on fixed start, we can provide it.
-    # However, usually centering on data is best. 
-    # If data is empty -> Seoul.
-    
     if not display_df.empty:
         center_lat = display_df['lat'].mean()
         center_lon = display_df['lon'].mean()
     else:
         # Default Center (Seoul City Hall)
         center_lat, center_lon = 37.5665, 126.9780
-        
-    # Prepare JSON for JS
-    # Escape helper
-    def clean_str(s):
-        return str(s).replace('"', '').replace("'", "").replace('\n', ' ')
 
-    display_df['title'] = display_df['사업장명'].apply(clean_str)
-    display_df['addr'] = display_df['소재지전체주소'].fillna('').apply(clean_str)
-    display_df['tel'] = display_df['소재지전화'].fillna('')
-    display_df['status'] = display_df['영업상태명'].fillna('')
-    
-    # Date Formatting
-    def format_date(d):
-        if pd.isna(d): return ''
-        s = str(d).replace('.0', '').strip()[:10]
-        return s
-    
-    display_df['close_date'] = display_df['폐업일자'].apply(format_date) if '폐업일자' in display_df.columns else ''
-    display_df['permit_date'] = display_df['인허가일자'].apply(format_date) if '인허가일자' in display_df.columns else ''
-    display_df['reopen_date'] = display_df['재개업일자'].apply(format_date) if '재개업일자' in display_df.columns else ''
-    display_df['modified_date'] = display_df['최종수정시점'].apply(format_date) if '최종수정시점' in display_df.columns else ''
-    
-    # [FEATURE] Business Type
-    display_df['biz_type'] = display_df['업태구분명'].fillna('') if '업태구분명' in display_df.columns else ''
-    
-    # [FEATURE] Branch & Manager info
-    display_df['branch'] = display_df['관리지사'].fillna('') if '관리지사' in display_df.columns else ''
-    display_df['manager'] = display_df['SP담당'].fillna('') if 'SP담당' in display_df.columns else ''
-    
-    # [FEATURE] Large Area Flag (>= 100py approx 330m2)
-    def check_large(row):
-        try:
-            val = float(row.get('소재지면적', 0))
-            # If 0, try '총면적' (rarely used but possible fallback)
-            # Actually just stick to 소재지면적 as primary
-            if val >= 330.0: return True
-        except: pass
-        return False
-        
-    display_df['is_large'] = display_df.apply(check_large, axis=1)
-    
-    # [FEATURE] Area (Py) for display
-    def calc_py(row):
-        try:
-            val = float(row.get('소재지면적', 0))
-            return round(val / 3.3058, 1)
-        except:
-            return 0.0
-            
-    if '평수' in display_df.columns:
-        display_df['area_py'] = display_df['평수'].fillna(0).astype(float).round(1)
-    else:
-        display_df['area_py'] = display_df.apply(calc_py, axis=1)
-
-    # [NEW] AI Score & Comment
-    if 'AI_Score' not in display_df.columns:
-        display_df['AI_Score'] = 0
-        display_df['AI_Comment'] = ''
-        
-    # [FIX] data integrity
-    if 'record_key' not in display_df.columns:
-        display_df['record_key'] = display_df.apply(lambda row: str(row['title']) + "_" + str(row['addr']), axis=1)
-
-    # [FEATURE] Pass Activity Status to JS
-    if '활동진행상태' in display_df.columns:
-        display_df['act_status'] = display_df['활동진행상태'].fillna('')
-    else:
-        display_df['act_status'] = ''
-
-    map_data = display_df[['lat', 'lon', 'title', 'status', 'act_status', 'addr', 'tel', 'close_date', 'permit_date', 'reopen_date', 'modified_date', 'biz_type', 'branch', 'manager', 'is_large', 'area_py', 'AI_Score', 'AI_Comment', 'record_key']].to_dict(orient='records')
-    json_data = json.dumps(map_data, ensure_ascii=False)
+    # [OPTIMIZATION] Generate Cached JSON Data
+    json_data = generate_map_html(display_df, kakao_key, use_heatmap, center_lat, center_lon)
     
     st.markdown('<div style="background-color: #e3f2fd; border-left: 5px solid #2196F3; padding: 10px; margin-bottom: 10px; border-radius: 4px;"><small><b>Tip:</b> 왼쪽 지도에서 마커를 선택하면 오른쪽에서 <b>상세 위치</b>와 <b>정보</b>를 확인할 수 있습니다.</small></div>', unsafe_allow_html=True)
 
