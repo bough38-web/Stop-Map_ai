@@ -2794,9 +2794,9 @@ if raw_df is not None:
     # [LAYOUT] Tab Structure
     # Ensure tabs are available for all roles
     if st.session_state.user_role == 'admin':
-        tab1, tab_stats, tab2, tab3, tab_voc, tab_history, tab_monitor = st.tabs(["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기", "📝 방문 이력", "👁️ 모니터링"], key=f"main_tabs_admin")
+        tab1, tab_stats, tab2, tab3, tab_voc, tab_history, tab_monitor = st.tabs(["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기", "📝 방문 이력", "👁️ 모니터링"])
     else:
-        tab1, tab_stats, tab2, tab3, tab_voc, tab_history = st.tabs(["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기", "📝 방문 이력"], key=f"main_tabs_{st.session_state.user_role}")
+        tab1, tab_stats, tab2, tab3, tab_voc, tab_history = st.tabs(["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기", "📝 방문 이력"])
     
     # [TAB] Visit History
     with tab_history:
