@@ -467,19 +467,23 @@ def update_branch_state(name):
     st.session_state.sb_branch = normalized_name
     st.session_state.sb_manager = "전체"
     st.session_state.dash_branch = normalized_name
+    st.query_params.clear() # [FIX] Clear params
     
 def update_manager_state(name):
     st.session_state.sb_manager = name
+    st.query_params.clear() # [FIX] Clear params
 
 def update_branch_with_status(name, status):
     st.session_state.sb_branch = name
     st.session_state.sb_manager = "전체"
     st.session_state.dash_branch = name
     st.session_state.sb_status = status
+    st.query_params.clear() # [FIX] Clear params
     
 def update_manager_with_status(name, status):
     st.session_state.sb_manager = name
     st.session_state.sb_status = status
+    st.query_params.clear() # [FIX] Clear params
 
 # --- Sidebar Filters ---
 with st.sidebar:
