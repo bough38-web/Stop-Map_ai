@@ -1,7 +1,9 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime
+import streamlit as st
 
+@st.cache_data(show_spinner=False)
 def calculate_ai_scores(df: pd.DataFrame) -> pd.DataFrame:
     """
     Calculate AI Opportunity Scores (0-100) for each row.

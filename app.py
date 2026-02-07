@@ -196,70 +196,68 @@ if "visit_action" in st.query_params:
             st.query_params.clear()
             st.rerun()
 
-        # [NEW] Interest Action Handler
-        if "interest_action" in st.query_params:
-            try:
-                i_title = st.query_params.get("title", "")
-                i_addr = st.query_params.get("addr", "")
-                i_lat = st.query_params.get("lat", 0)
-                i_lon = st.query_params.get("lon", 0)
-                
-                # Normalize
-                if i_title: i_title = unicodedata.normalize('NFC', i_title)
-                if i_addr: i_addr = unicodedata.normalize('NFC', i_addr)
-                
-                # Restore Session
-                p_role = st.query_params.get("user_role", None)
-                if p_role:
-                     if "user_role" not in st.session_state: st.session_state.user_role = p_role
-                     if "user_branch" in st.query_params: st.session_state.user_branch = st.query_params["user_branch"]
-                     if "user_manager_name" in st.query_params: st.session_state.user_manager_name = st.query_params["user_manager_name"]
-                     if "user_manager_code" in st.query_params: st.session_state.user_manager_code = st.query_params["user_manager_code"]
-
-                # Log Interest
-                usage_logger.log_interest(
-                    st.session_state.get('user_role'),
-                    st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or "Unknown",
-                    st.session_state.get('user_branch'),
-                    i_title, i_addr, i_lat, i_lon
-                )
-                
-                # [NEW] Also log to Visit History as "Interest Marked"
-                # Use a specific status or just a log? User said "appear in visit history".
-                # We'll create a system-generated visit report.
-                u_name = st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or "Unknown"
-                if i_title and i_addr:
-                    # Generate key
-                    from src import utils
-                    row_key = utils.generate_record_key(i_title, i_addr)
-                    
-                    # 1. Update Status to 'Interest' (Optional, or just log?)
-                    # User said "Interest button selection -> Visit History".
-                    # Let's save it as a "관심" status update too?
-                    # "Interest" isn't in standard activity statuses usually (Open/Closed/Consulting...).
-                    # But we can add a report.
-                    activity_logger.save_visit_report(
-                        record_key=row_key,
-                        user_name=u_name,
-                        user_branch=st.session_state.get('user_branch'),
-                        content=f"[시스템] 모바일 지도에서 '관심 업체'로 등록했습니다.",
-                        photo_path=None,
-                        audio_path=None
-                    )
-                    
-                    st.toast(f"⭐ {i_title} : 관심 업체 등록 및 방문 이력 저장 완료!")
-                    
-                # Clean URL
-                st.query_params.clear()
-            except Exception as e:
-                st.error(f"Error processing interest: {e}")
-
     except Exception as e:
         st.error(f"Error processing visit action: {e}")
 
-# [FEATURE] Interest Action Handler
+# [NEW] Interest Action Handler
 if "interest_action" in st.query_params:
-    pass
+    try:
+        i_title = st.query_params.get("title", "")
+        i_addr = st.query_params.get("addr", "")
+        i_lat = st.query_params.get("lat", 0)
+        i_lon = st.query_params.get("lon", 0)
+        
+        # Normalize
+        if i_title: i_title = unicodedata.normalize('NFC', i_title)
+        if i_addr: i_addr = unicodedata.normalize('NFC', i_addr)
+        
+        # Restore Session
+        p_role = st.query_params.get("user_role", None)
+        if p_role:
+                if "user_role" not in st.session_state: st.session_state.user_role = p_role
+                if "user_branch" in st.query_params: st.session_state.user_branch = st.query_params["user_branch"]
+                if "user_manager_name" in st.query_params: st.session_state.user_manager_name = st.query_params["user_manager_name"]
+                if "user_manager_code" in st.query_params: st.session_state.user_manager_code = st.query_params["user_manager_code"]
+
+        # Log Interest
+        usage_logger.log_interest(
+            st.session_state.get('user_role'),
+            st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or "Unknown",
+            st.session_state.get('user_branch'),
+            i_title, i_addr, i_lat, i_lon
+        )
+        
+        # [NEW] Also log to Visit History as "Interest Marked"
+        # Use a specific status or just a log? User said "appear in visit history".
+        # We'll create a system-generated visit report.
+        u_name = st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or "Unknown"
+        if i_title and i_addr:
+            # Generate key
+            from src import utils
+            row_key = utils.generate_record_key(i_title, i_addr)
+            
+            # 1. Update Status to 'Interest' (Optional, or just log?)
+            # User said "Interest button selection -> Visit History".
+            # Let's save it as a "관심" status update too?
+            # "Interest" isn't in standard activity statuses usually (Open/Closed/Consulting...).
+            # But we can add a report.
+            activity_logger.save_visit_report(
+                record_key=row_key,
+                user_name=u_name,
+                user_branch=st.session_state.get('user_branch'),
+                content=f"[시스템] 모바일 지도에서 '관심 업체'로 등록했습니다.",
+                photo_path=None,
+                audio_path=None
+            )
+            
+            st.toast(f"⭐ {i_title} : 관심 업체 등록 및 방문 이력 저장 완료!")
+            
+        # Clean URL
+        st.query_params.clear()
+    except Exception as e:
+        st.error(f"Error processing interest: {e}")
+
+
 
 # 2. Render Form based on Session State
 if st.session_state.get("visit_active"):
