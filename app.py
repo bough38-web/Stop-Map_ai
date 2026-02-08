@@ -1273,7 +1273,7 @@ if raw_df is not None:
         with tab_adm:
             with st.container(border=True):
                 # Centered Form Layout
-                c_main = st.columns([1, 2, 1])
+                c_main = st.columns([1, 15, 1])
                 with c_main[1]:
                     st.warning("시스템 설정 및 전사 통합 데이터 관리를 위한 전용 채널입니다.")
                     with st.form("login_admin_v3"):
