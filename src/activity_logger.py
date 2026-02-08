@@ -445,6 +445,7 @@ def update_visit_report(report_id, new_content, new_photo_file=None):
 def _save_status_internal(record_key, new_data_dict):
     """
     Internal helper to save status and log history.
+    [NEW] Automatically creates a visit report entry if status changes.
     """
     statuses = load_json_file(ACTIVITY_STATUS_FILE)
     old_data = statuses.get(record_key, {})
@@ -457,6 +458,30 @@ def _save_status_internal(record_key, new_data_dict):
        old_data.get("특이사항") != new_data_dict.get("특이사항"):
            
         log_change_history(record_key, old_data, new_data_dict, new_data_dict.get("변경자"))
+        
+        # [NEW] Integration: Create a visit report for visibility in "Activity History"
+        # Only if it's not already a "Visit" which is handled by register_visit
+        if new_data_dict.get("활동진행상태") != ACTIVITY_STATUS_MAP.get("방문"):
+            timestamp = datetime.now()
+            ts_str = timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            
+            # We don't have full user_info here, but we have user_name (변경자)
+            # We'll try to infer or just log with what we have.
+            visit_entry = {
+                "id": f"rep_sys_{timestamp.timestamp()}",
+                "timestamp": ts_str,
+                "record_key": record_key,
+                "content": f"[시스템 자동] 활동 상태가 '{new_data_dict.get('활동진행상태')}'(으)로 변경되었습니다. (특이사항: {new_data_dict.get('특이사항', '-')})",
+                "audio_path": None,
+                "photo_path": None,
+                "user_name": new_data_dict.get("변경자", "Unknown"),
+                "resulting_status": new_data_dict.get("활동진행상태")
+            }
+            
+            reports = load_json_file(VISIT_REPORT_FILE)
+            if not isinstance(reports, list): reports = []
+            reports.append(visit_entry)
+            save_json_file(VISIT_REPORT_FILE, reports)
 
 # Backward Compatibility & Direct Status Change (e.g. from Grid)
 def save_activity_status(record_key, status, notes, user_name):

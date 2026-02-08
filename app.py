@@ -235,7 +235,7 @@ if "visit_action" in st.query_params:
                     photo_path=None,
                     audio_path=None
                 )
-                st.toast(f"✅ {q_title} : 상태가 '방문'으로 변경되었습니다.")
+                st.toast(f"✅ {q_title} : 등록되었습니다.")
             
             # Clear params to prevent sticky state loop
             # This ensures subsequent interactions don't re-trigger this block
@@ -297,7 +297,7 @@ if "interest_action" in st.query_params:
                 audio_path=None
             )
             
-            st.toast(f"⭐ {i_title} : 관심 업체 등록 및 방문 이력 저장 완료!")
+            st.toast(f"⭐ {i_title} : 등록되었습니다.")
             
         # Clean URL
         st.query_params.clear()
@@ -2791,7 +2791,7 @@ if raw_df is not None:
 
     # [LAYOUT] Tab Structure Re-implementation for Compatibility (v1.31.0)
     # Using a high-persistence Radio Navigation to prevent Tab Jumping
-    nav_labels = ["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기", "📝 방문 이력"]
+    nav_labels = ["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기", "📝 활동 이력"]
     if st.session_state.user_role == 'admin':
         nav_labels.append("👁️ 모니터링")
         
@@ -2825,9 +2825,9 @@ if raw_df is not None:
     
     # [LAYOUT] Conditional Tab Execution (v1.31.0 Persistence Fix)
     
-    # [TAB] Visit History
-    if active_nav == "📝 방문 이력":
-        st.subheader("📝 방문 이력 관리")
+    # [TAB] Activity History
+    if active_nav == "📝 활동 이력":
+        st.subheader("📝 활동 이력 관리")
         
         # [SECURITY] Role-based access control
         if st.session_state.user_role == 'admin':
@@ -3338,16 +3338,19 @@ if raw_df is not None:
                  sel_map_status = st.selectbox("영업상태 (공공)", map_status_opts, key="map_status_filter")
             
             # [FEATURE] Activity Status Filter (Internal)
-            # Use Centralized Map for Options
-            # [IMPROVED] Multi-select for activity status (better UX)
-            act_status_opts = list(activity_logger.ACTIVITY_STATUS_MAP.values()) + ["⭐ 관심"]
+            st.markdown("##### 📍 활동 상태별 필터")
             
-            sel_act_statuses = st.multiselect(
-                "활동상태 필터 (복수 선택 가능)", 
-                act_status_opts, 
-                default=[],
-                key="map_act_status_filter",
-                help="선택한 상태만 지도에 표시됩니다. 비워두면 전체 표시."
+            # Using st.pills for cleaner UI (Streamlit 1.40+)
+            activity_options = list(activity_logger.ACTIVITY_STATUS_MAP.values()) + ["⭐ 관심"]
+
+            # st.pills handles selection state automatically via key
+            # It returns the list of selected options
+            sel_act_statuses = st.pills(
+                "활동 상태 선택",
+                options=activity_options,
+                selection_mode="multi",
+                key="map_sel_act_statuses",
+                label_visibility="collapsed"
             )
 
             # Final Filtering
@@ -3356,9 +3359,16 @@ if raw_df is not None:
             if sel_map_sales != "전체": map_df = map_df[map_df['SP담당'] == sel_map_sales]
             if sel_map_type != "전체": map_df = map_df[map_df['업태구분명'] == sel_map_type]
             if sel_map_status != "전체": map_df = map_df[map_df['영업상태명'] == sel_map_status]
-            # Apply activity status filter (multi-select)
+            
+            # Apply activity status filter
             if sel_act_statuses:
-                map_df = map_df[map_df['활동진행상태'].isin(sel_act_statuses)]
+                mask = pd.Series([False] * len(map_df), index=map_df.index)
+                for s in sel_act_statuses:
+                    if s == "⭐ 관심":
+                        mask = mask | map_df['활동진행상태'].astype(str).str.contains("관심", na=False)
+                    else:
+                        mask = mask | (map_df['활동진행상태'] == s)
+                map_df = map_df[mask]
             
             # [OVERHAUL] Pre-calculate record_key for Map
             # This ensures the key sent from Map matches the key used in Grid
@@ -3940,17 +3950,18 @@ if raw_df is not None:
                             )
                         else:
                              # Just Status Update (Atomic: Status + History)
+                             # [NEW] Report generation now handled internally by activity_logger.py
                              activity_logger.save_activity_status(
                                 row['record_key'],
                                 raw_status,
                                 row['특이사항'],
                                 current_user
                             )
-
+                        
                         saved_count += 1
                 
                 if saved_count > 0:
-                    st.success(f"✅ {saved_count}건의 데이터가 성공적으로 저장되었습니다.")
+                    st.toast(f"✅ {saved_count}건 등록되었습니다.")
                     st.cache_data.clear()
                     st.rerun()
                 else:
