@@ -1077,102 +1077,155 @@ if raw_df is not None:
 
                 .hero-section {
                     text-align: center;
-                    padding: 1.2rem 1rem; /* [OPTIMIZATION] Compact padding */
-                    background: linear-gradient(135deg, #1A73E8 0%, #0d47a1 100%);
-                    border-radius: 20px; /* Slightly reduced radius for compact feel */
+                    padding: 1.5rem 1rem;
+                    background: linear-gradient(135deg, #102A43 0%, #243B53 100%);
+                    background-image: 
+                        linear-gradient(135deg, rgba(16, 42, 67, 0.95) 0%, rgba(36, 59, 83, 0.95) 100%),
+                        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+                    border-radius: 0 0 0 0; /* Full width top */
                     color: white;
-                    margin-bottom: 1rem; /* [OPTIMIZATION] Reduced margin */
-                    box-shadow: 0 12px 24px rgba(0, 50, 100, 0.2);
-                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    margin-bottom: 0rem;
                     position: relative;
                     overflow: hidden;
-                }
-                /* Subtle top slight highlight for 3D effect */
-                .hero-section::before {
-                    content: "";
-                    position: absolute;
-                    top: 0; left: 0; right: 0; height: 1px;
-                    background: rgba(255, 255, 255, 0.3);
+                    margin-left: -5rem;
+                    margin-right: -5rem;
+                    margin-top: -1.5rem;
                 }
 
                 .hero-title { 
-                    font-size: 1.6rem; /* [OPTIMIZATION] Reduced size */
+                    font-size: 1.8rem;
                     font-weight: 900; 
-                    margin-bottom: 0.4rem; /* [OPTIMIZATION] Reduced margin */
-                    letter-spacing: -0.5px; 
-                    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    margin-bottom: 0.5rem;
+                    letter-spacing: -1px; 
+                    text-shadow: 0 4px 8px rgba(0,0,0,0.3);
                 }
                 .hero-subtitle { 
-                    font-size: 0.9rem; /* [OPTIMIZATION] Reduced size */
-                    opacity: 0.95; 
+                    font-size: 0.9rem;
+                    opacity: 0.9; 
                     font-weight: 400; 
-                    line-height: 1.4; 
-                    color: rgba(255, 255, 255, 0.9);
+                    line-height: 1.5; 
+                    color: rgba(255, 255, 255, 0.85);
+                    max-width: 600px;
+                    margin: 0 auto;
                 }
                 
                 .expert-badge {
                     display: inline-block;
-                    padding: 4px 10px;
-                    background: rgba(255, 255, 255, 0.15);
-                    backdrop-filter: blur(4px);
-                    border-radius: 20px;
+                    padding: 4px 12px;
+                    background: rgba(255, 255, 255, 0.1);
+                    backdrop-filter: blur(10px);
+                    border-radius: 30px;
                     font-size: 0.65rem;
                     font-weight: 700;
-                    margin-bottom: 0.5rem; /* [OPTIMIZATION] Reduced margin */
-                    border: 1px solid rgba(255, 255, 255, 0.3);
+                    margin-bottom: 0.8rem;
+                    border: 1px solid rgba(255, 255, 255, 0.2);
                     text-transform: uppercase;
-                    letter-spacing: 1px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                    letter-spacing: 2px;
                 }
                 
-                .feature-grid {
-                    display: grid;
-                    grid-template-columns: repeat(2, 1fr);
-                    gap: 0.3rem;
-                    margin-bottom: 0.4rem;
+                .login-box-card {
+                    background: white;
+                    border: 1px solid #334E68;
+                    border-radius: 15px;
+                    padding: 1.2rem;
+                    margin-top: 1rem;
+                    margin-bottom: 1.2rem;
+                    box-shadow: 0 15px 35px rgba(0,0,0,0.05);
                 }
-                .feature-card {
-                    background: #F8F9FA;
-                    padding: 0.3rem;
-                    border-radius: 6px;
+
+                .login-title-area {
                     text-align: center;
-                    border: 1px solid #E9ECEF;
+                    margin-bottom: 1rem;
                 }
-                .feature-icon { font-size: 0.9rem; margin-bottom: 0px; }
-                .feature-name { font-weight: 800; color: #212529; margin-bottom: 0px; font-size: 0.7rem; }
-                .feature-desc { display: none; } /* Hide descriptions on micro-view */
-                
-                .login-container {
-                    background: rgba(255, 255, 255, 0.8);
-                    backdrop-filter: blur(8px);
-                    padding: 0.3rem;
-                    border-radius: 10px;
-                    border: 1px solid #E9ECEF;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+                .login-title-area h3 {
+                    font-size: 1.3rem;
+                    font-weight: 800;
+                    color: #102A43;
+                    margin-bottom: 0.3rem;
                 }
-                
-                /* Enhanced Tab Styling */
+
+                /* Tab overrides */
                 .stTabs [data-baseweb="tab-list"] {
                     justify-content: center;
-                    gap: 0.8rem;
-                    border-bottom: none; /* Removed bottom border for cleaner look */
-                    margin-bottom: 1.0rem; /* [OPTIMIZATION] Reduced margin */
+                    gap: 0.5rem;
+                    border-bottom: 1px solid #E9ECEF;
+                    margin-bottom: 1.2rem;
                 }
                 .stTabs [data-baseweb="tab"] {
-                    height: 46px; /* [OPTIMIZATION] Reduced height */
-                    padding: 0 1rem;
-                    font-weight: 800;
-                    font-size: 1.15rem; /* [OPTIMIZATION] Reduced size */
-                    color: #495057;
-                    background-color: #F8F9FA;
-                    border-radius: 12px;
-                    transition: all 0.2s ease;
+                    height: 45px;
+                    padding: 0 1.2rem;
+                    font-weight: 700;
+                    font-size: 0.95rem;
+                    color: #627D98;
+                    background-color: transparent;
+                    border-radius: 0;
+                    border: none;
                 }
                 .stTabs [aria-selected="true"] {
                     color: #228BE6 !important;
-                    background-color: #E7F5FF !important;
-                    border: 1px solid #D0EBFF;
+                    border-bottom: 3px solid #228BE6 !important;
+                    background-color: transparent !important;
                 }
+
+                /* Button overrides */
+                .stButton > button {
+                    border-radius: 8px;
+                    font-weight: 700;
+                    transition: all 0.3s ease;
+                }
+                
+                /* Login Button Gradient (Specific to landing) */
+                div[data-testid="stForm"] .stButton > button {
+                    background: linear-gradient(90deg, #FF5F6D 0%, #FFC371 100%) !important;
+                    color: white !important;
+                    border: none !important;
+                    padding: 0.8rem 1rem !important;
+                    font-size: 1rem !important;
+                    box-shadow: 0 4px 15px rgba(255, 95, 109, 0.3) !important;
+                }
+                div[data-testid="stForm"] .stButton > button:hover {
+                    box-shadow: 0 6px 20px rgba(255, 95, 109, 0.4) !important;
+                    transform: translateY(-2px);
+                }
+
+                .footer-dark-bar {
+                    background-color: #102A43;
+                    color: #BCCCDC;
+                    padding: 1.2rem 1rem;
+                    text-align: center;
+                    margin-left: -5rem;
+                    margin-right: -5rem;
+                    margin-bottom: -1.5rem;
+                    border-top: 1px solid rgba(255,255,255,0.05);
+                }
+                .footer-text {
+                    font-size: 0.8rem;
+                    margin-bottom: 0.8rem;
+                    letter-spacing: 0.5px;
+                }
+                
+                @media (max-width: 640px) {
+                    .hero-section {
+                        padding: 1rem 0.6rem;
+                        margin-left: -1rem;
+                        margin-right: -1rem;
+                        margin-top: -1rem;
+                    }
+                    .footer-dark-bar {
+                        margin-left: -1rem;
+                        margin-right: -1rem;
+                        padding: 1rem 0.5rem;
+                    }
+                    .hero-title { font-size: 1.4rem; margin-bottom: 0.3rem; }
+                    .hero-subtitle { font-size: 0.8rem; line-height: 1.4; }
+                    .expert-badge { padding: 2px 8px; font-size: 0.55rem; margin-bottom: 0.5rem; }
+                    .login-box-card { padding: 0.8rem; margin-top: 0.5rem; }
+                    .login-title-area h3 { font-size: 1.1rem; }
+                    .stTabs [data-baseweb="tab"] { height: 40px; padding: 0 0.8rem; font-size: 0.85rem; }
+                    .footer-text { font-size: 0.7rem; margin-bottom: 0.5rem; }
+                    div[data-testid="stForm"] .stButton > button { padding: 0.6rem 0.8rem !important; font-size: 0.9rem !important; }
+                }
+            </style>
             </style>
             """, unsafe_allow_html=True)
             
@@ -1184,31 +1237,20 @@ if raw_df is not None:
                 <div class="hero-subtitle">데이터 분석과 인공지능이 제안하는 과학적인 영업 파트너</div>
             </div>
         """, unsafe_allow_html=True)
-        
-        # Expert Feature Highlights (Flexbox for Perfect Centering)
-        # Using custom HTML with flexbox prevents vertical alignment issues
-        # and avoids 'Node removeChild' by keeping structure static and simple.
-        # [FIX] Added 'desktop-only-features' class for mobile hiding
+            
+        # Login Box Wrapper Start
+        st.markdown('<div class="login-box-card">', unsafe_allow_html=True)
         st.markdown("""
-            <div class="desktop-only-features" style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
-                <div class="feature-box-centered" style="flex: 1;">
-                    <div>🌡️ AI 기회 분석</div>
-                </div>
-                <div class="feature-box-centered" style="flex: 1;">
-                    <div>⚡ 상권 밀집도</div>
-                </div>
+            <div class="login-title-area">
+                <h3>🔑 시스템 로그인</h3>
             </div>
         """, unsafe_allow_html=True)
-            
-        # Login Section Title
-        st.markdown("<h3 style='text-align: center; margin-bottom: 0.8rem; font-weight: 700; font-size: 1.3rem;'>🔑 시스템 로그인</h3>", unsafe_allow_html=True)
         
         # [FEATURE] System Notice (Centered)
         try:
             sys_config_notice = load_system_config()
             if sys_config_notice.get("show_notice") and sys_config_notice.get("notice_content"):
-                with st.container():
-                     st.info(f"📢 **{sys_config_notice.get('notice_title', '공지사항')}**: {sys_config_notice['notice_content']}")
+                st.info(f"📢 **{sys_config_notice.get('notice_title', '공지사항')}**: {sys_config_notice['notice_content']}")
         except: pass
 
         # Centered Login Tabs with better layout
@@ -1306,15 +1348,22 @@ if raw_df is not None:
                                 st.rerun()
                             else: st.error("암호가 올바르지 않습니다.")
 
-        # Footer
-        st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
-        st.markdown("<div style='text-align: center; color: #ADB5BD; font-size: 0.85rem;'>ⓒ 2026 Field Sales Assistant System • Premium AI Expert Edition</div>", unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True) # End of login-box-card
+
+        # Footer Section
+        st.markdown("""
+            <div class="footer-dark-bar">
+                <div class="footer-text">© 2026 Field Sales Assistant System • Premium AI Expert Edition</div>
+            </div>
+        """, unsafe_allow_html=True)
         
-        # Minimalist Guide Center Button
-        c1, c2, c3 = st.columns([2, 1, 2])
-        with c2:
+        # Guide Button (Floating/Fixed position style or centered in footer)
+        col_f1, col_f2, col_f3 = st.columns([1, 2, 1])
+        with col_f2:
+            st.markdown("<div style='margin-top: -2.8rem; text-align: center;'>", unsafe_allow_html=True)
             if st.button("📘 이용 가이드 보기", key="guide_btn_landing", use_container_width=True):
-                st.switch_page("pages/99_사용_가이드.py")
+                 st.switch_page("pages/99_사용_가이드.py")
+            st.markdown("</div>", unsafe_allow_html=True)
         st.stop() # Stop here if no role
 
 
