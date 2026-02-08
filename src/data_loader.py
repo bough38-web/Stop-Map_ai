@@ -18,7 +18,12 @@ from src.utils import normalize_address, parse_coordinates_row, get_best_match, 
 
 def normalize_str(s: Any) -> Optional[str]:
     if pd.isna(s): return s
-    return unicodedata.normalize('NFC', str(s)).strip()
+    # [STRICT] Enforce NFC and '지사' suffix at the lowest level
+    b_norm = unicodedata.normalize('NFC', str(s)).strip()
+    known_branches = ['중앙', '강북', '서대문', '고양', '의정부', '남양주', '강릉', '원주']
+    if b_norm in known_branches:
+        return b_norm + '지사'
+    return b_norm
 
 def _process_and_merge_district_data(target_df: pd.DataFrame, district_file_path_or_obj: Any) -> Tuple[pd.DataFrame, List[Dict], Optional[str]]:
     """

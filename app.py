@@ -3968,11 +3968,8 @@ if raw_df is not None:
     if active_nav == "📋 데이터 그리드":
         st.markdown("### 📋 전체 데이터")
         
-        custom_branch_order = [
-            '중앙지사', '강북지사', '서대문지사', '고양지사', '의정부지사', 
-            '남양주지사', '강릉지사', '원주지사', '미지정'
-        ]
-        df['관리지사'] = pd.Categorical(df['관리지사'], categories=custom_branch_order, ordered=True)
+        # [FIX] Use Global Order for Data Grid Category
+        grid_df['관리지사'] = pd.Categorical(grid_df['관리지사'], categories=GLOBAL_BRANCH_ORDER, ordered=True)
         
         grid_df = df.copy()
         
