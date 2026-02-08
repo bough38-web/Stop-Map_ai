@@ -3962,6 +3962,9 @@ if raw_df is not None:
                 if saved_count > 0:
                     st.toast(f"✅ {saved_count}건 등록되었습니다.")
                     st.cache_data.clear()
+                    # [FIX] Add delay to prevent 'Node removeChild' error due to rapid DOM updates
+                    import time
+                    time.sleep(0.5)
                     st.rerun()
                 else:
                     st.info("변경된 항목이 없습니다.")
