@@ -1137,13 +1137,32 @@ if raw_df is not None:
                 }
 
                 .hero-title { 
-                    font-size: 1.6rem;
+                    font-size: 1.8rem;
                     font-weight: 900; 
-                    margin-bottom: 0.3rem;
+                    margin-bottom: 0.1rem;
                     letter-spacing: -1px; 
                     text-shadow: 0 4px 8px rgba(0,0,0,0.3);
                     animation: fadeUp 0.8s ease-out forwards;
                     animation-delay: 0.1s;
+                    opacity: 0;
+                }
+                .hero-brand-eng {
+                    font-size: 0.9rem;
+                    font-weight: 600;
+                    letter-spacing: 0.5px;
+                    color: rgba(255, 255, 255, 0.9);
+                    margin-bottom: 0.1rem;
+                    text-transform: uppercase;
+                    animation: fadeUp 0.8s ease-out forwards;
+                    animation-delay: 0.2s;
+                    opacity: 0;
+                }
+                .hero-phonetic {
+                    font-size: 0.65rem;
+                    color: rgba(255, 255, 255, 0.6);
+                    margin-bottom: 0.5rem;
+                    animation: fadeUp 0.8s ease-out forwards;
+                    animation-delay: 0.25s;
                     opacity: 0;
                 }
                 .hero-subtitle { 
@@ -1340,7 +1359,9 @@ if raw_df is not None:
                         margin-top: -1.0rem; /* Pull up more */
                         margin-bottom: 0.1rem;
                     }
-                    .hero-title { font-size: 1.1rem; margin-bottom: 0rem; }
+                    .hero-title { font-size: 1.4rem; margin-bottom: 0rem; }
+                    .hero-brand-eng { font-size: 0.75rem; letter-spacing: 0; }
+                    .hero-phonetic { font-size: 0.55rem; margin-bottom: 0.3rem; }
                     .hero-subtitle { font-size: 0.7rem; line-height: 1.1; }
                     .login-box-card { padding: 0.2rem; margin-top: 0.1rem; margin-bottom: 0.1rem; width: 90%; }
                     .login-title-area { margin-bottom: 0.1rem; }
@@ -1369,6 +1390,8 @@ if raw_df is not None:
                 <div class="particle" style="width:80px; height:80px; top:10%; right:10%; animation-delay: 0s; opacity: 0.1;"></div>
                 <div class="particle" style="width:120px; height:120px; bottom:-20%; left:5%; animation-delay: -4s; opacity: 0.05;"></div>
                 <div class="particle" style="width:40px; height:40px; top:40%; left:20%; animation-delay: -2s; opacity: 0.08;"></div>
+                <div class="hero-brand-eng">Sales Territory Opportunity Assistant</div>
+                <div class="hero-phonetic">👉 세일즈 테리토리 오퍼튜니티 어시스턴트</div>
                 <div class="hero-title">영업기회 비서</div>
                 <div class="hero-subtitle">데이터 분석과 인공지능이 제안하는 과학적인 영업 파트너</div>
             </div>
