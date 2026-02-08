@@ -1053,8 +1053,17 @@ if raw_df is not None:
                         max-width: 100%; 
                         padding-left: 0.6rem; 
                         padding-right: 0.6rem; 
+                        padding-top: 1rem !important; /* [OPTIMIZATION] Reduced top padding on mobile */
+                        padding-bottom: 1rem !important;
                         border: none;
                         box-shadow: none;
+                    }
+                    /* [FEATURE] Mobile Optimization: Hide Hero & Features to show Login immediately */
+                    .hero-section {
+                        display: none !important;
+                    }
+                    .desktop-only-features {
+                        display: none !important;
                     }
                 }
 
@@ -1171,8 +1180,9 @@ if raw_df is not None:
         # Expert Feature Highlights (Flexbox for Perfect Centering)
         # Using custom HTML with flexbox prevents vertical alignment issues
         # and avoids 'Node removeChild' by keeping structure static and simple.
+        # [FIX] Added 'desktop-only-features' class for mobile hiding
         st.markdown("""
-            <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+            <div class="desktop-only-features" style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
                 <div class="feature-box-centered" style="flex: 1;">
                     <div>🌡️ AI 기회 분석</div>
                 </div>
