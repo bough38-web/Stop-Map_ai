@@ -150,13 +150,41 @@ def _process_and_merge_district_data(target_df: pd.DataFrame, district_file_path
             final_df[col] = pd.to_datetime(final_df[col], errors='coerce')
             
     # Create a temporary dataframe for max calculation
-    # We use a default date (e.g. NaT)
-    date_cols = [c for c in ['인허가일자', '폐업일자', '변경일시'] if c in final_df.columns]
+    # [FIX] Include original '최종수정시점' (from CSV) and '인허가일자' in the max calculation
+    # User Request: "Apply License Date to Last Modified"
     
-    if date_cols:
-        final_df['최종수정시점'] = final_df[date_cols].max(axis=1)
-        # Fill NaT with Now
-        final_df['최종수정시점'] = final_df['최종수정시점'].fillna(pd.Timestamp.now())
+    # Candidate columns for "Last Modified"
+    # We prioritize: Activity Change > Closed Date > License Date > Original CSV Date
+    candidate_cols = []
+    
+    # 1. Change Log (Most Recent Activity)
+    if '변경일시' in final_df.columns:
+        candidate_cols.append('변경일시')
+        
+    # 2. Closed Date (Significant Status Change)
+    if '폐업일자' in final_df.columns:
+        candidate_cols.append('폐업일자')
+        
+    # 3. License Date (Creation/Start) - Requested by User to be included
+    if '인허가일자' in final_df.columns:
+        candidate_cols.append('인허가일자')
+        
+    # 4. Original Last Modified (from CSV)
+    if '최종수정시점' in final_df.columns and '최종수정시점' not in candidate_cols:
+         # Ensure it's datetime
+         final_df['최종수정시점'] = pd.to_datetime(final_df['최종수정시점'], errors='coerce')
+         candidate_cols.append('최종수정시점')
+    
+    # Calculate Max Date
+    if candidate_cols:
+        final_df['최종수정시점'] = final_df[candidate_cols].max(axis=1)
+        
+        # [LOGIC] Only fill with Now if ALL are NaT (New record without any dates?)
+        # User implies they want to see License Date if available. 
+        # So we do NOT blindly fillna(now) if a valid date exists.
+        # But if ALL are NaT, maybe default to Now (System Ingestion Time)
+        mask_all_nat = final_df['최종수정시점'].isna()
+        final_df.loc[mask_all_nat, '최종수정시점'] = pd.Timestamp.now()
     else:
         final_df['최종수정시점'] = pd.Timestamp.now()
             
