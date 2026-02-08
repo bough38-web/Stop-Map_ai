@@ -1316,7 +1316,7 @@ if raw_df is not None:
                 .footer-dark-bar {
                     background-color: #102A43;
                     color: #BCCCDC;
-                    padding: 1.2rem 1rem;
+                    padding: 1rem 1rem;
                     text-align: center;
                     margin-left: -5rem;
                     margin-right: -5rem;
@@ -1328,28 +1328,38 @@ if raw_df is not None:
                     margin-bottom: 0.8rem;
                     letter-spacing: 0.5px;
                 }
+                .guide-wrap { 
+                    margin-top: -2.8rem; 
+                    text-align: center; 
+                }
                 
                 @media (max-width: 640px) {
+                    [data-testid="stAppViewContainer"] .block-container { 
+                        padding-top: 0rem !important;
+                        padding-bottom: 0rem !important;
+                    }
                     .hero-section {
-                        padding: 1rem 0.8rem; /* Further reduced for mobile vertical space */
-                        margin-left: -1rem;
-                        margin-right: -1rem;
-                        margin-top: -0.2rem; /* Pull up to top edge */
-                        border-radius: 0;
+                        padding: 0.6rem 0.5rem;
+                        margin-top: -0.5rem;
+                        margin-bottom: 0.3rem;
                     }
-                    .footer-dark-bar {
-                        margin-left: -1rem;
-                        margin-right: -1rem;
-                        padding: 1rem 0.5rem;
-                    }
-                    .hero-title { font-size: 1.4rem; margin-bottom: 0.3rem; }
-                    .hero-subtitle { font-size: 0.8rem; line-height: 1.4; }
-                    .expert-badge { padding: 2px 8px; font-size: 0.55rem; margin-bottom: 0.5rem; }
-                    .login-box-card { padding: 1rem; margin-top: 0.8rem; width: 92%; max-width: 100%; }
-                    .login-title-area h3 { font-size: 1.1rem; }
-                    .stTabs [data-baseweb="tab"] { height: 42px; padding: 0 0.8rem; font-size: 0.85rem; }
-                    .footer-text { font-size: 0.7rem; margin-bottom: 0.5rem; }
-                    div[data-testid="stForm"] .stButton > button { padding: 0.6rem 0.8rem !important; font-size: 0.9rem !important; }
+                    .hero-title { font-size: 1.2rem; margin-bottom: 0.1rem; }
+                    .hero-subtitle { font-size: 0.75rem; line-height: 1.2; }
+                    .login-box-card { padding: 0.4rem; margin-top: 0.2rem; margin-bottom: 0.2rem; width: 95%; }
+                    .login-title-area { margin-bottom: 0.2rem; }
+                    .login-title-area h3 { font-size: 1.0rem; }
+                    .stTabs [data-baseweb="tab-list"] { margin-bottom: 0.2rem; }
+                    .stTabs [data-baseweb="tab"] { height: 32px; padding: 0 0.5rem; font-size: 0.8rem; }
+                    .expert-insight-ticker { margin-top: 0.3rem; padding: 0.4rem; border-radius: 6px; }
+                    .ticker-label { font-size: 0.6rem; margin-bottom: 0.2rem; }
+                    .ticker-content { font-size: 0.65rem; gap: 3px; }
+                    .ticker-status { font-size: 0.5rem; }
+                    .footer-dark-bar { padding: 0.6rem 0.5rem; margin-top: 0.5rem; }
+                    .footer-text { font-size: 0.6rem; margin-bottom: 0.4rem; }
+                    .guide-wrap { margin-top: -4.0rem; } /* Aggressively pull up on mobile */
+                    div[data-testid="stForm"] .stButton > button { padding: 0.4rem 0.6rem !important; font-size: 0.85rem !important; }
+                    /* Hide non-essential notices on mobile to save space */
+                    div.stInfo, div.stWarning, div.stAlert { display: none !important; }
                 }
             </style>
             </style>
@@ -1496,7 +1506,7 @@ if raw_df is not None:
         # Guide Button (Floating/Fixed position style or centered in footer)
         col_f1, col_f2, col_f3 = st.columns([1, 2, 1])
         with col_f2:
-            st.markdown("<div style='margin-top: -2.8rem; text-align: center;'>", unsafe_allow_html=True)
+            st.markdown("<div class='guide-wrap'>", unsafe_allow_html=True)
             if st.button("📘 이용 가이드 보기", key="guide_btn_landing", use_container_width=True):
                  st.switch_page("pages/99_사용_가이드.py")
             st.markdown("</div>", unsafe_allow_html=True)
