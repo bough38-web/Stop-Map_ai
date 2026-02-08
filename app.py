@@ -1061,8 +1061,8 @@ if raw_df is not None:
                         max-width: 100%; 
                         padding-left: 0.6rem; 
                         padding-right: 0.6rem; 
-                        padding-top: 1rem !important; /* [OPTIMIZATION] Reduced top padding on mobile */
-                        padding-bottom: 1rem !important;
+                        padding-top: 0.2rem !important; /* Aggressively reduced for multi-element view */
+                        padding-bottom: 0.5rem !important;
                         border: none;
                         box-shadow: none;
                     }
@@ -1075,87 +1075,212 @@ if raw_df is not None:
                     }
                 }
 
+                /* Animations */
+                @keyframes fadeUp {
+                    from { opacity: 0; transform: translateY(20px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes shimmer {
+                    0% { background-position: 0% 50%; }
+                    50% { background-position: 100% 50%; }
+                    100% { background-position: 0% 50%; }
+                }
+                @keyframes drifting {
+                    0% { transform: translateY(0) translateX(0) scale(1); opacity: 0.1; }
+                    50% { transform: translateY(-20px) translateX(15px) scale(1.1); opacity: 0.3; }
+                    100% { transform: translateY(0) translateX(0) scale(1); opacity: 0.1; }
+                }
+                @keyframes softGlow {
+                    0% { text-shadow: 0 0 0px rgba(34, 139, 230, 0); }
+                    50% { text-shadow: 0 0 10px rgba(34, 139, 230, 0.5); }
+                    100% { text-shadow: 0 0 0px rgba(34, 139, 230, 0); }
+                }
+                .particle {
+                    position: absolute;
+                    background: white;
+                    border-radius: 50%;
+                    pointer-events: none;
+                    animation: drifting 8s ease-in-out infinite;
+                    z-index: 1;
+                }
+
                 .hero-section {
                     text-align: center;
-                    padding: 1.5rem 1rem;
-                    background: linear-gradient(135deg, #102A43 0%, #243B53 100%);
-                    background-image: 
-                        linear-gradient(135deg, rgba(16, 42, 67, 0.95) 0%, rgba(36, 59, 83, 0.95) 100%),
-                        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-                    border-radius: 0 0 0 0; /* Full width top */
+                    padding: 1.8rem 1.2rem;
+                    background: linear-gradient(-45deg, #102A43, #243B53, #102A43, #334E68);
+                    background-size: 400% 400%;
+                    animation: shimmer 15s ease infinite;
+                    border-radius: 0; /* Removed rounding */
                     color: white;
-                    margin-bottom: 0rem;
+                    margin-bottom: 0.8rem;
                     position: relative;
                     overflow: hidden;
-                    margin-left: -5rem;
-                    margin-right: -5rem;
-                    margin-top: -1.5rem;
+                    margin-left: -5rem; /* Full span */
+                    margin-right: -5rem; /* Full span */
+                    margin-top: -1.5rem; /* Align with top edge cleanly */
+                }
+                .hero-section::before {
+                    content: "";
+                    position: absolute;
+                    width: 100%;
+                    height: 100%;
+                    top: 0; left: 0;
+                    background-image: radial-gradient(circle at 20% 30%, rgba(255,255,255,0.05) 0%, transparent 50%);
+                    pointer-events: none;
+                }
+                .hero-section::after {
+                    content: "";
+                    position: absolute;
+                    left: 0;
+                    width: 100%;
+                    height: 2px;
+                    background: linear-gradient(90deg, transparent, #228BE6, transparent);
+                    box-shadow: 0 0 10px #228BE6;
+                    animation: scanner 4s ease-in-out infinite;
                 }
 
                 .hero-title { 
-                    font-size: 1.8rem;
+                    font-size: 1.6rem;
                     font-weight: 900; 
-                    margin-bottom: 0.5rem;
+                    margin-bottom: 0.3rem;
                     letter-spacing: -1px; 
                     text-shadow: 0 4px 8px rgba(0,0,0,0.3);
+                    animation: fadeUp 0.8s ease-out forwards;
+                    animation-delay: 0.1s;
+                    opacity: 0;
                 }
                 .hero-subtitle { 
                     font-size: 0.9rem;
-                    opacity: 0.9; 
+                    opacity: 0; 
                     font-weight: 400; 
                     line-height: 1.5; 
                     color: rgba(255, 255, 255, 0.85);
                     max-width: 600px;
                     margin: 0 auto;
+                    animation: fadeUp 0.8s ease-out forwards;
+                    animation-delay: 0.3s;
                 }
                 
-                .expert-badge {
-                    display: inline-block;
-                    padding: 4px 12px;
-                    background: rgba(255, 255, 255, 0.1);
-                    backdrop-filter: blur(10px);
-                    border-radius: 30px;
-                    font-size: 0.65rem;
-                    font-weight: 700;
-                    margin-bottom: 0.8rem;
-                    border: 1px solid rgba(255, 255, 255, 0.2);
-                    text-transform: uppercase;
-                    letter-spacing: 2px;
-                }
                 
                 .login-box-card {
-                    background: white;
-                    border: 1px solid #334E68;
-                    border-radius: 15px;
-                    padding: 1.2rem;
-                    margin-top: 1rem;
-                    margin-bottom: 1.2rem;
-                    box-shadow: 0 15px 35px rgba(0,0,0,0.05);
+                    background: transparent;
+                    border: none;
+                    border-radius: 0;
+                    padding: 0.2rem 1.2rem;
+                    margin-top: 0.2rem;
+                    margin-bottom: 0.5rem;
+                    box-shadow: none;
+                    animation: fadeUp 1s ease-out forwards;
+                    animation-delay: 0.6s;
+                    opacity: 0;
+                    width: 100%;
+                    max-width: 340px; /* Reduced width for tighter focus */
+                    margin-left: auto;
+                    margin-right: auto;
+                }
+                
+                /* Expert Scanner Animation */
+                @keyframes scanner {
+                    0% { top: -10%; }
+                    50% { top: 110%; }
+                    100% { top: -10%; }
+                }
+                .expert-scanner {
+                    position: absolute;
+                    width: 100%;
+                    height: 2px;
+                    background: linear-gradient(90deg, transparent, #228BE6, transparent);
+                    box-shadow: 0 0 15px #228BE6;
+                    z-index: 5;
+                    animation: scanner 5s linear infinite;
+                    opacity: 0.3;
+                }
+
+                .expert-insight-ticker {
+                    background: rgba(240, 244, 248, 0.4);
+                    border-radius: 10px;
+                    padding: 0.6rem 0.8rem;
+                    margin-top: 0.5rem; /* Reduced for mobile flow */
+                    border: 1px solid rgba(16, 42, 67, 0.05);
+                    max-width: 340px; /* Matched width */
+                    margin-left: auto;
+                    margin-right: auto;
+                    animation: fadeUp 1s ease-out forwards;
+                    animation-delay: 1.2s;
+                    opacity: 0;
+                }
+                .ticker-label {
+                    font-size: 0.65rem;
+                    color: #102A43;
+                    font-weight: 800;
+                    margin-bottom: 0.5rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 5px;
+                    opacity: 0.8;
+                    animation: softGlow 3s ease-in-out infinite;
+                }
+                .ticker-item {
+                    transition: all 0.3s ease;
+                }
+                .ticker-item:hover {
+                    transform: translateX(5px);
+                    background: rgba(34, 139, 230, 0.05);
+                }
+                .ticker-content {
+                    font-size: 0.72rem;
+                    color: #334E68;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 6px;
+                }
+                .ticker-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 2px 0;
+                }
+                .dot { 
+                    width: 6px; 
+                    height: 6px; 
+                    background-color: #228BE6; 
+                    border-radius: 50%; 
+                    flex-shrink: 0;
+                    box-shadow: 0 0 5px rgba(34, 139, 230, 0.5);
+                }
+                .ticker-text { flex-grow: 1; }
+                .ticker-status { 
+                    font-size: 0.55rem; 
+                    background: rgba(34, 139, 230, 0.1); 
+                    color: #228BE6; 
+                    padding: 1px 4px; 
+                    border-radius: 4px;
+                    font-weight: 700;
                 }
 
                 .login-title-area {
                     text-align: center;
-                    margin-bottom: 1rem;
+                    margin-bottom: 0.4rem;
                 }
                 .login-title-area h3 {
-                    font-size: 1.3rem;
+                    font-size: 1.2rem;
                     font-weight: 800;
                     color: #102A43;
-                    margin-bottom: 0.3rem;
+                    margin-bottom: 0.1rem;
                 }
 
                 /* Tab overrides */
                 .stTabs [data-baseweb="tab-list"] {
                     justify-content: center;
                     gap: 0.5rem;
-                    border-bottom: 1px solid #E9ECEF;
-                    margin-bottom: 1.2rem;
+                    border-bottom: 1px solid #DEE2E6;
+                    margin-bottom: 0.5rem;
                 }
                 .stTabs [data-baseweb="tab"] {
-                    height: 45px;
-                    padding: 0 1.2rem;
+                    height: 38px;
+                    padding: 0 1.0rem;
                     font-weight: 700;
-                    font-size: 0.95rem;
+                    font-size: 0.9rem;
                     color: #627D98;
                     background-color: transparent;
                     border-radius: 0;
@@ -1206,10 +1331,11 @@ if raw_df is not None:
                 
                 @media (max-width: 640px) {
                     .hero-section {
-                        padding: 1rem 0.6rem;
+                        padding: 1rem 0.8rem; /* Further reduced for mobile vertical space */
                         margin-left: -1rem;
                         margin-right: -1rem;
-                        margin-top: -1rem;
+                        margin-top: -0.2rem; /* Pull up to top edge */
+                        border-radius: 0;
                     }
                     .footer-dark-bar {
                         margin-left: -1rem;
@@ -1219,9 +1345,9 @@ if raw_df is not None:
                     .hero-title { font-size: 1.4rem; margin-bottom: 0.3rem; }
                     .hero-subtitle { font-size: 0.8rem; line-height: 1.4; }
                     .expert-badge { padding: 2px 8px; font-size: 0.55rem; margin-bottom: 0.5rem; }
-                    .login-box-card { padding: 0.8rem; margin-top: 0.5rem; }
+                    .login-box-card { padding: 1rem; margin-top: 0.8rem; width: 92%; max-width: 100%; }
                     .login-title-area h3 { font-size: 1.1rem; }
-                    .stTabs [data-baseweb="tab"] { height: 40px; padding: 0 0.8rem; font-size: 0.85rem; }
+                    .stTabs [data-baseweb="tab"] { height: 42px; padding: 0 0.8rem; font-size: 0.85rem; }
                     .footer-text { font-size: 0.7rem; margin-bottom: 0.5rem; }
                     div[data-testid="stForm"] .stButton > button { padding: 0.6rem 0.8rem !important; font-size: 0.9rem !important; }
                 }
@@ -1229,21 +1355,19 @@ if raw_df is not None:
             </style>
             """, unsafe_allow_html=True)
             
-        # Hero Section
+        # Merged Hero & Login Title
         st.markdown(f"""
             <div class="hero-section">
-                <div class="expert-badge">PREMIUM AI EXPERT SYSTEM</div>
+                <div class="particle" style="width:80px; height:80px; top:10%; right:10%; animation-delay: 0s; opacity: 0.1;"></div>
+                <div class="particle" style="width:120px; height:120px; bottom:-20%; left:5%; animation-delay: -4s; opacity: 0.05;"></div>
+                <div class="particle" style="width:40px; height:40px; top:40%; left:20%; animation-delay: -2s; opacity: 0.08;"></div>
                 <div class="hero-title">영업기회 비서</div>
                 <div class="hero-subtitle">데이터 분석과 인공지능이 제안하는 과학적인 영업 파트너</div>
             </div>
-        """, unsafe_allow_html=True)
-            
-        # Login Box Wrapper Start
-        st.markdown('<div class="login-box-card">', unsafe_allow_html=True)
-        st.markdown("""
-            <div class="login-title-area">
-                <h3>🔑 시스템 로그인</h3>
-            </div>
+            <div class="login-box-card">
+                <div class="login-title-area">
+                    <h3>🔑 시스템 로그인</h3>
+                </div>
         """, unsafe_allow_html=True)
         
         # [FEATURE] System Notice (Centered)
@@ -1257,9 +1381,9 @@ if raw_df is not None:
         tab_mgr, tab_br, tab_adm = st.tabs(["👤 담당자", "🏢 지사", "👮 관리자"])
         
         with tab_mgr:
-            with st.container(border=True):
+            with st.container(border=False):
                 # Centered Form Layout
-                c_main = st.columns([1, 15, 1])
+                c_main = st.columns([0.2, 10, 0.2])
                 with c_main[1]:
                     sel_br_for_mgr = st.selectbox("소속 지사 선택", ["전체"] + global_branch_opts, key="login_br_sel")
                     
@@ -1311,9 +1435,9 @@ if raw_df is not None:
                             else: st.error("담당자 정보를 찾을 수 없습니다.")
 
         with tab_br:
-            with st.container(border=True):
+            with st.container(border=False):
                 # Centered Form Layout
-                c_main = st.columns([1, 15, 1])
+                c_main = st.columns([0.2, 10, 0.2])
                 with c_main[1]:
                     st.info("지사 산하 모든 담당자의 활동과 실적을 모니터링합니다.")
                     with st.form("login_branch_v3"):
@@ -1331,9 +1455,9 @@ if raw_df is not None:
                             else: st.error("패스워드가 올바르지 않습니다.")
 
         with tab_adm:
-            with st.container(border=True):
+            with st.container(border=False):
                 # Centered Form Layout
-                c_main = st.columns([1, 15, 1])
+                c_main = st.columns([0.2, 10, 0.2])
                 with c_main[1]:
                     st.warning("시스템 설정 및 전사 통합 데이터 관리를 위한 전용 채널입니다.")
                     with st.form("login_admin_v3"):
@@ -1349,6 +1473,18 @@ if raw_df is not None:
                             else: st.error("암호가 올바르지 않습니다.")
 
         st.markdown('</div>', unsafe_allow_html=True) # End of login-box-card
+        
+        # Expert TOP 10 Insights (Refined with simple dots)
+        st.markdown("""
+            <div class="expert-insight-ticker">
+                <div class="ticker-label">📈 전략적 영업기회 확보</div>
+                <div class="ticker-content">
+                    <div class="ticker-item"><div class="dot"></div><div class="ticker-text">데이터 기반 맞춤형 오퍼링 최적화</div><div class="ticker-status">High</div></div>
+                    <div class="ticker-item"><div class="dot"></div><div class="ticker-text">성공 확률 85% 이상 핵심 상권 추출</div><div class="ticker-status">High</div></div>
+                    <div class="ticker-item"><div class="dot"></div><div class="ticker-text">방문 주기 자동 보정 및 스케줄링</div><div class="ticker-status">Active</div></div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
 
         # Footer Section
         st.markdown("""
