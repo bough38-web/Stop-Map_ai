@@ -19,6 +19,10 @@ from src import usage_logger  # Usage tracking for admin monitoring
 from src import voc_manager  # VOC / Request Manager
 from src.ai_scoring import calculate_ai_scores # [NEW] Expert Feat 1: AI Scoring
 
+# --- Global Constants & Normalization ---
+GLOBAL_BRANCH_ORDER = ['중앙지사', '강북지사', '서대문지사', '고양지사', '의정부지사', '남양주지사', '강릉지사', '원주지사', '미지정']
+GLOBAL_BRANCH_ORDER = [unicodedata.normalize('NFC', b) for b in GLOBAL_BRANCH_ORDER]
+
 # --- Configuration & Theme ---
 st.set_page_config(
     page_title="영업기회 관리 시스템",
@@ -1013,8 +1017,7 @@ if raw_df is not None:
     raw_df = data_loader.merge_activity_status(raw_df)
 
     # [REFACTOR] Centralized Branch List Calculation
-    GLOBAL_BRANCH_ORDER = ['중앙지사', '강북지사', '서대문지사', '고양지사', '의정부지사', '남양주지사', '강릉지사', '원주지사', '미지정']
-    GLOBAL_BRANCH_ORDER = [unicodedata.normalize('NFC', b) for b in GLOBAL_BRANCH_ORDER]
+    # GLOBAL_BRANCH_ORDER moved to top scope for absolute consistency
     
     if raw_df is not None and not raw_df.empty:
         current_branches_raw = [unicodedata.normalize('NFC', str(b)) for b in raw_df['관리지사'].unique() if pd.notna(b)]
@@ -2222,8 +2225,7 @@ if raw_df is not None:
         st.markdown("---")
             
         # 1. Branch
-        custom_branch_order = ['중앙지사', '강북지사', '서대문지사', '고양지사', '의정부지사', '남양주지사', '강릉지사', '원주지사']
-        custom_branch_order = [unicodedata.normalize('NFC', b) for b in custom_branch_order]
+        # GLOBAL_BRANCH_ORDER used from top scope
         current_branches_in_raw = [unicodedata.normalize('NFC', str(b)) for b in raw_df['관리지사'].unique() if pd.notna(b)]
         sorted_branches_for_filter = [b for b in GLOBAL_BRANCH_ORDER if b in current_branches_in_raw]
         
@@ -2792,12 +2794,10 @@ if raw_df is not None:
         st.error(f"Action Error: {e}") 
         
     # Dashboard
-    custom_branch_order = ['중앙지사', '강북지사', '서대문지사', '고양지사', '의정부지사', '남양주지사', '강릉지사', '원주지사']
-    # [FIX] Normalize constants
-    custom_branch_order = [unicodedata.normalize('NFC', b) for b in custom_branch_order]
+    # GLOBAL_BRANCH_ORDER used from top scope
     
     try:
-        current_branches = list(base_df['관리지사'].unique())
+        current_branches = [unicodedata.normalize('NFC', str(b)) for b in base_df['관리지사'].unique()]
         sorted_branches = [b for b in GLOBAL_BRANCH_ORDER if b in current_branches]
         others = [b for b in current_branches if b not in GLOBAL_BRANCH_ORDER]
         sorted_branches.extend(others)
@@ -2903,7 +2903,7 @@ if raw_df is not None:
                         card_class = "dashboard-card branch-active" if is_selected else "dashboard-card"
                         
                         # 3. Render Card HTML
-                        disp_name = b_name.replace("지사", "")
+                        disp_name = b_name # [STRICT] Do not strip "지사"
                         card_html = f"""
                         <div class="{card_class}">
                             <div class="card-header">
