@@ -1339,26 +1339,27 @@ if raw_df is not None:
                         padding-bottom: 0rem !important;
                     }
                     .hero-section {
-                        padding: 0.6rem 0.5rem;
-                        margin-top: -0.5rem;
-                        margin-bottom: 0.3rem;
+                        padding: 0.4rem 0.5rem; /* Ultra-tight */
+                        margin-top: -1.0rem; /* Pull up more */
+                        margin-bottom: 0.1rem;
                     }
-                    .hero-title { font-size: 1.2rem; margin-bottom: 0.1rem; }
-                    .hero-subtitle { font-size: 0.75rem; line-height: 1.2; }
-                    .login-box-card { padding: 0.4rem; margin-top: 0.2rem; margin-bottom: 0.2rem; width: 95%; }
-                    .login-title-area { margin-bottom: 0.2rem; }
-                    .login-title-area h3 { font-size: 1.0rem; }
-                    .stTabs [data-baseweb="tab-list"] { margin-bottom: 0.2rem; }
-                    .stTabs [data-baseweb="tab"] { height: 32px; padding: 0 0.5rem; font-size: 0.8rem; }
-                    .expert-insight-ticker { margin-top: 0.3rem; padding: 0.4rem; border-radius: 6px; }
-                    .ticker-label { font-size: 0.6rem; margin-bottom: 0.2rem; }
-                    .ticker-content { font-size: 0.65rem; gap: 3px; }
-                    .ticker-status { font-size: 0.5rem; }
-                    .footer-dark-bar { padding: 0.6rem 0.5rem; margin-top: 0.5rem; }
-                    .footer-text { font-size: 0.6rem; margin-bottom: 0.4rem; }
-                    .guide-wrap { margin-top: -4.0rem; } /* Aggressively pull up on mobile */
-                    div[data-testid="stForm"] .stButton > button { padding: 0.4rem 0.6rem !important; font-size: 0.85rem !important; }
-                    /* Hide non-essential notices on mobile to save space */
+                    .hero-title { font-size: 1.1rem; margin-bottom: 0rem; }
+                    .hero-subtitle { font-size: 0.7rem; line-height: 1.1; }
+                    .login-box-card { padding: 0.2rem; margin-top: 0.1rem; margin-bottom: 0.1rem; width: 90%; }
+                    .login-title-area { margin-bottom: 0.1rem; }
+                    .login-title-area h3 { font-size: 0.95rem; margin-top: 0.2rem; }
+                    .stTabs [data-baseweb="tab-list"] { margin-bottom: 0.1rem; gap: 0.2rem; }
+                    .stTabs [data-baseweb="tab"] { height: 30px; padding: 0 0.4rem; font-size: 0.75rem; }
+                    .expert-insight-ticker { margin-top: 0.2rem; padding: 0.3rem; border-radius: 4px; }
+                    .ticker-label { font-size: 0.55rem; margin-bottom: 0.1rem; }
+                    .ticker-content { font-size: 0.6rem; gap: 2px; }
+                    .ticker-status { font-size: 0.45rem; }
+                    .footer-dark-bar { padding: 0.4rem 0.5rem; margin-top: 0.3rem; }
+                    .footer-text { font-size: 0.55rem; margin-bottom: 0.2rem; }
+                    .guide-wrap { margin-top: -4.5rem; } 
+                    div[data-testid="stForm"] .stButton > button { padding: 0.3rem 0.6rem !important; font-size: 0.8rem !important; }
+                    /* Aggressively target Streamlit's internal gaps */
+                    [data-testid="stVerticalBlock"] > div { border: none !important; margin-bottom: -0.5rem !important; }
                     div.stInfo, div.stWarning, div.stAlert { display: none !important; }
                 }
             </style>
