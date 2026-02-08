@@ -986,12 +986,24 @@ if raw_df is not None:
     
     # [FIX] Ensure '관리지사' has no NaNs, fill with '미지정' (Global for all sources)
     if '관리지사' in raw_df.columns:
-        raw_df['관리지사'] = raw_df['관리지사'].fillna('미지정')
-        raw_df.loc[raw_df['관리지사'].astype(str).str.strip() == '', '관리지사'] = '미지정'
+        raw_df['관리지사'] = raw_df['관리지사'].fillna('미지정').astype(str)
+        raw_df.loc[raw_df['관리지사'].str.strip() == '', '관리지사'] = '미정' # Fallback
+        
+        # [STRICT] Enforce '지사' suffix at data level
+        def standardize_branch(b):
+            if not b or b in ['미지정', '전체', 'None', 'nan']: return '미지정'
+            b_norm = unicodedata.normalize('NFC', str(b)).strip()
+            # If it's a known branch name without '지사', add it
+            known_branches = ['중앙', '강북', '서대문', '고양', '의정부', '남양주', '강릉', '원주']
+            if b_norm in known_branches:
+                return b_norm + '지사'
+            return b_norm
+
+        raw_df['관리지사'] = raw_df['관리지사'].apply(standardize_branch)
     else:
         raw_df['관리지사'] = '미지정'
 
-    # [FIX] Global NFC Normalization to prevent Mac/Windows mismatch
+    # [FIX] Global NFC Normalization 
     for col in ['관리지사', 'SP담당', '사업장명', '소재지전체주소', '영업상태명', '업태구분명']:
         if col in raw_df.columns:
             raw_df[col] = raw_df[col].astype(str).apply(lambda x: unicodedata.normalize('NFC', x).strip() if x else x)
@@ -2238,20 +2250,6 @@ if raw_df is not None:
                 disabled_branch = True
         
         if st.session_state.sb_branch != "전체":
-                # [FIX] Robust matching for 'Branch' vs 'Branch지사'
-                norm_target = unicodedata.normalize('NFC', st.session_state.sb_branch)
-                # Try exact match first
-                if norm_target not in branch_opts:
-                    # Try with '지사' suffix
-                    alt_target = norm_target if norm_target.endswith('지사') else norm_target + '지사'
-                    if alt_target in branch_opts:
-                        st.session_state.sb_branch = alt_target
-                    else:
-                        # Try removing '지사'
-                        alt_target = norm_target.replace('지사', '')
-                        if alt_target in branch_opts:
-                            st.session_state.sb_branch = alt_target
-                
                 st.session_state.sb_branch = unicodedata.normalize('NFC', st.session_state.sb_branch)
         
         def reset_manager_filter():
