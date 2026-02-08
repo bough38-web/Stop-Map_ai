@@ -1066,10 +1066,7 @@ if raw_df is not None:
                         border: none;
                         box-shadow: none;
                     }
-                    /* [FEATURE] Mobile Optimization: Hide Hero & Features to show Login immediately */
-                    .hero-section {
-                        /* display: block; */ /* Re-enabled by removing display: none */
-                    }
+                    /* [FEATURE] Mobile Optimization: Hero Section is now Visible */
                     .desktop-only-features {
                         display: none !important;
                     }
