@@ -980,17 +980,17 @@ if raw_df is not None:
     raw_df = data_loader.merge_activity_status(raw_df)
 
     # [REFACTOR] Centralized Branch List Calculation
-    custom_branch_order = ['중앙지사', '강북지사', '서대문지사', '고양지사', '의정부지사', '남양주지사', '강릉지사', '원주지사']
-    custom_branch_order = [unicodedata.normalize('NFC', b) for b in custom_branch_order]
+    GLOBAL_BRANCH_ORDER = ['중앙지사', '강북지사', '서대문지사', '고양지사', '의정부지사', '남양주지사', '강릉지사', '원주지사', '미지정']
+    GLOBAL_BRANCH_ORDER = [unicodedata.normalize('NFC', b) for b in GLOBAL_BRANCH_ORDER]
     
     if raw_df is not None and not raw_df.empty:
         current_branches_raw = [unicodedata.normalize('NFC', str(b)) for b in raw_df['관리지사'].unique() if pd.notna(b)]
         
-        global_branch_opts = [b for b in custom_branch_order if b in current_branches_raw]
-        others = [b for b in current_branches_raw if b not in custom_branch_order]
+        global_branch_opts = [b for b in GLOBAL_BRANCH_ORDER if b in current_branches_raw]
+        others = [b for b in current_branches_raw if b not in GLOBAL_BRANCH_ORDER]
         global_branch_opts.extend(others)
     else:
-        global_branch_opts = custom_branch_order
+        global_branch_opts = [b for b in GLOBAL_BRANCH_ORDER if b != '미지정']
     
     # [FEATURE] Admin Global Sidebar Chart (Populated via Placeholder)
     # Uses admin_chart_placeholder defined at top of sidebar
@@ -1977,13 +1977,9 @@ if raw_df is not None:
         custom_branch_order = ['중앙지사', '강북지사', '서대문지사', '고양지사', '의정부지사', '남양주지사', '강릉지사', '원주지사']
         custom_branch_order = [unicodedata.normalize('NFC', b) for b in custom_branch_order]
         current_branches_in_raw = [unicodedata.normalize('NFC', str(b)) for b in raw_df['관리지사'].unique() if pd.notna(b)]
-        sorted_branches_for_filter = [b for b in custom_branch_order if b in current_branches_in_raw]
+        sorted_branches_for_filter = [b for b in GLOBAL_BRANCH_ORDER if b in current_branches_in_raw]
         
-        # [FEATURE] Add 미지정 option for admin users
-        if '미지정' in current_branches_in_raw and '미지정' not in sorted_branches_for_filter:
-            sorted_branches_for_filter.append('미지정')
-        
-        others_for_filter = [b for b in current_branches_in_raw if b not in custom_branch_order]
+        others_for_filter = [b for b in current_branches_in_raw if b not in GLOBAL_BRANCH_ORDER]
         sorted_branches_for_filter.extend(others_for_filter)
         sorted_branches_for_filter = [unicodedata.normalize('NFC', b) for b in sorted_branches_for_filter]
 
@@ -2554,8 +2550,8 @@ if raw_df is not None:
     
     try:
         current_branches = list(base_df['관리지사'].unique())
-        sorted_branches = [b for b in custom_branch_order if b in current_branches]
-        others = [b for b in current_branches if b not in custom_branch_order]
+        sorted_branches = [b for b in GLOBAL_BRANCH_ORDER if b in current_branches]
+        others = [b for b in current_branches if b not in GLOBAL_BRANCH_ORDER]
         sorted_branches.extend(others)
     except:
         sorted_branches = []
@@ -3107,7 +3103,7 @@ if raw_df is not None:
             fig_users = alt.Chart(top_users_df.head(10)).mark_bar().encode(
                 x=alt.X('활동수:Q', title='활동 횟수'),
                 y=alt.Y('사용자명:N', sort='-x', title='사용자'),
-                color=alt.Color('지사:N', legend=alt.Legend(title="지사")),
+                color=alt.Color('지사:N', legend=alt.Legend(title="지사"), sort=GLOBAL_BRANCH_ORDER),
                 tooltip=['사용자명', '지사', '역할', '활동수']
             ).properties(height=400)
             
@@ -3591,7 +3587,7 @@ if raw_df is not None:
                 df_stacked = df[df['영업상태명'].isin(['영업/정상', '폐업'])]
                 
                 bar_base = alt.Chart(df_stacked).encode(
-                    x=alt.X("관리지사", sort=custom_branch_order, title=None),
+                    x=alt.X("관리지사", sort=GLOBAL_BRANCH_ORDER, title=None),
                     y=alt.Y("count()", title="업체 수"),
                     color=alt.Color("영업상태명", scale=alt.Scale(domain=['영업/정상', '폐업'], range=['#2E7D32', '#d32f2f']), legend=alt.Legend(title="상태")),
                     tooltip=["관리지사", "영업상태명", "count()"]
