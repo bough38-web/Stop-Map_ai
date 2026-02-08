@@ -1010,10 +1010,18 @@ if raw_df is not None:
                         g_visited = len(raw_df[raw_df['활동진행상태'] == '방문'])
                     
                     c1, c2 = st.columns(2)
-                    c1.metric("전체", f"{g_total:,}")
+                    c1.metric("전체 (반영)", f"{g_total:,}")
                     
                     delta_val = f"{(g_visited/g_total*100):.1f}%" if g_total > 0 else None
-                    c2.metric("방문", f"{g_visited:,}", delta=delta_val)
+                    c2.metric("방문 (완료)", f"{g_visited:,}", delta=delta_val)
+                    
+                    # [FEATURE] Detailed Count Breakdown
+                    stats = st.session_state.get('data_load_stats', {})
+                    b_cnt = stats.get('before', g_total)
+                    a_cnt = stats.get('after', g_total)
+                    d_cnt = b_cnt - a_cnt
+                    if d_cnt > 0:
+                        st.caption(f"ℹ️ 원본 {b_cnt:,}건 중 중복 {d_cnt:,}건 제외")
                     
                     if g_total > 0:
                         prog = g_visited / g_total
@@ -1339,7 +1347,17 @@ if raw_df is not None:
                  with c_m2:
                      if g_total > 0:
                          st.progress(min(g_visited/g_total, 1.0))
-                     st.caption(f"방문: {g_visited} / 전체: {g_total} 건")
+                     
+                     # [FEATURE] Detailed Breakdown for Admin
+                     stats = st.session_state.get('data_load_stats', {})
+                     b_cnt = stats.get('before', g_total)
+                     a_cnt = stats.get('after', g_total)
+                     d_cnt = b_cnt - a_cnt
+                     
+                     if d_cnt > 0:
+                         st.caption(f"📊 전체 {b_cnt:,}건 중 중복 {d_cnt:,}건 제외 후 **{a_cnt:,}건** 반영 (방문 {g_visited}건)")
+                     else:
+                         st.caption(f"방문: {g_visited} / 전체: {g_total} 건")
                  with c_m3:
                      if st.button("로그아웃", key="btn_logout_main_panel", type="primary", use_container_width=True):
                          st.session_state.clear()
