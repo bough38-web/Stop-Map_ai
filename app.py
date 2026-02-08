@@ -3341,7 +3341,8 @@ if raw_df is not None:
             st.markdown("##### 📍 활동 상태별 필터")
             
             # Using st.pills for cleaner UI (Streamlit 1.40+)
-            activity_options = list(activity_logger.ACTIVITY_STATUS_MAP.values()) + ["⭐ 관심"]
+            # [FIX] Removed "⭐ 관심" from map filter as requested
+            activity_options = list(activity_logger.ACTIVITY_STATUS_MAP.values())
 
             # st.pills handles selection state automatically via key
             # It returns the list of selected options
@@ -3364,10 +3365,8 @@ if raw_df is not None:
             if sel_act_statuses:
                 mask = pd.Series([False] * len(map_df), index=map_df.index)
                 for s in sel_act_statuses:
-                    if s == "⭐ 관심":
-                        mask = mask | map_df['활동진행상태'].astype(str).str.contains("관심", na=False)
-                    else:
-                        mask = mask | (map_df['활동진행상태'] == s)
+                    # [FIX] Removed "⭐ 관심" logic
+                    mask = mask | (map_df['활동진행상태'] == s)
                 map_df = map_df[mask]
             
             # [OVERHAUL] Pre-calculate record_key for Map
