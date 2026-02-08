@@ -2607,9 +2607,8 @@ if raw_df is not None:
             if not sorted_branches:
                 st.info("표시할 지사 데이터가 없습니다.")
             else:
-                # Prepare grid
-                n_cols = 4
-                rows = [sorted_branches[i:i + n_cols] for i in range(0, len(sorted_branches), n_cols)]
+                # Prepare grid - Single Row
+                n_cols = len(sorted_branches)
                 
                 # Active Branch Logic (Source of Truth)
                 if sel_branch != "전체":
@@ -2618,45 +2617,44 @@ if raw_df is not None:
                     raw_dashboard_branch = st.session_state.get('sb_branch', "전체")
                 sel_dashboard_branch = unicodedata.normalize('NFC', raw_dashboard_branch)
 
-                for row_branches in rows:
-                    cols = st.columns(n_cols)
-                    for idx, b_name in enumerate(row_branches):
-                        with cols[idx]:
-                            # 1. Calculate Stats
-                            b_df = base_df[base_df['관리지사'] == b_name]
-                            b_total = len(b_df)
-                            count_active = len(b_df[b_df['영업상태명'] == '영업/정상'])
-                            count_closed = len(b_df[b_df['영업상태명'] == '폐업'])
-                            
-                            # 2. Determine Style
-                            is_selected = (b_name == sel_dashboard_branch)
-                            card_class = "dashboard-card branch-active" if is_selected else "dashboard-card"
-                            
-                            # 3. Render Card HTML
-                            disp_name = b_name.replace("지사", "")
-                            card_html = f"""
-                            <div class="{card_class}">
-                                <div class="card-header">
-                                    {disp_name}
-                                    <span style="font-size:1.2rem; color:#333;">{b_total}</span>
-                                </div>
-                                <div class="stat-sub">
-                                    <span style="color:#2E7D32; font-weight:600;"><span class="status-dot dot-green"></span>{count_active}</span>
-                                    <span style="color:#F44336; font-weight:600; margin-left:8px;"><span class="status-dot dot-red"></span>{count_closed}</span>
-                                </div>
+                cols = st.columns(n_cols)
+                for idx, b_name in enumerate(sorted_branches):
+                    with cols[idx]:
+                        # 1. Calculate Stats
+                        b_df = base_df[base_df['관리지사'] == b_name]
+                        b_total = len(b_df)
+                        count_active = len(b_df[b_df['영업상태명'] == '영업/정상'])
+                        count_closed = len(b_df[b_df['영업상태명'] == '폐업'])
+                        
+                        # 2. Determine Style
+                        is_selected = (b_name == sel_dashboard_branch)
+                        card_class = "dashboard-card branch-active" if is_selected else "dashboard-card"
+                        
+                        # 3. Render Card HTML
+                        disp_name = b_name.replace("지사", "")
+                        card_html = f"""
+                        <div class="{card_class}">
+                            <div class="card-header">
+                                {disp_name}
+                                <span style="font-size:1.2rem; color:#333;">{b_total}</span>
                             </div>
-                            """
-                            st.markdown(card_html, unsafe_allow_html=True)
-                            
-                            # 4. Interaction Buttons
-                            if is_selected:
-                                b_c1, b_c2 = st.columns(2)
-                                with b_c1:
-                                    st.button("영업", key=f"btn_act_{b_name}", on_click=update_branch_with_status, args=(b_name, '영업/정상'), use_container_width=True, type="primary")
-                                with b_c2:
-                                    st.button("폐업", key=f"btn_cls_{b_name}", on_click=update_branch_with_status, args=(b_name, '폐업'), use_container_width=True)
-                            else:
-                                st.button("👆 선택", key=f"btn_sel_{b_name}", on_click=update_branch_state, args=(b_name,), use_container_width=True)
+                            <div class="stat-sub">
+                                <span style="color:#2E7D32; font-weight:600;"><span class="status-dot dot-green"></span>{count_active}</span>
+                                <span style="color:#F44336; font-weight:600; margin-left:8px;"><span class="status-dot dot-red"></span>{count_closed}</span>
+                            </div>
+                        </div>
+                        """
+                        st.markdown(card_html, unsafe_allow_html=True)
+                        
+                        # 4. Interaction Buttons
+                        if is_selected:
+                            b_c1, b_c2 = st.columns(2)
+                            with b_c1:
+                                st.button("영업", key=f"btn_act_{b_name}", on_click=update_branch_with_status, args=(b_name, '영업/정상'), use_container_width=True, type="primary")
+                            with b_c2:
+                                st.button("폐업", key=f"btn_cls_{b_name}", on_click=update_branch_with_status, args=(b_name, '폐업'), use_container_width=True)
+                        else:
+                            st.button("👆 선택", key=f"btn_sel_{b_name}", on_click=update_branch_state, args=(b_name,), use_container_width=True)
     
     st.markdown("---")
     
@@ -2825,27 +2823,10 @@ if raw_df is not None:
 
     active_nav = st.radio("Navigation", nav_labels, horizontal=True, label_visibility="collapsed", key="v131_main_nav")
     
-    # Dummy Object for Inactive Tabs to avoid re-indenting blocks
-    class DummyTab:
-        def __enter__(self): return self
-        def __exit__(self, *args): pass
-        def __getattr__(self, name):
-            return lambda *args, **kwargs: None
-    
-    # Initialize all tabs to dummy
-    tab1 = tab_stats = tab2 = tab3 = tab_voc = tab_history = tab_monitor = DummyTab()
-    
-    # Activate ONLY the selected tab via st.container()
-    if active_nav == "🗺️ 지도 & 분석": tab1 = st.container()
-    elif active_nav == "📈 상세통계": tab_stats = st.container()
-    elif active_nav == "📱 모바일 리스트": tab2 = st.container()
-    elif active_nav == "📋 데이터 그리드": tab3 = st.container()
-    elif active_nav == "🗣️ 관리자에게 요청하기": tab_voc = st.container()
-    elif active_nav == "📝 방문 이력": tab_history = st.container()
-    elif active_nav == "👁️ 모니터링": tab_monitor = st.container()
+    # [LAYOUT] Conditional Tab Execution (v1.31.0 Persistence Fix)
     
     # [TAB] Visit History
-    with tab_history:
+    if active_nav == "📝 방문 이력":
         st.subheader("📝 방문 이력 관리")
         
         # [SECURITY] Role-based access control
@@ -3041,164 +3022,163 @@ if raw_df is not None:
             st.info("작성된 방문 리포트가 없습니다.")
     
     # [TAB] Admin Monitoring Dashboard (Only for Admin)
-    if st.session_state.user_role == 'admin':
-        with tab_monitor:
-            st.subheader("👁️ 시스템 활동 모니터링")
+    if st.session_state.user_role == 'admin' and active_nav == "👁️ 모니터링":
+        st.subheader("👁️ 시스템 활동 모니터링")
+        
+        # Period selection
+        col_p1, col_p2 = st.columns([3, 1])
+        with col_p1:
+            period_days = st.selectbox(
+                "📅 조회 기간",
+                [7, 30, 90],
+                format_func=lambda x: f"최근 {x}일",
+                key="monitor_period"
+            )
+        with col_p2:
+            if st.button("🔄 새로고침", use_container_width=True):
+                st.rerun()
+        
+        st.divider()
+        
+        # Get usage statistics
+        usage_stats = usage_logger.get_usage_stats(days=period_days)
+        
+        # Top metrics
+        st.markdown("### 📊 전체 활동 요약")
+        metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+        
+        with metric_col1:
+            st.metric("총 활동 수", f"{usage_stats['total_actions']:,}건")
+        with metric_col2:
+            st.metric("활성 사용자", f"{usage_stats['unique_users']}명")
+        with metric_col3:
+            st.metric("활성 지사", f"{usage_stats['unique_branches']}개")
+        with metric_col4:
+            visit_reports = activity_logger.get_visit_reports(limit=1000)
+            st.metric("방문 리포트", f"{len(visit_reports)}건")
+        
+        st.divider()
+        
+        # User activity table
+        st.markdown("### 👥 사용자별 활동")
+        
+        if usage_stats['top_users']:
+            # Create dataframe from top_users
+            top_users_df = pd.DataFrame(usage_stats['top_users'])
+            top_users_df.columns = ['사용자명', '지사', '역할', '활동수']
+            top_users_df = top_users_df.sort_values('활동수', ascending=False)
             
-            # Period selection
-            col_p1, col_p2 = st.columns([3, 1])
-            with col_p1:
-                period_days = st.selectbox(
-                    "📅 조회 기간",
-                    [7, 30, 90],
-                    format_func=lambda x: f"최근 {x}일",
-                    key="monitor_period"
-                )
-            with col_p2:
-                if st.button("🔄 새로고침", use_container_width=True):
-                    st.rerun()
+            # Display as formatted table
+            st.dataframe(
+                top_users_df,
+                use_container_width=True,
+                hide_index=True
+            )
             
-            st.divider()
+            # Bar chart
+            fig_users = alt.Chart(top_users_df.head(10)).mark_bar().encode(
+                x=alt.X('활동수:Q', title='활동 횟수'),
+                y=alt.Y('사용자명:N', sort='-x', title='사용자'),
+                color=alt.Color('지사:N', legend=alt.Legend(title="지사")),
+                tooltip=['사용자명', '지사', '역할', '활동수']
+            ).properties(height=400)
             
-            # Get usage statistics
-            usage_stats = usage_logger.get_usage_stats(days=period_days)
-            
-            # Top metrics
-            st.markdown("### 📊 전체 활동 요약")
-            metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
-            
-            with metric_col1:
-                st.metric("총 활동 수", f"{usage_stats['total_actions']:,}건")
-            with metric_col2:
-                st.metric("활성 사용자", f"{usage_stats['unique_users']}명")
-            with metric_col3:
-                st.metric("활성 지사", f"{usage_stats['unique_branches']}개")
-            with metric_col4:
-                visit_reports = activity_logger.get_visit_reports(limit=1000)
-                st.metric("방문 리포트", f"{len(visit_reports)}건")
-            
-            st.divider()
-            
-            # User activity table
-            st.markdown("### 👥 사용자별 활동")
-            
-            if usage_stats['top_users']:
-                # Create dataframe from top_users
-                top_users_df = pd.DataFrame(usage_stats['top_users'])
-                top_users_df.columns = ['사용자명', '지사', '역할', '활동수']
-                top_users_df = top_users_df.sort_values('활동수', ascending=False)
+            st.altair_chart(fig_users, use_container_width=True)
+        else:
+            st.info("활동 데이터가 없습니다.")
+        
+        st.divider()
+        
+        # Branch activity
+        col_b1, col_b2 = st.columns(2)
+        
+        with col_b1:
+            st.markdown("### 🏢 지사별 활동")
+            if usage_stats['actions_by_branch']:
+                branch_df = pd.DataFrame(
+                    list(usage_stats['actions_by_branch'].items()),
+                    columns=['지사', '활동수']
+                ).sort_values('활동수', ascending=False)
                 
-                # Display as formatted table
-                st.dataframe(
-                    top_users_df,
-                    use_container_width=True,
-                    hide_index=True
-                )
-                
-                # Bar chart
-                fig_users = alt.Chart(top_users_df.head(10)).mark_bar().encode(
-                    x=alt.X('활동수:Q', title='활동 횟수'),
-                    y=alt.Y('사용자명:N', sort='-x', title='사용자'),
-                    color=alt.Color('지사:N', legend=alt.Legend(title="지사")),
-                    tooltip=['사용자명', '지사', '역할', '활동수']
-                ).properties(height=400)
-                
-                st.altair_chart(fig_users, use_container_width=True)
+                st.dataframe(branch_df, use_container_width=True, hide_index=True)
             else:
-                st.info("활동 데이터가 없습니다.")
-            
-            st.divider()
-            
-            # Branch activity
-            col_b1, col_b2 = st.columns(2)
-            
-            with col_b1:
-                st.markdown("### 🏢 지사별 활동")
-                if usage_stats['actions_by_branch']:
-                    branch_df = pd.DataFrame(
-                        list(usage_stats['actions_by_branch'].items()),
-                        columns=['지사', '활동수']
-                    ).sort_values('활동수', ascending=False)
-                    
-                    st.dataframe(branch_df, use_container_width=True, hide_index=True)
-                else:
-                    st.info("데이터 없음")
-            
-            with col_b2:
-                st.markdown("### 📋 활동 유형별")
-                if usage_stats['actions_by_type']:
-                    action_df = pd.DataFrame(
-                        list(usage_stats['actions_by_type'].items()),
-                        columns=['유형', '횟수']
-                    ).sort_values('횟수', ascending=False)
-                    
-                    st.dataframe(action_df, use_container_width=True, hide_index=True)
-                else:
-                    st.info("데이터 없음")
-            
-            st.divider()
-            
-            # Visit report statistics by user
-            st.markdown("### 📝 방문 리포트 현황")
-            
-            if visit_reports:
-                # Group by user
-                visit_by_user = {}
-                for rep in visit_reports:
-                    u_name = rep.get('user_name', 'Unknown')
-                    u_branch = rep.get('user_branch', '')
-                    
-                    if u_name not in visit_by_user:
-                        visit_by_user[u_name] = {'branch': u_branch, 'count': 0}
-                    visit_by_user[u_name]['count'] += 1
+                st.info("데이터 없음")
+        
+        with col_b2:
+            st.markdown("### 📋 활동 유형별")
+            if usage_stats['actions_by_type']:
+                action_df = pd.DataFrame(
+                    list(usage_stats['actions_by_type'].items()),
+                    columns=['유형', '횟수']
+                ).sort_values('횟수', ascending=False)
                 
-                # Convert to DataFrame
-                visit_stats_df = pd.DataFrame([
-                    {'사용자명': k, '지사': v['branch'], '방문 리포트 수': v['count']}
-                    for k, v in visit_by_user.items()
-                ]).sort_values('방문 리포트 수', ascending=False)
-                
-                col_v1, col_v2 = st.columns([2, 1])
-                
-                with col_v1:
-                    st.dataframe(visit_stats_df, use_container_width=True, hide_index=True)
-                
-                with col_v2:
-                    # Pie chart
-                    fig_pie = alt.Chart(visit_stats_df.head(10)).mark_arc().encode(
-                        theta='방문 리포트 수:Q',
-                        color='사용자명:N',
-                        tooltip=['사용자명', '지사', '방문 리포트 수']
-                    ).properties(height=300)
-                    
-                    st.altair_chart(fig_pie, use_container_width=True)
+                st.dataframe(action_df, use_container_width=True, hide_index=True)
             else:
-                st.info("방문 리포트가 없습니다.")
+                st.info("데이터 없음")
+        
+        st.divider()
+        
+        # Visit report statistics by user
+        st.markdown("### 📝 방문 리포트 현황")
+        
+        if visit_reports:
+            # Group by user
+            visit_by_user = {}
+            for rep in visit_reports:
+                u_name = rep.get('user_name', 'Unknown')
+                u_branch = rep.get('user_branch', '')
+                
+                if u_name not in visit_by_user:
+                    visit_by_user[u_name] = {'branch': u_branch, 'count': 0}
+                visit_by_user[u_name]['count'] += 1
             
-            st.divider()
+            # Convert to DataFrame
+            visit_stats_df = pd.DataFrame([
+                {'사용자명': k, '지사': v['branch'], '방문 리포트 수': v['count']}
+                for k, v in visit_by_user.items()
+            ]).sort_values('방문 리포트 수', ascending=False)
             
-            # Recent activity timeline
-            st.markdown("### ⏱️ 최근 활동 타임라인")
+            col_v1, col_v2 = st.columns([2, 1])
             
-            recent_logs = usage_logger.get_usage_logs(days=period_days)
+            with col_v1:
+                st.dataframe(visit_stats_df, use_container_width=True, hide_index=True)
             
-            if recent_logs:
-                # Show last 30 activities
-                for log in sorted(recent_logs, key=lambda x: x['timestamp'], reverse=True)[:30]:
-                    timestamp = log['timestamp']
-                    user_name = log['user_name']
-                    branch = log['user_branch']
-                    action = log['action']
-                    
-                    st.caption(f"🕐 {timestamp} | 👤 {user_name} ({branch}) - **{action}**")
-            else:
-                st.info("활동 로그가 없습니다.")
+            with col_v2:
+                # Pie chart
+                fig_pie = alt.Chart(visit_stats_df.head(10)).mark_arc().encode(
+                    theta='방문 리포트 수:Q',
+                    color='사용자명:N',
+                    tooltip=['사용자명', '지사', '방문 리포트 수']
+                ).properties(height=300)
+                
+                st.altair_chart(fig_pie, use_container_width=True)
+        else:
+            st.info("방문 리포트가 없습니다.")
+        
+        st.divider()
+        
+        # Recent activity timeline
+        st.markdown("### ⏱️ 최근 활동 타임라인")
+        
+        recent_logs = usage_logger.get_usage_logs(days=period_days)
+        
+        if recent_logs:
+            # Show last 30 activities
+            for log in sorted(recent_logs, key=lambda x: x['timestamp'], reverse=True)[:30]:
+                timestamp = log['timestamp']
+                user_name = log['user_name']
+                branch = log['user_branch']
+                action = log['action']
+                
+                st.caption(f"🕐 {timestamp} | 👤 {user_name} ({branch}) - **{action}**")
+        else:
+            st.info("활동 로그가 없습니다.")
 
 
 
-    with tab1:
+    # [TAB] Map & Analysis
+    if active_nav == "🗺️ 지도 & 분석":
         # Log tab access
-
         
         with st.expander("🗺️ 조건조회", expanded=True):
             # Marker for Mobile Visibility Control
@@ -3392,7 +3372,7 @@ if raw_df is not None:
             if sel_map_region != "전체": filter_summary.append(f"지사:{sel_map_region}")
             if sel_map_sales != "전체": filter_summary.append(f"담당:{sel_map_sales}")
             if sel_map_type != "전체": filter_summary.append(f"업종:{sel_map_type}")
-            if sel_status != "전체": filter_summary.append(f"상태:{sel_status}")
+            if sel_map_status != "전체": filter_summary.append(f"상태:{sel_map_status}")
 
             if filter_summary:
                 st.caption(f"ℹ️ 적용된 필터: {', '.join(filter_summary)}")
@@ -3429,7 +3409,8 @@ if raw_df is not None:
         else:
             st.warning("표시할 데이터가 없습니다.")
             
-    with tab_stats:
+    # [TAB] Detailed Stats
+    if active_nav == "📈 상세통계":
         st.subheader("📈 다차원 상세 분석")
         
         # [FEATURE] 15-Day Daily Trend Chart
@@ -3549,33 +3530,27 @@ if raw_df is not None:
             st.markdown("##### 🏢 지사별 업체 분포 (선택된 영업상태 기준)")
             
             if not df.empty:
-                c3, c4 = st.columns([1,1])
-                
+                # [MODIFIED] Single-row layout for Detailed Branch Distribution
+                st.markdown("**지사별 점유율 (Rank)**")
                 bar_chart_base = alt.Chart(df).encode(
-                    y=alt.Y("관리지사", sort="-x", title=" "),
-                    x=alt.X("count()", title="업체 수"),
+                    x=alt.X("관리지사", sort="-y", title=" "),
+                    y=alt.Y("count()", title="업체 수"),
                     color=alt.Color("관리지사", legend=None), 
                     tooltip=["관리지사", "count()"]
-                ).properties(height=200)
+                ).properties(height=250)
                 
                 bar_chart = bar_chart_base.mark_bar(cornerRadius=3)
-                
-                bar_text = bar_chart_base.mark_text(
-                    align='left', 
-                    dx=5,
-                    color='black'
-                ).encode(
+                bar_text = bar_chart_base.mark_text(align='center', dy=-10, color='black').encode(
                     text=alt.Text("count()", format=",.0f")
                 )
                 
-                with c3:
-                    st.markdown("**지사별 점유율 (Rank)**")
-                    # Clean Tone Background + No Border stroke
-                    final_rank_chart = (bar_chart + bar_text).configure_view(stroke=None).configure(background='#F8F9FA')
-                    st.altair_chart(final_rank_chart, use_container_width=True, theme=None)
-                    
-                # [FIX] Filter out 'Other' (기타) and reduce height to 200px
-                # Only show '영업/정상' and '폐업'
+                final_rank_chart = (bar_chart + bar_text).configure_view(stroke=None).configure(background='#F8F9FA')
+                st.altair_chart(final_rank_chart, use_container_width=True, theme=None)
+                
+                st.divider()
+                
+                # [MODIFIED] Full-width Stacked Chart
+                st.markdown("**지사별 영업상태 누적 (Stacked)**")
                 df_stacked = df[df['영업상태명'].isin(['영업/정상', '폐업'])]
                 
                 bar_base = alt.Chart(df_stacked).encode(
@@ -3583,15 +3558,11 @@ if raw_df is not None:
                     y=alt.Y("count()", title="업체 수"),
                     color=alt.Color("영업상태명", scale=alt.Scale(domain=['영업/정상', '폐업'], range=['#2E7D32', '#d32f2f']), legend=alt.Legend(title="상태")),
                     tooltip=["관리지사", "영업상태명", "count()"]
-                ).properties(height=200)
+                ).properties(height=250)
                 
                 stacked_bar = bar_base.mark_bar(cornerRadiusTopLeft=5, cornerRadiusTopRight=5)
-                
-                with c4:
-                    st.markdown("**지사별 영업상태 누적 (Stacked)**")
-                    # Clean Tone Background + No Border stroke
-                    final_stack_chart = stacked_bar.interactive().configure_view(stroke=None).configure(background='#F8F9FA')
-                    st.altair_chart(final_stack_chart, use_container_width=True, theme=None)
+                final_stack_chart = stacked_bar.interactive().configure_view(stroke=None).configure(background='#F8F9FA')
+                st.altair_chart(final_stack_chart, use_container_width=True, theme=None)
             
                 st.markdown("##### 👤 영업담당별 실적 Top 10")
                 mgr_counts = df['SP담당'].value_counts().head(10).reset_index()
@@ -3631,7 +3602,8 @@ if raw_df is not None:
         
         st.altair_chart((dong_chart + dong_text), use_container_width=True)
 
-    with tab2:
+    # [TAB] Mobile List
+    if active_nav == "📱 모바일 리스트":
         st.subheader("📱 영업 공략 리스트")
         
         keyword = st.text_input("검색", placeholder="업체명 또는 주소...")
@@ -3711,7 +3683,8 @@ if raw_df is not None:
                         with b3:
                              st.link_button("🔍", f"https://search.naver.com/search.naver?query={row['사업장명']}", use_container_width=True)
     
-    with tab3:
+    # [TAB] Data Grid
+    if active_nav == "📋 데이터 그리드":
         st.markdown("### 📋 전체 데이터")
         
         custom_branch_order = [
@@ -3988,7 +3961,9 @@ if raw_df is not None:
     
     # [TAB] VOC Request (Admin + Users)
     # [FIX] Allow Admin to see the tab content (as View Mode)
-    with tab_voc:
+    # [TAB] VOC Request (Admin + Users)
+    # [FIX] Allow Admin to see the tab content (as View Mode)
+    if active_nav == "🗣️ 관리자에게 요청하기":
         st.subheader("🗣️ 관리자에게 요청하기 (VOC)")
         
         if st.session_state.user_role == 'admin':
