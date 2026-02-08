@@ -1136,33 +1136,34 @@ if raw_df is not None:
                     animation: scanner 4s ease-in-out infinite;
                 }
 
-                .hero-title { 
-                    font-size: 1.8rem;
-                    font-weight: 900; 
-                    margin-bottom: 0.1rem;
-                    letter-spacing: -1px; 
-                    text-shadow: 0 4px 8px rgba(0,0,0,0.3);
-                    animation: fadeUp 0.8s ease-out forwards;
-                    animation-delay: 0.1s;
-                    opacity: 0;
-                }
                 .hero-brand-eng {
-                    font-size: 0.9rem;
-                    font-weight: 600;
-                    letter-spacing: 0.5px;
-                    color: rgba(255, 255, 255, 0.9);
-                    margin-bottom: 0.1rem;
+                    font-size: 0.85rem;
+                    font-weight: 300;
+                    letter-spacing: 2px;
+                    color: rgba(255, 255, 255, 0.7);
+                    margin-bottom: 0.8rem;
                     text-transform: uppercase;
+                    display: inline-block;
+                    padding: 4px 12px;
+                    border: 1px solid rgba(255, 255, 255, 0.15);
+                    border-radius: 20px;
+                    background: rgba(255, 255, 255, 0.05);
+                    backdrop-filter: blur(5px);
                     animation: fadeUp 0.8s ease-out forwards;
                     animation-delay: 0.2s;
                     opacity: 0;
                 }
-                .hero-phonetic {
-                    font-size: 0.65rem;
-                    color: rgba(255, 255, 255, 0.6);
-                    margin-bottom: 0.5rem;
+                .hero-title { 
+                    font-size: 2.2rem;
+                    font-weight: 900; 
+                    margin-bottom: 0.4rem;
+                    letter-spacing: -1.5px; 
+                    background: linear-gradient(135deg, #FFFFFF 0%, #BCCCDC 100%);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    text-shadow: 0 4px 15px rgba(0,0,0,0.2);
                     animation: fadeUp 0.8s ease-out forwards;
-                    animation-delay: 0.25s;
+                    animation-delay: 0.1s;
                     opacity: 0;
                 }
                 .hero-subtitle { 
@@ -1359,10 +1360,9 @@ if raw_df is not None:
                         margin-top: -1.0rem; /* Pull up more */
                         margin-bottom: 0.1rem;
                     }
-                    .hero-title { font-size: 1.4rem; margin-bottom: 0rem; }
-                    .hero-brand-eng { font-size: 0.75rem; letter-spacing: 0; }
-                    .hero-phonetic { font-size: 0.55rem; margin-bottom: 0.3rem; }
-                    .hero-subtitle { font-size: 0.7rem; line-height: 1.1; }
+                    .hero-title { font-size: 1.6rem; margin-bottom: 0.2rem; }
+                    .hero-brand-eng { font-size: 0.65rem; letter-spacing: 1px; padding: 2px 8px; margin-bottom: 0.4rem; }
+                    .hero-subtitle { font-size: 0.72rem; line-height: 1.1; }
                     .login-box-card { padding: 0.2rem; margin-top: 0.1rem; margin-bottom: 0.1rem; width: 90%; }
                     .login-title-area { margin-bottom: 0.1rem; }
                     .login-title-area h3 { font-size: 0.95rem; margin-top: 0.2rem; }
@@ -1391,7 +1391,6 @@ if raw_df is not None:
                 <div class="particle" style="width:120px; height:120px; bottom:-20%; left:5%; animation-delay: -4s; opacity: 0.05;"></div>
                 <div class="particle" style="width:40px; height:40px; top:40%; left:20%; animation-delay: -2s; opacity: 0.08;"></div>
                 <div class="hero-brand-eng">Sales Territory Opportunity Assistant</div>
-                <div class="hero-phonetic">👉 세일즈 테리토리 오퍼튜니티 어시스턴트</div>
                 <div class="hero-title">영업기회 비서</div>
                 <div class="hero-subtitle">데이터 분석과 인공지능이 제안하는 과학적인 영업 파트너</div>
             </div>
