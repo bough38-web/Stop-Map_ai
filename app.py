@@ -506,34 +506,43 @@ def mask_name(name):
     return name_str[0] + "*" * (len(name_str) - 2) + name_str[-1]
 
 # State Update Callbacks
-# State Update Callbacks
 def update_branch_state(name):
     # [FIX] Force NFC to match selectbox options strictly
     normalized_name = unicodedata.normalize('NFC', name)
     st.session_state.sb_branch = normalized_name
     st.session_state.sb_manager = "전체"
     st.session_state.dash_branch = normalized_name
-    st.session_state.page = 0 # [FIX] Reset page
-    st.query_params.clear() # [FIX] Clear params
-    
-def update_manager_state(name):
+    st.session_state.page = 0 
+    st.query_params.clear()
+
+def update_manager_state(name, branch=None):
     st.session_state.sb_manager = name
-    st.session_state.page = 0 # [FIX] Reset page
-    st.query_params.clear() # [FIX] Clear params
+    # [FIX] Proactively sync branch when manager is selected
+    if branch and branch != "전체":
+        normalized_br = unicodedata.normalize('NFC', branch)
+        st.session_state.sb_branch = normalized_br
+        st.session_state.dash_branch = normalized_br
+    st.session_state.page = 0
+    st.query_params.clear()
 
 def update_branch_with_status(name, status):
-    st.session_state.sb_branch = name
+    normalized_name = unicodedata.normalize('NFC', name)
+    st.session_state.sb_branch = normalized_name
     st.session_state.sb_manager = "전체"
-    st.session_state.dash_branch = name
+    st.session_state.dash_branch = normalized_name
     st.session_state.sb_status = status
-    st.session_state.page = 0 # [FIX] Reset page
-    st.query_params.clear() # [FIX] Clear params
-    
-def update_manager_with_status(name, status):
+    st.session_state.page = 0 
+    st.query_params.clear()
+
+def update_manager_with_status(name, status, branch=None):
     st.session_state.sb_manager = name
+    if branch and branch != "전체":
+        normalized_br = unicodedata.normalize('NFC', branch)
+        st.session_state.sb_branch = normalized_br
+        st.session_state.dash_branch = normalized_br
     st.session_state.sb_status = status
-    st.session_state.page = 0 # [FIX] Reset page
-    st.query_params.clear() # [FIX] Clear params
+    st.session_state.page = 0 
+    st.query_params.clear()
 
 # --- Sidebar Filters ---
 with st.sidebar:
@@ -2229,6 +2238,20 @@ if raw_df is not None:
                 disabled_branch = True
         
         if st.session_state.sb_branch != "전체":
+                # [FIX] Robust matching for 'Branch' vs 'Branch지사'
+                norm_target = unicodedata.normalize('NFC', st.session_state.sb_branch)
+                # Try exact match first
+                if norm_target not in branch_opts:
+                    # Try with '지사' suffix
+                    alt_target = norm_target if norm_target.endswith('지사') else norm_target + '지사'
+                    if alt_target in branch_opts:
+                        st.session_state.sb_branch = alt_target
+                    else:
+                        # Try removing '지사'
+                        alt_target = norm_target.replace('지사', '')
+                        if alt_target in branch_opts:
+                            st.session_state.sb_branch = alt_target
+                
                 st.session_state.sb_branch = unicodedata.normalize('NFC', st.session_state.sb_branch)
         
         def reset_manager_filter():
@@ -3019,7 +3042,7 @@ if raw_df is not None:
                       # Determine display label (Name or Code)
                       # If just name, it's name. If Code (Name), maybe just Code?
                       # User said "Zone Number". But keeping full label is safer for mapping.
-                      if st.button(mgr_label, key=f"btn_sel_mgr_{unique_key_suffix}", type=btn_type, use_container_width=True, on_click=update_manager_state, args=(mgr_label,)):
+                      if st.button(mgr_label, key=f"btn_sel_mgr_{unique_key_suffix}", type=btn_type, use_container_width=True, on_click=update_manager_state, args=(mgr_label, current_br_name)):
                           pass
                       
                       border_color_mgr = "#2E7D32" if is_selected else "#e0e0e0"
@@ -3033,9 +3056,9 @@ if raw_df is not None:
                       if is_selected:
                           m_c1, m_c2 = st.columns(2)
                           with m_c1:
-                              st.button("영업", key=f"btn_mgr_active_{unique_key_suffix}", on_click=update_manager_with_status, args=(mgr_label, '영업/정상'), use_container_width=True)
+                              st.button("영업", key=f"btn_mgr_active_{unique_key_suffix}", on_click=update_manager_with_status, args=(mgr_label, '영업/정상', current_br_name), use_container_width=True)
                           with m_c2:
-                              st.button("폐업", key=f"btn_mgr_closed_{unique_key_suffix}", on_click=update_manager_with_status, args=(mgr_label, '폐업'), use_container_width=True)
+                              st.button("폐업", key=f"btn_mgr_closed_{unique_key_suffix}", on_click=update_manager_with_status, args=(mgr_label, '폐업', current_br_name), use_container_width=True)
 
 
     st.markdown("---")
