@@ -3968,10 +3968,9 @@ if raw_df is not None:
     if active_nav == "📋 데이터 그리드":
         st.markdown("### 📋 전체 데이터")
         
+        grid_df = df.copy()
         # [FIX] Use Global Order for Data Grid Category
         grid_df['관리지사'] = pd.Categorical(grid_df['관리지사'], categories=GLOBAL_BRANCH_ORDER, ordered=True)
-        
-        grid_df = df.copy()
         
         start_row_count = len(grid_df)
         
