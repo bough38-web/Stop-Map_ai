@@ -620,8 +620,20 @@ with st.sidebar:
                  if use_local_zip:
                      # Let user choose zip if multiple
                      zip_opts = [os.path.basename(f) for f in local_zips]
-                     # [FIX] Allow multiple selection to mix data
-                     sel_zips = st.multiselect("사용할 인허가 파일 (ZIP)", zip_opts, default=zip_opts)
+                     # [UX] Auto-select priority data files if available
+                     preferred_zips = [
+                         "LOCALDATA_NOWMON_CSV.zip", 
+                         "LOCALDATA_NOWMON_CSV_2월.zip", 
+                         "LOCALDATA_YESTERDAY_CSV.zip"
+                     ]
+                     # Normalize for comparison
+                     preferred_zips = [unicodedata.normalize('NFC', z) for z in preferred_zips]
+                     zip_opts_norm = [unicodedata.normalize('NFC', z) for z in zip_opts]
+                     
+                     default_zips = [zip_opts[i] for i, z in enumerate(zip_opts_norm) if z in preferred_zips]
+                     if not default_zips: default_zips = zip_opts
+                     
+                     sel_zips = st.multiselect("사용할 인허가 파일 (ZIP)", zip_opts, default=default_zips)
                      uploaded_zip = [os.path.join("data", z) for z in sel_zips]
                      if sel_zips:
                          st.caption(f"선택됨: {', '.join(sel_zips)}")
