@@ -55,8 +55,9 @@ def log_usage(user_role, user_name, user_branch, action, details=None):
     """
     logs = load_json_file(USAGE_LOG_FILE)
     
+    from . import utils
     log_entry = {
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "timestamp": utils.get_now_kst_str(),
         "user_role": user_role,
         "user_name": user_name,
         "user_branch": user_branch,

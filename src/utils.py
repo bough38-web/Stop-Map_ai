@@ -5,6 +5,15 @@ import os
 import json
 from sklearn.metrics.pairwise import cosine_similarity
 from difflib import SequenceMatcher
+from datetime import datetime, timedelta, timezone
+
+def get_now_kst():
+    """Returns current time in KST (UTC+9)"""
+    return datetime.now(timezone.utc) + timedelta(hours=9)
+
+def get_now_kst_str():
+    """Returns KST time as formatted string"""
+    return get_now_kst().strftime("%Y-%m-%d %H:%M:%S")
 
 # Check for rapidfuzz for better performance, fallback to difflib
 try:

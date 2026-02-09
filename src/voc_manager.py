@@ -38,9 +38,10 @@ def add_voc_request(user_role, user_name, region, subject, content, priority="No
     """
     requests = load_voc_requests()
     
+    from . import utils
     new_req = {
-        "id": datetime.now().strftime("%Y%m%d%H%M%S"),
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "id": utils.get_now_kst().strftime("%Y%m%d%H%M%S"),
+        "timestamp": utils.get_now_kst_str(),
         "user_role": user_role,
         "user_name": user_name,
         "region": region,

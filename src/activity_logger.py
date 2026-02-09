@@ -103,7 +103,7 @@ def log_access(user_role, user_name, action="login"):
     logs = load_json_file(ACCESS_LOG_FILE)
     
     log_entry = {
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "timestamp": utils.get_now_kst_str(),
         "user_role": user_role,
         "user_name": user_name,
         "action": action
@@ -156,7 +156,7 @@ def save_activity_status(record_key, status, notes, user_name):
     new_data = {
         "활동진행상태": status,
         "특이사항": notes,
-        "변경일시": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "변경일시": utils.get_now_kst_str(),
         "변경자": user_name
     }
     
@@ -175,7 +175,7 @@ def log_change_history(record_key, old_data, new_data, user_name):
     history = load_json_file(CHANGE_HISTORY_FILE)
     
     change_entry = {
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "timestamp": utils.get_now_kst_str(),
         "record_key": record_key,
         "user": user_name,
         "old_status": old_data.get("활동진행상태", ""),
@@ -226,7 +226,7 @@ def log_view(user_role, user_name, target, details):
     logs = load_json_file(VIEW_LOG_FILE)
     
     log_entry = {
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "timestamp": utils.get_now_kst_str(),
         "user_role": user_role,
         "user_name": user_name,
         "target": target,
