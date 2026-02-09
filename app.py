@@ -1015,6 +1015,10 @@ if raw_df is not None:
     # [FIX] HOT-RELOAD STATUS
     # Even if cached, we re-merge the latest JSON status to ensure freshness
     raw_df = data_loader.merge_activity_status(raw_df)
+    
+    # [FIX] Stability: Ensure raw_df is NEVER None to prevent crashes in downstream logic
+    if raw_df is None:
+        raw_df = pd.DataFrame()
 
     # [REFACTOR] Centralized Branch List Calculation
     # GLOBAL_BRANCH_ORDER moved to top scope for absolute consistency
@@ -2493,7 +2497,8 @@ if raw_df is not None:
         st.session_state.prev_view_filters = current_filters
 
     # Data Filtering
-    base_df = raw_df.copy()
+    # [FIX] Stability: Initialize base_df even if raw_df fails
+    base_df = raw_df.copy() if raw_df is not None else pd.DataFrame()
     
     # Get current branch selection
     current_branch_filter = st.session_state.get('sb_branch', "전체")

@@ -276,15 +276,9 @@ def load_and_process_data(zip_file_path_or_obj: Any, district_file_path_or_obj: 
     Returns: (DataFrame, ManagerInfo, ErrorMessage, StatsDict)
     """
     # 1. Process Zip File
-    # [FIX] Use system temp directory or external storage to prevent Streamlit watcher loops
-    # extract_folder = "temp_extracted_data"
+    # [FIX] Use unique subfolder in system temp directory to prevent collisions and Streamlit watcher loops
     import tempfile
-    extract_folder = os.path.join(tempfile.gettempdir(), "sales_assistant_extract")
-    
-    if os.path.exists(extract_folder):
-        try: shutil.rmtree(extract_folder)
-        except: pass
-    os.makedirs(extract_folder, exist_ok=True)
+    extract_folder = tempfile.mkdtemp(prefix="sales_assist_ext_")
     
     # Handle single or multiple inputs
     zip_inputs = zip_file_path_or_obj if isinstance(zip_file_path_or_obj, list) else [zip_file_path_or_obj]
@@ -300,7 +294,24 @@ def load_and_process_data(zip_file_path_or_obj: Any, district_file_path_or_obj: 
             os.makedirs(sub_zip_folder, exist_ok=True)
             
             with zipfile.ZipFile(zip_item, 'r') as zip_ref:
-                zip_ref.extractall(sub_zip_folder)
+                # [FIX] Manually extract each file to handle 'File name too long' issue
+                for member in zip_ref.infolist():
+                    filename = member.filename
+                    # Truncate filename if it's too long (filesystem limit is usually 255)
+                    # We use a safe margin (100) and preserve extension
+                    if len(filename) > 100:
+                        import hashlib
+                        ext = os.path.splitext(filename)[1]
+                        h = hashlib.md5(filename.encode()).hexdigest()[:8]
+                        filename = filename[:80] + "_" + h + ext
+                    
+                    target_path = os.path.join(sub_zip_folder, filename)
+                    # Ensure directories exist
+                    os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                    
+                    if not member.is_dir():
+                        with zip_ref.open(member) as source, open(target_path, "wb") as target:
+                            shutil.copyfileobj(source, target)
     except Exception as e:
         return None, [], f"ZIP extraction failed: {e}", {}
         

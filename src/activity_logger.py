@@ -7,9 +7,15 @@ from pathlib import Path
 # Use absolute path resolution to avoid issues with Streamlit execution context
 # Storage directory - [FIX] Move outside project to prevent Streamlit reload loops
 # BASE_DIR = Path(os.path.abspath(__file__)).parent.parent
-# STORAGE_DIR = BASE_DIR / "storage"
+# Storage directory - [FIX] Move outside project to prevent Streamlit reload loops
+# [CLOUD_COMPAT] Handle read-only home directory by falling back to /tmp
 STORAGE_DIR = Path(os.path.expanduser("~")) / ".sales_assistant_data"
-STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+try:
+    STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    import tempfile
+    STORAGE_DIR = Path(tempfile.gettempdir()) / ".sales_assistant_data"
+    STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 ACCESS_LOG_FILE = STORAGE_DIR / "access_logs.json"
 ACTIVITY_STATUS_FILE = STORAGE_DIR / "activity_status.json"
