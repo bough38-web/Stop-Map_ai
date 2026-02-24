@@ -579,3 +579,4 @@ def process_api_data(target_df: pd.DataFrame, district_file_path_or_obj: Any) ->
     stats = {'before': len(target_df) if target_df is not None else 0, 'after': len(final_df) if final_df is not None else 0}
     return final_df, mgr_info, err, stats
 
+

@@ -3564,7 +3564,6 @@ if raw_df is not None:
                  if '소재지면적' in map_df_base.columns:
                      map_df_base['소재지면적_ad'] = pd.to_numeric(map_df_base['소재지면적'], errors='coerce').fillna(0)
                      map_df_base = map_df_base[map_df_base['소재지면적_ad'] >= 330.0]
-            
                      map_df_base = map_df_base[map_df_base['소재지면적_ad'] >= 330.0]
 
             # Reduced spacing here
