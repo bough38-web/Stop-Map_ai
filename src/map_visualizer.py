@@ -977,14 +977,27 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
     if '최종수정시점' in map_data_df.columns: map_data_df['modified_date'] = map_data_df['최종수정시점'].apply(format_date_simple)
     if '재개업일자' in map_data_df.columns: map_data_df['reopen_date'] = map_data_df['재개업일자'].apply(format_date_simple)
     
-    # Fill defaults
-    map_data_df['title'] = map_data_df['사업장명'].fillna('상호미상')
-    map_data_df['status'] = map_data_df['영업상태명'].fillna("-")
-    map_data_df['addr'] = map_data_df['소재지전체주소'].fillna("-")
-    map_data_df['tel'] = map_data_df['소재지전화'].fillna("").replace('nan', '')
-    map_data_df['branch'] = map_data_df['관리지사'].fillna("-")
-    map_data_df['manager'] = map_data_df['SP담당'].fillna("-")
-    map_data_df['biz_type'] = map_data_df['업태구분명'].fillna("-")
+    # Fill defaults with safety checks
+    map_data_df['title'] = map_data_df['사업장명'] if '사업장명' in map_data_df.columns else pd.Series(['상호미상']*len(map_data_df))
+    map_data_df['title'] = map_data_df['title'].fillna('상호미상')
+    
+    map_data_df['status'] = map_data_df['영업상태명'] if '영업상태명' in map_data_df.columns else pd.Series(['-']*len(map_data_df))
+    map_data_df['status'] = map_data_df['status'].fillna("-")
+    
+    map_data_df['addr'] = map_data_df['소재지전체주소'] if '소재지전체주소' in map_data_df.columns else pd.Series(['-']*len(map_data_df))
+    map_data_df['addr'] = map_data_df['addr'].fillna("-")
+    
+    map_data_df['tel'] = map_data_df['소재지전화'] if '소재지전화' in map_data_df.columns else pd.Series(['']*len(map_data_df))
+    map_data_df['tel'] = map_data_df['tel'].fillna("").replace('nan', '')
+    
+    map_data_df['branch'] = map_data_df['관리지사'] if '관리지사' in map_data_df.columns else pd.Series(['-']*len(map_data_df))
+    map_data_df['branch'] = map_data_df['branch'].fillna("-")
+    
+    map_data_df['manager'] = map_data_df['SP담당'] if 'SP담당' in map_data_df.columns else pd.Series(['-']*len(map_data_df))
+    map_data_df['manager'] = map_data_df['manager'].fillna("-")
+    
+    map_data_df['biz_type'] = map_data_df['업태구분명'] if '업태구분명' in map_data_df.columns else pd.Series(['-']*len(map_data_df))
+    map_data_df['biz_type'] = map_data_df['biz_type'].fillna("-")
     
     # Check for '평수' or calculate it (Assuming 1 '소재지면적' unit approx to meters, usually m2)
     # If logic exists elsewhere, reuse. Here we approximate if '평수' column exists.
