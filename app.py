@@ -3761,9 +3761,10 @@ if raw_df is not None:
                 with c_q_r1_2: q_closed = st.checkbox("🚫 폐업(15일)", value=False, key="chk_q_closed", help="최근 15일 이내 폐업된 건")
 
             # Row 2: Property Filters
-            c_q_r2_1, c_q_r2_2 = st.columns(2)
+            c_q_r2_1, c_q_r2_2, c_q_r2_3 = st.columns(3)
             with c_q_r2_1: q_hosp = st.checkbox("🏥 병원만", value=False, key="chk_q_hosp")
             with c_q_r2_2: q_large = st.checkbox("🏗️ 100평↑", value=False, key="chk_q_large")
+            with c_q_r2_3: q_stopped = st.checkbox("🛑 정지시설", value=False, key="chk_q_stopped")
 
             # remove divider to save space
             
@@ -3811,7 +3812,25 @@ if raw_df is not None:
                  if '소재지면적' in map_df_base.columns:
                      map_df_base['소재지면적_ad'] = pd.to_numeric(map_df_base['소재지면적'], errors='coerce').fillna(0)
                      map_df_base = map_df_base[map_df_base['소재지면적_ad'] >= 330.0]
-                     map_df_base = map_df_base[map_df_base['소재지면적_ad'] >= 330.0]
+
+            if q_stopped:
+                 import glob
+                 fixed_files = glob.glob("data/*0224*.xlsx")
+                 if fixed_files:
+                      fixed_file_p = fixed_files[0]
+                      st.toast(f"📍 정지 데이터 로드 중: {os.path.basename(fixed_file_p)}", icon="ℹ️")
+                      f_df, _, _, _ = data_loader.load_fixed_coordinates_data(fixed_file_p)
+                      if f_df is not None:
+                           status_columns = [c for c in f_df.columns if any(p in c for p in ['상태', '정지', '영업'])]
+                           f_mask = pd.Series([False] * len(f_df), index=f_df.index)
+                           for c in status_columns:
+                                f_mask = f_mask | f_df[c].astype(str).str.contains('정지|일시정지|해지', na=False)
+                           map_df_base = f_df[f_mask].dropna(subset=['lat', 'lon']).copy()
+                           st.toast(f"✅ 정지 시설 {len(map_df_base)}곳 로드 완료", icon="🛑")
+                      else:
+                           st.error("정지 데이터를 로드할 수 없습니다.")
+                 else:
+                      st.warning("⚠️ 정지 데이터 파일을 찾을 수 없습니다.")
 
             # Reduced spacing here
 
