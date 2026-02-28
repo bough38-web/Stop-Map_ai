@@ -505,6 +505,19 @@ def save_activity_status(record_key, status, notes, user_name):
     _save_status_internal(record_key, new_data)
     return True
 
+def delete_visit_report(report_id):
+    """지정된 ID의 방문/활동 이력을 삭제합니다."""
+    reports = load_json_file(VISIT_REPORT_FILE)
+    if not isinstance(reports, list): return False, "No data found."
+    
+    new_reports = [r for r in reports if r.get("id") != report_id]
+    
+    if len(new_reports) == len(reports):
+        return False, "Report not found."
+        
+    save_json_file(VISIT_REPORT_FILE, new_reports)
+    return True, "Deleted successfully."
+
 # Read Methods
 def get_visit_reports(record_key=None, user_name=None, user_branch=None, limit=100):
     reports = load_json_file(VISIT_REPORT_FILE)

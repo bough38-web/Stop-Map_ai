@@ -12,25 +12,23 @@ def generate_map_html(map_df, kakao_key, use_heatmap, center_lat, center_lon):
     Generates the HTML string for the Kakao Map. Cached to prevent re-computation.
     """
     # Prepare JSON for JS
-    # Escape helper
-    def clean_str(s):
-        return str(s).replace('"', '').replace("'", "").replace('\n', ' ')
+    # Use Vectorized string methods
+    def clean_series(series):
+        return series.astype(str).str.replace('"', '', regex=False).str.replace("'", "", regex=False).str.replace('\n', ' ', regex=False).replace({'nan': '', 'None': ''})
 
-    map_df['title'] = map_df['사업장명'].apply(clean_str)
-    map_df['addr'] = map_df['소재지전체주소'].fillna('').apply(clean_str)
+    map_df['title'] = clean_series(map_df['사업장명'])
+    map_df['addr'] = clean_series(map_df['소재지전체주소'].fillna(''))
     map_df['tel'] = map_df['소재지전화'].fillna('')
     map_df['status'] = map_df['영업상태명'].fillna('')
     
-    # Date Formatting
-    def format_date(d):
-        if pd.isna(d): return ''
-        s = str(d).replace('.0', '').strip()[:10]
-        return s
+    # Date Formatting Vectorized
+    def format_date_series(series):
+        return series.astype(str).str.replace('.0', '', regex=False).str.strip().str.slice(0, 10).replace({'nan': '', 'None': '', 'NaT': ''})
     
-    map_df['close_date'] = map_df['폐업일자'].apply(format_date) if '폐업일자' in map_df.columns else ''
-    map_df['permit_date'] = map_df['인허가일자'].apply(format_date) if '인허가일자' in map_df.columns else ''
-    map_df['reopen_date'] = map_df['재개업일자'].apply(format_date) if '재개업일자' in map_df.columns else ''
-    map_df['modified_date'] = map_df['최종수정시점'].apply(format_date) if '최종수정시점' in map_df.columns else ''
+    map_df['close_date'] = format_date_series(map_df['폐업일자']) if '폐업일자' in map_df.columns else ''
+    map_df['permit_date'] = format_date_series(map_df['인허가일자']) if '인허가일자' in map_df.columns else ''
+    map_df['reopen_date'] = format_date_series(map_df['재개업일자']) if '재개업일자' in map_df.columns else ''
+    map_df['modified_date'] = format_date_series(map_df['최종수정시점']) if '최종수정시점' in map_df.columns else ''
     
     # [FEATURE] Business Type
     map_df['biz_type'] = map_df['업태구분명'].fillna('') if '업태구분명' in map_df.columns else ''
@@ -39,37 +37,28 @@ def generate_map_html(map_df, kakao_key, use_heatmap, center_lat, center_lon):
     map_df['branch'] = map_df['관리지사'].fillna('') if '관리지사' in map_df.columns else ''
     map_df['manager'] = map_df['SP담당'].fillna('') if 'SP담당' in map_df.columns else ''
     
-    # [FEATURE] Large Area Flag (>= 100py approx 330m2)
-    def check_large(row):
-        try:
-            val = float(row.get('소재지면적', 0))
-            if val >= 330.0: return True
-        except: pass
-        return False
-        
-    map_df['is_large'] = map_df.apply(check_large, axis=1)
+    # [FEATURE] Large Area Flag (>= 100py approx 330m2) Vectorized
+    if '소재지면적' in map_df.columns:
+        map_df['is_large'] = pd.to_numeric(map_df['소재지면적'], errors='coerce').fillna(0) >= 330.0
+    else:
+        map_df['is_large'] = False
     
-    # [FEATURE] Area (Py) for display
-    def calc_py(row):
-        try:
-            val = float(row.get('소재지면적', 0))
-            return round(val / 3.3058, 1)
-        except:
-            return 0.0
-            
+    # [FEATURE] Area (Py) for display Vectorized
     if '평수' in map_df.columns:
         map_df['area_py'] = map_df['평수'].fillna(0).astype(float).round(1)
+    elif '소재지면적' in map_df.columns:
+        map_df['area_py'] = (pd.to_numeric(map_df['소재지면적'], errors='coerce').fillna(0) / 3.3058).round(1)
     else:
-        map_df['area_py'] = map_df.apply(calc_py, axis=1)
+        map_df['area_py'] = 0.0
 
     # [NEW] AI Score & Comment
     if 'AI_Score' not in map_df.columns:
         map_df['AI_Score'] = 0
         map_df['AI_Comment'] = ''
         
-    # [FIX] data integrity
+    # [FIX] data integrity Vectorized
     if 'record_key' not in map_df.columns:
-        map_df['record_key'] = map_df.apply(lambda row: str(row['title']) + "_" + str(row['addr']), axis=1)
+        map_df['record_key'] = map_df['title'] + "_" + map_df['addr']
 
     # [FEATURE] Pass Activity Status to JS
     if '활동진행상태' in map_df.columns:
@@ -94,7 +83,7 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
     display_df = map_df.dropna(subset=['lat', 'lon']).copy()
     
     # Limit for performance
-    limit = 3000
+    limit = 7000
     if len(display_df) > limit:
         st.warning(f"⚠️ 데이터가 많아 상위 {limit:,}개만 지도에 표시합니다.")
         display_df = display_df.head(limit)
@@ -209,6 +198,26 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
         <div id="container">
             <div id="map-overview">
                 <div class="detail-label">🗺️ 전체 지도 (이곳을 클릭하세요)</div>
+                <!-- [NEW] Interactive Map Legend -->
+                <div id="map-legend" style="position: absolute; bottom: 30px; left: 30px; z-index: 999; background: rgba(255,255,255,0.95); padding: 15px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 13px; border: 1px solid #ddd; pointer-events: none;">
+                    <div style="font-weight: bold; margin-bottom: 10px; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">📍 마커 색상 범례</div>
+                    <div style="display: flex; flex-direction: column; gap: 5px;">
+                        <div style="font-weight: 600; color: #666; font-size: 12px; margin-top: 5px;">[기본 상태]</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            <div><img src="https://maps.google.com/mapfiles/ms/icons/blue-dot.png" style="width:18px; vertical-align:middle;"> 영업</div>
+                            <div><img src="https://maps.google.com/mapfiles/ms/icons/red-dot.png" style="width:18px; vertical-align:middle;"> 폐업</div>
+                            <div style="grid-column: span 2;"><img src="https://maps.google.com/mapfiles/ms/icons/purple-dot.png" style="width:18px; vertical-align:middle;"> 대형(100평↑)</div>
+                        </div>
+                        <div style="font-weight: 600; color: #666; font-size: 12px; margin-top: 5px;">[활동 이력]</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            <div><img src="https://maps.google.com/mapfiles/ms/icons/green-dot.png" style="width:18px; vertical-align:middle;"> 방문</div>
+                            <div><img src="https://maps.google.com/mapfiles/ms/icons/yellow-dot.png" style="width:18px; vertical-align:middle;"> 상담중</div>
+                            <div><img src="https://maps.google.com/mapfiles/ms/icons/ltblue-dot.png" style="width:18px; vertical-align:middle;"> 상담완료</div>
+                            <div><img src="https://maps.google.com/mapfiles/ms/icons/pink-dot.png" style="width:18px; vertical-align:middle;"> 상담불가</div>
+                            <div style="grid-column: span 2;"><img src="https://maps.google.com/mapfiles/ms/icons/orange-dot.png" style="width:18px; vertical-align:middle;"> <b>계약완료</b></div>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div id="right-panel">
                 <div id="map-detail">
@@ -300,7 +309,9 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
             // [FEATURE] Activity Status Icons (Green=Visit, Yellow=Consulting)
             var visitImg = "https://maps.google.com/mapfiles/ms/icons/green-dot.png";
             var consultImg = "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png";
-            var doneImg = "https://maps.google.com/mapfiles/ms/icons/orange-dot.png"; # Contract, etc
+            var consultDoneImg = "https://maps.google.com/mapfiles/ms/icons/ltblue-dot.png";
+            var consultFailImg = "https://maps.google.com/mapfiles/ms/icons/pink-dot.png";
+            var contractDoneImg = "https://maps.google.com/mapfiles/ms/icons/orange-dot.png";
             
             var bounds = new kakao.maps.LatLngBounds();
             var detailMarker = null; // Single marker for detail map
@@ -311,11 +322,14 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                 
                 // [FEATURE] Override Color based on Activity Status
                 // Priority: Activity > Size > Public Status
+                // [FIX] Priority order is highest (contract) to lowest (visit)
                 if (item.act_status) {{
-                     if(item.act_status.includes('방문')) imgSrc = visitImg;
+                     if(item.act_status.includes('계약완료') || item.act_status.includes('계약')) imgSrc = contractDoneImg;
+                     else if(item.act_status.includes('상담완료')) imgSrc = consultDoneImg;
+                     else if(item.act_status.includes('상담불가') || item.act_status.includes('불가')) imgSrc = consultFailImg;
                      else if(item.act_status.includes('상담중') || item.act_status.includes('진행중')) imgSrc = consultImg;
-                     else if(item.act_status.includes('완료') || item.act_status.includes('계약')) imgSrc = doneImg;
-                     else if(item.act_status.includes('불가')) imgSrc = closeImg; // Red for blocked
+                     else if(item.act_status.includes('방문')) imgSrc = visitImg;
+                     else if(item.act_status.includes('완료')) imgSrc = contractDoneImg;
                 }}
                 
                 var markerImage = new kakao.maps.MarkerImage(imgSrc, imgSize);
@@ -327,7 +341,21 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                 }});
                 
                 // [FEATURE] Permanent Label
-                var content = '<div class ="marker_label" style="display:block;">' + item.title + '</div>';
+                var dominantStatusStr = '';
+                if (item.act_status) {{
+                     if(item.act_status.includes('계약완료') || item.act_status.includes('계약')) dominantStatusStr = '계약완료';
+                     else if(item.act_status.includes('상담완료')) dominantStatusStr = '상담완료';
+                     else if(item.act_status.includes('상담불가') || item.act_status.includes('불가')) dominantStatusStr = '상담불가';
+                     else if(item.act_status.includes('상담중') || item.act_status.includes('진행중')) dominantStatusStr = '상담중';
+                     else if(item.act_status.includes('방문')) dominantStatusStr = '방문';
+                     else if(item.act_status.includes('완료')) dominantStatusStr = '계약완료';
+                }}
+                
+                var actBadge = '';
+                if (dominantStatusStr) {{
+                     actBadge = '<span style="color:#D32F2F; font-weight:900; margin-right:4px;">[' + dominantStatusStr + ']</span>';
+                }}
+                var content = '<div class ="marker_label" style="display:block;">' + actBadge + item.title + '</div>';
                 
                 var customOverlay = new kakao.maps.CustomOverlay({{
                     position: markerPos,
@@ -1185,6 +1213,11 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
             .marker-red {{ background-color: #d32f2f; }}
             .marker-purple {{ background-color: #7B1FA2; }}
             .marker-gray {{ background-color: #757575; }}
+            /* [NEW] Activity Status Colors */
+            .marker-yellow {{ background-color: #FBC02D; color: #333 !important; }}
+            .marker-cyan {{ background-color: #00BCD4; }}
+            .marker-pink {{ background-color: #E91E63; }}
+            .marker-orange {{ background-color: #F57C00; }}
             
             .marker_label {{
                 background: rgba(255,255,255,0.9);
@@ -1201,7 +1234,28 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
     </head>
     <body>
         <div id="container">
-            <div id="map-container"></div>
+            <div id="map-container">
+                <!-- [NEW] Interactive Map Legend for Leaflet -->
+                <div id="map-legend" style="position: absolute; bottom: 30px; left: 10px; z-index: 1000; background: rgba(255,255,255,0.95); padding: 15px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 13px; border: 1px solid #ddd; pointer-events: none;">
+                    <div style="font-weight: bold; margin-bottom: 10px; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">📍 마커 색상 범례</div>
+                    <div style="display: flex; flex-direction: column; gap: 5px;">
+                        <div style="font-weight: 600; color: #666; font-size: 12px; margin-top: 5px;">[기본 상태]</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            <div><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#2E7D32; margin-right:4px;"></span>영업</div>
+                            <div><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#d32f2f; margin-right:4px;"></span>폐업</div>
+                            <div style="grid-column: span 2;"><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#7B1FA2; margin-right:4px;"></span>대형(100평↑)</div>
+                        </div>
+                        <div style="font-weight: 600; color: #666; font-size: 12px; margin-top: 5px;">[활동 이력]</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            <div><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#2E7D32; margin-right:4px;"></span>방문</div>
+                            <div><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#FBC02D; margin-right:4px;"></span>상담중</div>
+                            <div><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#00BCD4; margin-right:4px;"></span>상담완료</div>
+                            <div><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#E91E63; margin-right:4px;"></span>상담불가</div>
+                            <div style="grid-column: span 2;"><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#F57C00; margin-right:4px;"></span>계약완료</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div id="right-panel">
                 <div id="detail-content" style="height:100%;">
                     <div class="placeholder-box">
@@ -1243,7 +1297,7 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
             var map = L.map('map-container', {{
                 center: [{avg_lat}, {avg_lon}],
                 zoom: 11,
-                layers: [osm], 
+                layers: [vworldBase], 
                 zoomControl: false 
             }});
             
@@ -1313,7 +1367,23 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
                 var marker = L.marker([item.lat, item.lon], {{ icon: customIcon }});
                 var className, iconHtml;
                 
-                if (item.is_large) {{
+                // [FEATURE] Enhanced Status Colors Including Activity Overrides
+                if (item.act_status && item.act_status.includes('계약완료')) {{
+                    className = "custom-marker marker-orange";
+                    iconHtml = '<i class="fa-solid fa-handshake"></i>';
+                }} else if (item.act_status && item.act_status.includes('상담완료')) {{
+                    className = "custom-marker marker-cyan";
+                    iconHtml = '<i class="fa-solid fa-comments"></i>';
+                }} else if (item.act_status && item.act_status.includes('상담불가')) {{
+                    className = "custom-marker marker-pink";
+                    iconHtml = '<i class="fa-solid fa-ban"></i>';
+                }} else if (item.act_status && (item.act_status.includes('상담중') || item.act_status.includes('진행중'))) {{
+                    className = "custom-marker marker-yellow";
+                    iconHtml = '<i class="fa-solid fa-spinner"></i>';
+                }} else if (item.act_status && item.act_status.includes('방문')) {{
+                    className = "custom-marker marker-green";
+                    iconHtml = '<i class="fa-solid fa-walking"></i>';
+                }} else if (item.is_large) {{
                     className = "custom-marker marker-purple";
                     iconHtml = '<i class="fa-solid fa-star"></i>';
                 }} else if (isOpen) {{
@@ -1337,7 +1407,21 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
                 var marker = L.marker([item.lat, item.lon], {{ icon: myIcon }});
                 
                 // Tooltip (Permanent Label)
-                marker.bindTooltip(item.title, {{ 
+                var tooltipText = item.title;
+                if (item.act_status) {{
+                     var dominantStatusStr = '';
+                     if(item.act_status.includes('계약완료') || item.act_status.includes('계약')) dominantStatusStr = '계약완료';
+                     else if(item.act_status.includes('상담완료')) dominantStatusStr = '상담완료';
+                     else if(item.act_status.includes('상담불가') || item.act_status.includes('불가')) dominantStatusStr = '상담불가';
+                     else if(item.act_status.includes('상담중') || item.act_status.includes('진행중')) dominantStatusStr = '상담중';
+                     else if(item.act_status.includes('방문')) dominantStatusStr = '방문';
+                     else if(item.act_status.includes('완료')) dominantStatusStr = '계약완료';
+                     else dominantStatusStr = item.act_status;
+                     
+                     tooltipText = '[' + dominantStatusStr + '] ' + tooltipText;
+                }}
+                
+                marker.bindTooltip(tooltipText, {{ 
                     permanent: true, 
                     direction: 'top', 
                     offset: [0, -18], 
