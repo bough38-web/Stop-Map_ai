@@ -55,7 +55,8 @@ def load_json_file(filepath):
             print(f"CRITICAL: JSON Decode Error in {filepath}: {e}")
             # [SAFETY] Backup corrupted file
             try:
-                backup_path = filepath.with_suffix(f".bak_{datetime.now().strftime('%Y%m%d%H%M%S')}")
+                from src import utils
+                backup_path = filepath.with_suffix(f".bak_{utils.get_now_kst_str().replace(' ', '_').replace(':', '')}")
                 os.rename(filepath, backup_path)
                 print(f"Backing up corrupted file to {backup_path}")
             except: pass
@@ -148,26 +149,53 @@ def get_activity_status(record_key):
 
 
 def save_activity_status(record_key, status, notes, user_name):
-    """Save activity status for a record"""
+    """
+    Save activity status for a record (Direct Update).
+    Automatically creates a visit report entry if status changes for visibility.
+    """
     from src import utils
-    statuses = load_json_file(ACTIVITY_STATUS_FILE)
+    status = normalize_status(status)
     
+    statuses = load_json_file(ACTIVITY_STATUS_FILE)
     old_data = statuses.get(record_key, {})
+    
+    ts_str = utils.get_now_kst_str()
     
     new_data = {
         "활동진행상태": status,
         "특이사항": notes,
-        "변경일시": utils.get_now_kst_str(),
+        "변경일시": ts_str,
         "변경자": user_name
     }
     
     statuses[record_key] = new_data
     save_json_file(ACTIVITY_STATUS_FILE, statuses)
     
-    # Log change history
+    # Log Change if different
     if old_data.get("활동진행상태") != status or old_data.get("특이사항") != notes:
         log_change_history(record_key, old_data, new_data, user_name)
-
+        
+        # [NEW] Integration: Create a visit report for visibility in "Activity History"
+        # Only if it's not already a "Visit" which is handled by register_visit
+        if status != ACTIVITY_STATUS_MAP.get("방문"):
+            # Use string ID for consistency
+            id_str = ts_str.replace("-", "").replace(" ", "_").replace(":", "").replace("+", "_")
+            visit_entry = {
+                "id": f"rep_sys_{id_str}_{record_key[:5]}",
+                "timestamp": ts_str,
+                "record_key": record_key,
+                "content": f"[시스템 자동] 활동 상태가 '{status}'(으)로 변경되었습니다. (특이사항: {notes or '-'})",
+                "audio_path": None,
+                "photo_path": None,
+                "user_name": user_name,
+                "resulting_status": status
+            }
+            
+            reports = load_json_file(VISIT_REPORT_FILE)
+            if not isinstance(reports, list): reports = []
+            reports.append(visit_entry)
+            save_json_file(VISIT_REPORT_FILE, reports)
+            
     return True
 
 
@@ -306,8 +334,9 @@ def register_visit(record_key, content, audio_file, photo_file, user_info, force
         new_status = normalize_status(new_status)
 
         # 3. Create Visit Report Entry
+        id_str = ts_str.replace("-", "").replace(" ", "_").replace(":", "").replace("+", "_")
         visit_entry = {
-            "id": f"rep_{timestamp.timestamp()}",
+            "id": f"rep_{id_str}_{record_key[:5]}",
             "timestamp": ts_str,
             "record_key": record_key,
             "content": content,
@@ -334,9 +363,22 @@ def register_visit(record_key, content, audio_file, photo_file, user_info, force
         reports.append(visit_entry)
         save_json_file(VISIT_REPORT_FILE, reports)
         
-        # B. Status & History (Reuse save_activity_status for history logic)
-        # We manually call internal save to avoid double loading
-        _save_status_internal(record_key, status_entry)
+        # B. Status & History
+        status_entry = {
+            "활동진행상태": new_status,
+            "특이사항": content, # Sync notes
+            "변경일시": ts_str,
+            "변경자": user_info.get("name")
+        }
+        
+        statuses = load_json_file(ACTIVITY_STATUS_FILE)
+        old_data = statuses.get(record_key, {})
+        statuses[record_key] = status_entry
+        save_json_file(ACTIVITY_STATUS_FILE, statuses)
+        
+        # Log History if changed
+        if old_data.get("활동진행상태") != new_status or old_data.get("특이사항") != content:
+            log_change_history(record_key, old_data, status_entry, user_info.get("name"))
         
         return True, "저장 완료"
         
@@ -471,63 +513,6 @@ def update_visit_report(report_id, new_content, new_photo_file=None):
         
     except Exception as e:
         return False, str(e)
-
-def _save_status_internal(record_key, new_data_dict):
-    """
-    Internal helper to save status and log history.
-    [NEW] Automatically creates a visit report entry if status changes.
-    """
-    statuses = load_json_file(ACTIVITY_STATUS_FILE)
-    old_data = statuses.get(record_key, {})
-    
-    statuses[record_key] = new_data_dict
-    save_json_file(ACTIVITY_STATUS_FILE, statuses)
-    
-    # Log Change if different
-    if old_data.get("활동진행상태") != new_data_dict.get("활동진행상태") or \
-       old_data.get("특이사항") != new_data_dict.get("특이사항"):
-           
-        log_change_history(record_key, old_data, new_data_dict, new_data_dict.get("변경자"))
-        
-        # [NEW] Integration: Create a visit report for visibility in "Activity History"
-        # Only if it's not already a "Visit" which is handled by register_visit
-        if new_data_dict.get("활동진행상태") != ACTIVITY_STATUS_MAP.get("방문"):
-            timestamp = datetime.now()
-            ts_str = timestamp.strftime("%Y-%m-%d %H:%M:%S")
-            
-            # We don't have full user_info here, but we have user_name (변경자)
-            # We'll try to infer or just log with what we have.
-            visit_entry = {
-                "id": f"rep_sys_{timestamp.timestamp()}",
-                "timestamp": ts_str,
-                "record_key": record_key,
-                "content": f"[시스템 자동] 활동 상태가 '{new_data_dict.get('활동진행상태')}'(으)로 변경되었습니다. (특이사항: {new_data_dict.get('특이사항', '-')})",
-                "audio_path": None,
-                "photo_path": None,
-                "user_name": new_data_dict.get("변경자", "Unknown"),
-                "resulting_status": new_data_dict.get("활동진행상태")
-            }
-            
-            reports = load_json_file(VISIT_REPORT_FILE)
-            if not isinstance(reports, list): reports = []
-            reports.append(visit_entry)
-            save_json_file(VISIT_REPORT_FILE, reports)
-
-# Backward Compatibility & Direct Status Change (e.g. from Grid)
-def save_activity_status(record_key, status, notes, user_name):
-    """
-    Save activity status for a record (Direct Update).
-    Wraps _save_status_internal.
-    """
-    status = normalize_status(status)
-    new_data = {
-        "활동진행상태": status,
-        "특이사항": notes,
-        "변경일시": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "변경자": user_name
-    }
-    _save_status_internal(record_key, new_data)
-    return True
 
 def delete_visit_report(report_id):
     """지정된 ID의 방문/활동 이력을 삭제합니다."""

@@ -13,7 +13,9 @@ def get_now_kst():
 
 def get_now_kst_str():
     """Returns KST time as formatted string"""
-    return get_now_kst().strftime("%Y-%m-%d %H:%M:%S")
+    # [FIX] Append ISO-8601 timezone offset +09:00 so Streamlit explicitly knows
+    # this is Korea Standard Time and doesn't auto-convert it.
+    return get_now_kst().strftime("%Y-%m-%d %H:%M:%S+09:00")
 
 # Check for rapidfuzz for better performance, fallback to difflib
 try:

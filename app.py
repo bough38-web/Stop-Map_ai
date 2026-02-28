@@ -3182,7 +3182,9 @@ if raw_df is not None:
                 from datetime import datetime, timedelta
                 days_map = {"최근 7일": 7, "최근 30일": 30, "최근 90일": 90}
                 cutoff_days = days_map[sel_period]
-                cutoff_date = datetime.now() - timedelta(days=cutoff_days)
+                from src import utils
+                now_kst = utils.get_now_kst()
+                cutoff_date = now_kst - timedelta(days=cutoff_days)
                 
                 filtered_reports = [
                     r for r in filtered_reports 
@@ -3857,7 +3859,8 @@ if raw_df is not None:
             
         st.markdown("---")
         
-        now = datetime.now()
+        from src import utils
+        now = utils.get_now_kst()
         if '인허가일자' in df.columns:
             valid_dates = df.dropna(subset=['인허가일자']).copy()
             if not valid_dates.empty:
