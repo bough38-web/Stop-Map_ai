@@ -3209,6 +3209,12 @@ if raw_df is not None:
                 df_reports['사업장명'] = df_reports['record_key'].apply(extract_name)
                 df_reports['소재지전체주소'] = df_reports['record_key'].apply(extract_addr)
                 
+                # [FIX] Ensure expected columns exist to prevent KeyError on old data
+                expected_cols = ['resulting_status', 'content', 'user_branch', 'user_name', 'timestamp']
+                for col in expected_cols:
+                    if col not in df_reports.columns:
+                        df_reports[col] = ''
+                
                 # Prepare display dataframe
                 df_disp = df_reports[['사업장명', '소재지전체주소', 'resulting_status', 'content', 'user_branch', 'user_name', 'timestamp']].rename(columns={
                     'resulting_status': '변경상태',
@@ -4284,24 +4290,14 @@ if raw_df is not None:
                         # [NEW] Check if this is an Interest Registration
                         elif "관심" in raw_status_str:
                              # Register Interest (Status + Interest Log + Visit History Draft)
-                             # 1. Status Update
-                             activity_logger.save_activity_status(
-                                row['record_key'],
-                                raw_status,
-                                row['특이사항'],
-                                current_user
-                            )
-                            # 2. Log Interest explicitly if not already? 
-                            # (Optional, but user asked for "Interest" to be tracked. 
-                            # Grid edit might not have lat/lon easily, so skip spatial log, just status/visit history.)
-                             activity_logger.save_visit_report(
-                                record_key=row['record_key'],
-                                user_name=current_user,
-                                user_branch=st.session_state.get('user_branch'),
-                                content=f"[시스템] 데이터 그리드에서 '관심' 상태로 변경했습니다.",
-                                photo_path=None,
-                                audio_path=None
-                            )
+                             sys_note = f"[시스템 자동] 데이터 그리드에서 '관심' 상태로 변경됨. (특이사항: {row['특이사항']})"
+                             activity_logger.register_visit(
+                                 row['record_key'], 
+                                 sys_note, 
+                                 None, None, # No media
+                                 u_info,
+                                 forced_status=raw_status # Persist the exact status string
+                             )
                         else:
                              # Just Status Update (Atomic: Status + History)
                              # [NEW] Report generation now handled internally by activity_logger.py
