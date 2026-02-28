@@ -158,57 +158,44 @@ def _process_and_merge_district_data(target_df: pd.DataFrame, district_file_path
     # Replaces the slow row-by-row apply in app.py
     # Logic: Max of (In-permission Date, Closed Date, Activity Change Date, Current Time if all null)
     
-    # Ensure datetime format and timezone consistency (KST)
-    for col in ['인허가일자', '폐업일자', '변경일시']:
+    # Ensure datetime format and timezone consistency (KST) for all possible date columns
+    for col in ['인허가일자', '폐업일자', '변경일시', '최종수정시점']:
         if col in final_df.columns:
-            # First convert to datetime
+            # First convert to datetime (ensure it's not a string)
             converted = pd.to_datetime(final_df[col], errors='coerce')
             
             # If any values are naive (no timezone), localize them to Asia/Seoul (KST)
-            # If already aware (like '변경일시' from activity_logger), leave as is (or convert to KST if different)
             if converted.dt.tz is None:
                 final_df[col] = converted.dt.tz_localize('Asia/Seoul', ambiguous='infer', nonexistent='shift_forward')
             else:
                 final_df[col] = converted.dt.tz_convert('Asia/Seoul')
             
-    # Create a temporary dataframe for max calculation
-    # [FIX] Include original '최종수정시점' (from CSV) and '인허가일자' in the max calculation
-    # User Request: "Apply License Date to Last Modified"
-    
     # Candidate columns for "Last Modified"
     # We prioritize: Activity Change > Closed Date > License Date > Original CSV Date
     candidate_cols = []
     
-    # 1. Change Log (Most Recent Activity)
     if '변경일시' in final_df.columns:
         candidate_cols.append('변경일시')
-        
-    # 2. Closed Date (Significant Status Change)
     if '폐업일자' in final_df.columns:
         candidate_cols.append('폐업일자')
-        
-    # 3. License Date (Creation/Start) - Requested by User to be included
     if '인허가일자' in final_df.columns:
         candidate_cols.append('인허가일자')
-        
-    # 4. Original Last Modified (from CSV)
     if '최종수정시점' in final_df.columns and '최종수정시점' not in candidate_cols:
-         # Ensure it's datetime
-         final_df['최종수정시점'] = pd.to_datetime(final_df['최종수정시점'], errors='coerce')
          candidate_cols.append('최종수정시점')
     
     # Calculate Max Date
     if candidate_cols:
         final_df['최종수정시점'] = final_df[candidate_cols].max(axis=1)
         
-        # [LOGIC] Only fill with Now if ALL are NaT (New record without any dates?)
-        # User implies they want to see License Date if available. 
-        # So we do NOT blindly fillna(now) if a valid date exists.
-        # But if ALL are NaT, maybe default to Now (System Ingestion Time)
+        # [LOGIC] Only fill with Now if ALL are NaT
+        from src import utils
+        now_kst = utils.get_now_kst()
+        
         mask_all_nat = final_df['최종수정시점'].isna()
-        final_df.loc[mask_all_nat, '최종수정시점'] = pd.Timestamp.now()
+        final_df.loc[mask_all_nat, '최종수정시점'] = now_kst
     else:
-        final_df['최종수정시점'] = pd.Timestamp.now()
+        from src import utils
+        final_df['최종수정시점'] = utils.get_now_kst()
             
     return final_df, mgr_info, None
 
