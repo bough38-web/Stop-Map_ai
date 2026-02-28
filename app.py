@@ -23,6 +23,12 @@ from src.ai_scoring import calculate_ai_scores # [NEW] Expert Feat 1: AI Scoring
 GLOBAL_BRANCH_ORDER = ['중앙지사', '강북지사', '서대문지사', '고양지사', '의정부지사', '남양주지사', '강릉지사', '원주지사', '미지정']
 GLOBAL_BRANCH_ORDER = [unicodedata.normalize('NFC', b) for b in GLOBAL_BRANCH_ORDER]
 
+# [NEW] Phase 5: Initial Sync from Google Sheets (Persistent Data Recovery)
+# Only runs once per session to populate local JSON storage from the cloud
+if 'gsheet_synced' not in st.session_state:
+    activity_logger.pull_from_gsheet()
+    st.session_state.gsheet_synced = True
+
 # --- Configuration & Theme ---
 st.set_page_config(
     page_title="영업기회 관리 시스템",

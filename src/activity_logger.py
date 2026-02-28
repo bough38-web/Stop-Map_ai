@@ -2,6 +2,13 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
+import pandas as pd
+try:
+    import streamlit as st
+    from streamlit_gsheets import GSheetsConnection
+    HAS_GSHEETS = True
+except ImportError:
+    HAS_GSHEETS = False
 
 # Storage directory
 # Use absolute path resolution to avoid issues with Streamlit execution context
@@ -85,7 +92,10 @@ def save_json_file(filepath, data):
         # Rename temp to actual (Atomic on POSIX)
         os.replace(temp_path, filepath)
         
-        # print(f"DEBUG: Successfully saved to {filepath}")
+        # [NEW] Sync to GSheet if it's one of the persistent files
+        if filepath.name in ["activity_status.json", "visit_reports.json", "change_history.json"]:
+            sync_to_gsheet(filepath.name, data)
+            
         return True
     except Exception as e:
         print(f"DEBUG: Error saving {filepath}: {e}")
@@ -95,6 +105,86 @@ def save_json_file(filepath, data):
                 os.remove(temp_path)
         except: pass
         return False
+
+
+def sync_to_gsheet(filename, data):
+    """Sync specific JSON data to Google Sheets for persistence"""
+    if not HAS_GSHEETS: return
+    
+    # We only sync in Streamlit context
+    try:
+        # Check if secrets/connection is configured
+        if "connections" not in st.secrets or "gsheets" not in st.secrets.connections:
+            return
+            
+        conn = st.connection("gsheets", type=GSheetsConnection)
+        
+        # Determine Worksheet Name
+        ws_name = filename.split('.')[0] # e.g. activity_status
+        
+        # Convert to DataFrame
+        if isinstance(data, list):
+            df = pd.DataFrame(data)
+        elif isinstance(data, dict):
+            # For dict-based statuses, flatten or convert to rows
+            rows = []
+            for k, v in data.items():
+                row = {"record_key": k}
+                row.update(v)
+                rows.append(row)
+            df = pd.DataFrame(rows)
+        else:
+            return
+            
+        # Update Spreadsheet (Requires Service Account in Secrets)
+        # Note: clear=True to replace previous state
+        conn.update(worksheet=ws_name, data=df)
+        # print(f"DEBUG: Synced {filename} to Google Sheets worksheet '{ws_name}'")
+        
+    except Exception as e:
+        print(f"DEBUG: GSheet Sync Error ({filename}): {e}")
+
+
+def pull_from_gsheet():
+    """Download data from Google Sheets to local storage (Initial Sync)"""
+    if not HAS_GSHEETS: return
+    
+    try:
+        if "connections" not in st.secrets or "gsheets" not in st.secrets.connections:
+            return
+            
+        conn = st.connection("gsheets", type=GSheetsConnection)
+        
+        files_to_sync = {
+            "activity_status": ACTIVITY_STATUS_FILE,
+            "visit_reports": VISIT_REPORT_FILE,
+            "change_history": CHANGE_HISTORY_FILE
+        }
+        
+        for ws_name, local_path in files_to_sync.items():
+            try:
+                df = conn.read(worksheet=ws_name, ttl="0s")
+                if df is not None and not df.empty:
+                    # Convert back to JSON structure
+                    if ws_name == "activity_status":
+                        # Dict by record_key
+                        new_data = {}
+                        for _, row in df.iterrows():
+                            d = row.to_dict()
+                            key = d.pop("record_key", None)
+                            if key: new_data[key] = d
+                    else:
+                        # List of dicts
+                        new_data = df.to_dict(orient="records")
+                    
+                    # Save locally
+                    save_json_file(local_path, new_data)
+                    # print(f"DEBUG: Pulled '{ws_name}' from Google Sheets to {local_path}")
+            except Exception as inner_e:
+                print(f"DEBUG: Pulled error for {ws_name}: {inner_e}")
+                
+    except Exception as e:
+        print(f"DEBUG: GSheet Pull Error: {e}")
 
 
 # ===== ACCESS LOGGING =====

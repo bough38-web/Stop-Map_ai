@@ -10,4 +10,5 @@ folium
 streamlit-folium
 rapidfuzz
 pyproj
-# Force Rebuild 20260121-2
+st-gsheets-connection
+# Force Rebuild 20260301-1
