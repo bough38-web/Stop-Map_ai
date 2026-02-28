@@ -204,6 +204,29 @@ def pull_from_gsheet():
                 
     except Exception as e:
         print(f"DEBUG: GSheet Pull Error: {e}")
+        return False, str(e)
+
+def push_to_gsheet():
+    """Manually push all local data to Google Sheets (Full Sync)"""
+    if not HAS_GSHEETS: return False, "GSheet 라이브러리 미설치"
+    
+    try:
+        files_to_sync = {
+            "activity_status.json": load_json_file(ACTIVITY_STATUS_FILE),
+            "visit_reports.json": load_json_file(VISIT_REPORT_FILE),
+            "change_history.json": load_json_file(CHANGE_HISTORY_FILE)
+        }
+        
+        success_count = 0
+        for filename, data in files_to_sync.items():
+            if data:
+                # Reuse existing sync_to_gsheet logic
+                sync_to_gsheet(filename, data)
+                success_count += 1
+        
+        return True, f"{success_count}개 항목 동기화 완료"
+    except Exception as e:
+        return False, str(e)
 
 
 # ===== ACCESS LOGGING =====
