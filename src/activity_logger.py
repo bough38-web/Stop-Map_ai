@@ -149,6 +149,7 @@ def get_activity_status(record_key):
 
 def save_activity_status(record_key, status, notes, user_name):
     """Save activity status for a record"""
+    from src import utils
     statuses = load_json_file(ACTIVITY_STATUS_FILE)
     
     old_data = statuses.get(record_key, {})
@@ -265,12 +266,22 @@ def register_visit(record_key, content, audio_file, photo_file, user_info, force
     Returns: (bool, msg)
     """
     try:
+        from src import utils
         # 1. Save Media
         audio_path = None
         photo_path = None
-        timestamp = datetime.now()
-        ts_str = timestamp.strftime("%Y-%m-%d %H:%M:%S")
-        file_prefix = f"{timestamp.strftime('%Y%m%d_%H%M%S')}_{user_info.get('name', 'unknown')}"
+        
+        # [FIX] Force KST Timezone to prevent UTC Server Display Bug
+        ts_str = utils.get_now_kst_str() # e.g. "2026-03-01 03:00:00"
+        
+        # For file prefix, create a clean string from the KST timestamp
+        # Converting KST string back to datetime to use strftime
+        from dateutil import parser
+        try:
+            timestamp_kst = parser.parse(ts_str)
+            file_prefix = f"{timestamp_kst.strftime('%Y%m%d_%H%M%S')}_{user_info.get('name', 'unknown')}"
+        except Exception:
+            file_prefix = f"visit_{user_info.get('name', 'unknown')}"
         
         if audio_file:
             ext = audio_file.name.split('.')[-1] if '.' in audio_file.name else "wav"
@@ -350,10 +361,16 @@ def register_visit_batch(batch_list):
         reports = load_json_file(VISIT_REPORT_FILE)
         if not isinstance(reports, list): reports = []
         
+        from src import utils
+        from dateutil import parser
         statuses = load_json_file(ACTIVITY_STATUS_FILE)
         
-        timestamp = datetime.now()
-        ts_str = timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        ts_str = utils.get_now_kst_str()
+        try:
+            timestamp_kst_dt = parser.parse(ts_str)
+            timestamp_float = timestamp_kst_dt.timestamp()
+        except Exception:
+            timestamp_float = 0.0
         
         # 2. Process changes
         for item in batch_list:
@@ -368,7 +385,7 @@ def register_visit_batch(batch_list):
             
             # Create Report Entry
             visit_entry = {
-                "id": f"rep_{timestamp.timestamp()}_{item.get('record_key', 'unk')[:5]}",
+                "id": f"rep_{timestamp_float}_{item.get('record_key', 'unk')[:5]}",
                 "timestamp": ts_str,
                 "record_key": record_key,
                 "content": content,
@@ -428,8 +445,15 @@ def update_visit_report(report_id, new_content, new_photo_file=None):
             
         # Update Photo
         if new_photo_file:
-            timestamp = datetime.now()
-            file_prefix = f"{timestamp.strftime('%Y%m%d_%H%M%S')}_update"
+            from src import utils
+            from dateutil import parser
+            ts_str = utils.get_now_kst_str()
+            try:
+                timestamp_kst = parser.parse(ts_str)
+                file_prefix = f"{timestamp_kst.strftime('%Y%m%d_%H%M%S')}_update"
+            except Exception:
+                file_prefix = "update_photo"
+                
             ext = new_photo_file.name.split('.')[-1] if '.' in new_photo_file.name else "jpg"
             fname = f"{file_prefix}_photo.{ext}"
             save_path = VISIT_MEDIA_DIR / fname
