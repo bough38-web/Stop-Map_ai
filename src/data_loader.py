@@ -158,10 +158,18 @@ def _process_and_merge_district_data(target_df: pd.DataFrame, district_file_path
     # Replaces the slow row-by-row apply in app.py
     # Logic: Max of (In-permission Date, Closed Date, Activity Change Date, Current Time if all null)
     
-    # Ensure datetime format
+    # Ensure datetime format and timezone consistency (KST)
     for col in ['인허가일자', '폐업일자', '변경일시']:
         if col in final_df.columns:
-            final_df[col] = pd.to_datetime(final_df[col], errors='coerce')
+            # First convert to datetime
+            converted = pd.to_datetime(final_df[col], errors='coerce')
+            
+            # If any values are naive (no timezone), localize them to Asia/Seoul (KST)
+            # If already aware (like '변경일시' from activity_logger), leave as is (or convert to KST if different)
+            if converted.dt.tz is None:
+                final_df[col] = converted.dt.tz_localize('Asia/Seoul', ambiguous='infer', nonexistent='shift_forward')
+            else:
+                final_df[col] = converted.dt.tz_convert('Asia/Seoul')
             
     # Create a temporary dataframe for max calculation
     # [FIX] Include original '최종수정시점' (from CSV) and '인허가일자' in the max calculation
