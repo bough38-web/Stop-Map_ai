@@ -1028,13 +1028,17 @@ if raw_df is not None:
 
     # [FEATURE] Determine the actual latest date in the dataset to use instead of wall-clock time
     # This prevents the 15-day filters from returning 0 results if the dataset is older than 15 days.
-    GLOBAL_MAX_DATE = pd.Timestamp.now().normalize()
+    GLOBAL_MAX_DATE = utils.get_now_kst().normalize()
     if not raw_df.empty:
         date_candidates = []
         for col in ['최종수정시점', '인허가일자', '폐업일자']:
             if col in raw_df.columns:
                  # Get max date safely
-                 max_val = pd.to_datetime(raw_df[col], errors='coerce').max()
+                 # [FIX] Ensure they are all tz-aware for comparison if they are not already
+                 series = pd.to_datetime(raw_df[col], errors='coerce')
+                 if series.dt.tz is None:
+                     series = series.dt.tz_localize('Asia/Seoul')
+                 max_val = series.max()
                  if pd.notna(max_val):
                      date_candidates.append(max_val)
         if date_candidates:
@@ -1043,7 +1047,7 @@ if raw_df is not None:
     # [FIX] Capping GLOBAL_MAX_DATE to `Today - 2 days` 
     # The public data has a strict 2-day ingestion delay. 
     # Prevent future dataset typos (e.g., 2026-03-03) from extending the UI end date.
-    max_allowed_date = pd.Timestamp.now().normalize() - pd.Timedelta(days=2)
+    max_allowed_date = utils.get_now_kst().normalize() - pd.Timedelta(days=2)
     if GLOBAL_MAX_DATE > max_allowed_date:
         GLOBAL_MAX_DATE = max_allowed_date
 
@@ -2545,7 +2549,7 @@ if raw_df is not None:
     # [OPTIMIZATION] '최종수정시점' is now pre-calculated in data_loader using vectorized operations
     # We no longer need the slow row-by-row apply here.
     if '최종수정시점' not in base_df.columns:
-        base_df['최종수정시점'] = pd.Timestamp.now()
+        base_df['최종수정시점'] = utils.get_now_kst()
 
     # [SECURITY] Hard Filter for Manager Role (Main Data)
     # [FIX] Also include records where the user has logged activity (e.g. Recommended Course visits)

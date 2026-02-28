@@ -2369,8 +2369,8 @@ if raw_df is not None:
 
         qf_col1, qf_col2 = st.columns(2)
         # Use pandas for robust date handling
-        today_ref = pd.Timestamp.now().date()
-        target_date = (pd.Timestamp.now() - pd.Timedelta(days=9)).date()
+        today_ref = utils.get_now_kst().date()
+        target_date = (utils.get_now_kst() - pd.Timedelta(days=9)).date()
         
         with qf_col1:
             # Toggle logic
@@ -2519,7 +2519,7 @@ if raw_df is not None:
     # [OPTIMIZATION] '최종수정시점' is now pre-calculated in data_loader using vectorized operations
     # We no longer need the slow row-by-row apply here.
     if '최종수정시점' not in base_df.columns:
-        base_df['최종수정시점'] = pd.Timestamp.now()
+        base_df['최종수정시점'] = utils.get_now_kst()
 
     # [SECURITY] Hard Filter for Manager Role (Main Data)
     # [FIX] Also include records where the user has logged activity (e.g. Recommended Course visits)
@@ -2827,7 +2827,7 @@ if raw_df is not None:
     # Only show for Manager/Branch roles to provide personalized insight
     if st.session_state.user_role in ['manager', 'branch'] and not df.empty:
         # Calculate stats (Last 15 days)
-        ai_now = pd.Timestamp.now()
+        ai_now = utils.get_now_kst()
         ai_cutoff = ai_now - pd.Timedelta(days=15)
         
         ai_df = df.copy() # Use the currently filtered df
@@ -3519,14 +3519,21 @@ if raw_df is not None:
                 
                 # New (15 Days)
                 if '인허가일자' in map_df_base.columns:
-                     map_df_base['인허가일자'] = pd.to_datetime(map_df_base['인허가일자'], errors='coerce')
-                     cutoff_opp = pd.Timestamp.now() - pd.Timedelta(days=15)
+                     # [FIX] Ensure they are tz-aware (KST) if already processed by data_loader
+                     # But pd.to_datetime might make them naive if source was naive. 
+                     # So we force localize to KST.
+                     series = pd.to_datetime(map_df_base['인허가일자'], errors='coerce')
+                     if series.dt.tz is None: series = series.dt.tz_localize('Asia/Seoul')
+                     map_df_base['인허가일자'] = series
+                     cutoff_opp = utils.get_now_kst() - pd.Timedelta(days=15)
                      date_mask = date_mask | (map_df_base['인허가일자'] >= cutoff_opp)
                      
                 # Closed (15 Days)
                 if '폐업일자' in map_df_base.columns:
-                     map_df_base['폐업일자'] = pd.to_datetime(map_df_base['폐업일자'], errors='coerce')
-                     cutoff_opp = pd.Timestamp.now() - pd.Timedelta(days=15)
+                     series = pd.to_datetime(map_df_base['폐업일자'], errors='coerce')
+                     if series.dt.tz is None: series = series.dt.tz_localize('Asia/Seoul')
+                     map_df_base['폐업일자'] = series
+                     cutoff_opp = utils.get_now_kst() - pd.Timedelta(days=15)
                      date_mask = date_mask | (map_df_base['폐업일자'] >= cutoff_opp)
                      
             else:
@@ -3534,9 +3541,11 @@ if raw_df is not None:
                 if q_new:
                      has_date_filter = True
                      if '인허가일자' in map_df_base.columns:
-                         map_df_base['인허가일자'] = pd.to_datetime(map_df_base['인허가일자'], errors='coerce')
+                         series = pd.to_datetime(map_df_base['인허가일자'], errors='coerce')
+                         if series.dt.tz is None: series = series.dt.tz_localize('Asia/Seoul')
+                         map_df_base['인허가일자'] = series
                          # [FIX] Changed to 15 days
-                         cutoff_new = pd.Timestamp.now() - pd.Timedelta(days=15)
+                         cutoff_new = utils.get_now_kst() - pd.Timedelta(days=15)
                          
                          # [LOGIC] "New" implies Sales Opportunity. Exclude "Closed" status to remove noise.
                          # User Complaint: "New selected but Closed appears" -> Filter out '폐업' for New items.
@@ -3545,13 +3554,15 @@ if raw_df is not None:
                              new_cond = new_cond & (map_df_base['영업상태명'] != '폐업')
                              
                          date_mask = date_mask | new_cond
-    
+     
                 if q_closed:
                      has_date_filter = True
                      if '폐업일자' in map_df_base.columns:
-                         map_df_base['폐업일자'] = pd.to_datetime(map_df_base['폐업일자'], errors='coerce')
+                         series = pd.to_datetime(map_df_base['폐업일자'], errors='coerce')
+                         if series.dt.tz is None: series = series.dt.tz_localize('Asia/Seoul')
+                         map_df_base['폐업일자'] = series
                          # [FIX] Changed to 15 days
-                         cutoff_closed = pd.Timestamp.now() - pd.Timedelta(days=15)
+                         cutoff_closed = utils.get_now_kst() - pd.Timedelta(days=15)
                          date_mask = date_mask | (map_df_base['폐업일자'] >= cutoff_closed)
 
             if has_date_filter:
@@ -3706,7 +3717,7 @@ if raw_df is not None:
         st.markdown("##### 📅 최근 15일 영업/폐업 추이")
         try:
             # 1. Prepare Data
-            trend_end_date = pd.Timestamp.now().normalize()
+            trend_end_date = utils.get_now_kst().normalize()
             trend_start_date = trend_end_date - pd.Timedelta(days=14) # 15 days inclusive: [Today-6, Today]
             
             trend_data = []
