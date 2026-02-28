@@ -4267,8 +4267,11 @@ if raw_df is not None:
                             "branch": st.session_state.get('user_branch', '')
                         }
                         
+                        # [FIX] Type safety: Ensure raw_status is a string before 'in' checks
+                        raw_status_str = str(raw_status) if pd.notna(raw_status) else ""
+                        
                         # 2. Check if this is a Visit Registration
-                        if "방문" in raw_status:
+                        if "방문" in raw_status_str:
                              # Register Visit (Atomic: Report + Status + History)
                              sys_note = f"[시스템 자동] 데이터 그리드에서 '방문' 상태로 변경됨. (특이사항: {row['특이사항']})"
                              activity_logger.register_visit(
@@ -4279,7 +4282,7 @@ if raw_df is not None:
                                  forced_status=raw_status # Persist the exact status string
                              )
                         # [NEW] Check if this is an Interest Registration
-                        elif "관심" in raw_status:
+                        elif "관심" in raw_status_str:
                              # Register Interest (Status + Interest Log + Visit History Draft)
                              # 1. Status Update
                              activity_logger.save_activity_status(
