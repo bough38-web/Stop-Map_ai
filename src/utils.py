@@ -8,8 +8,8 @@ from difflib import SequenceMatcher
 from datetime import datetime, timedelta, timezone
 
 def get_now_kst():
-    """Returns current time in KST (UTC+9)"""
-    return datetime.now(timezone.utc) + timedelta(hours=9)
+    """Returns current time in KST (UTC+9) as pd.Timestamp"""
+    return pd.Timestamp.now(tz='Asia/Seoul')
 
 def get_now_kst_str():
     """Returns KST time as formatted string"""
