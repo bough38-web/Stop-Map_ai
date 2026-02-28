@@ -157,6 +157,14 @@ def check_gsheet_connection():
             
         conn = st.connection("gsheets", type=GSheetsConnection)
         
+        # [DEBUG] Log spreadsheet info to terminal
+        try:
+            ss_url = st.secrets.connections.gsheets.get("spreadsheet", "N/A")
+            print(f"[GSheet Debug] Targeting Spreadsheet: {ss_url[:15]}...{ss_url[-10:] if len(ss_url)>10 else ''}")
+            print(f"[GSheet Debug] Attempting to read worksheet: 'activity_status'")
+        except:
+            pass
+
         # [NEW] Try to get all worksheet names to verify existence
         try:
             # Note: streamlit-gsheets doesn't have a direct 'list_worksheets', 

@@ -592,6 +592,14 @@ with st.sidebar:
                     activity_logger.pull_from_gsheet()
                     st.success("완료!")
                     st.rerun()
+
+        with st.sidebar.expander("🛠 기술 지원 정보 (Debug)", expanded=False):
+            try:
+                ss_url = st.secrets.connections.gsheets.get("spreadsheet", "N/A")
+                st.caption(f"Spreadsheet ID: ...{ss_url[-15:] if 'd/' in ss_url else 'N/A'}")
+                st.caption(f"App Version: 20260301-v2")
+            except:
+                st.caption("Secrets 로드 실패")
     
     st.markdown("---")
 
