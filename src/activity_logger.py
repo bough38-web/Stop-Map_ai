@@ -168,37 +168,34 @@ def check_gsheet_connection():
         except:
             pass
 
-        # [NEW] Try to get all worksheet names to verify existence using internal client
+        # [REFINED] Internal Diagnostic Loop
+        discovered_ws = []
         try:
-            # streamlit-gsheets stores the internal client in _conn
             if hasattr(conn, "_conn") and hasattr(conn._conn, "spreadsheet"):
-                spreadsheet = conn._conn.spreadsheet
-                worksheets = spreadsheet.worksheets()
-                ws_names = [ws.title for ws in worksheets]
-                print(f"[GSheet Debug] Found Worksheets: {ws_names}")
-                
-                # Check for activity_status
-                if "activity_status" in ws_names:
-                    # If it exists, try reading specifically
-                    df = conn.read(worksheet="activity_status", ttl="0s", nrows=1)
-                    return True, f"연결 성공! (워크시트 목록: {', '.join(ws_names)})"
-                else:
-                    return False, f"연결 실패: 'activity_status' 탭을 찾을 수 없습니다.\n\n현재 탭 목록: `{ws_names}`"
-            else:
-                # Fallback to standard read if internal access fails
-                df = conn.read(worksheet="activity_status", ttl="0s", nrows=1)
-                return True, "연결 성공! (데이터 읽기 확인 완료)"
-                
+                discovered_ws = [ws.title for ws in conn._conn.spreadsheet.worksheets()]
+                print(f"[GSheet Debug] Discovered Tabs: {discovered_ws}")
+        except Exception as e:
+            print(f"[GSheet Debug] Failed to list worksheets: {e}")
+
+        try:
+            # Attempt to read the specific worksheet
+            df = conn.read(worksheet="activity_status", ttl="0s", nrows=1)
+            return True, f"연결 성공! (확인된 탭: {', '.join(discovered_ws) if discovered_ws else '알수없음'})"
         except Exception as read_e:
             error_msg = str(read_e)
             full_error = repr(read_e)
+            
+            # If we found worksheets but failed to read the specific one
+            if discovered_ws:
+                if "activity_status" not in discovered_ws:
+                    return False, f"연결 실패 (탭 누락): 'activity_status' 탭을 찾을 수 없습니다.\n\n현재 시트의 탭 목록: `{discovered_ws}`"
+                else:
+                    return False, f"연결 실패 (구조 오류): 'activity_status' 탭이 존재하지만 읽을 수 없습니다.\n\n**상세 오류**: `{full_error}`\n\n**탭 목록**: `{discovered_ws}`\n\n**조치**: 시트의 1행(헤더)에 빈 칸이나 특수문자가 없는지 확인하세요."
+            
+            # General fallback if listing failed or generic 400
             if "400" in error_msg:
-                # Try to get generic info if specific worksheet fails
-                try:
-                    metadata = conn.read(ttl="0s", nrows=1)
-                    return False, f"연결 실패 (HTTP 400): 시트 구조는 보이나 특정 탭 읽기 실패.\n\n**상세 오류**: `{full_error}`"
-                except:
-                    return False, f"연결 실패 (HTTP 400): 시트 접근 자체가 거부되었습니다.\n\n**상세 오류**: `{full_error}`\n\n**해결법**: 1. 시트 URL이 정확한지 확인. 2. 서비스 계정 권한 확인."
+                return False, f"연결 실패 (HTTP 400): 시트 접근 또는 특정 탭 읽기 실패.\n\n**상세 오류**: `{full_error}`\n\n**추측**: 시트 ID/URL이 잘못되었거나 서비스 계정 권한이 부족합니다."
+            
             return False, f"연결 실패: {error_msg}\n\n`{full_error}`"
             
     except Exception as e:
