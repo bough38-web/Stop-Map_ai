@@ -160,8 +160,11 @@ def check_gsheet_connection():
         # [DEBUG] Log spreadsheet info to terminal
         try:
             ss_url = st.secrets.connections.gsheets.get("spreadsheet", "N/A")
-            print(f"[GSheet Debug] Targeting Spreadsheet: {ss_url[:15]}...{ss_url[-10:] if len(ss_url)>10 else ''}")
-            print(f"[GSheet Debug] Attempting to read worksheet: 'activity_status'")
+            # [ROBUST] Extract ID from URL if provided as full link
+            if "docs.google.com/spreadsheets/d/" in ss_url:
+                ss_id = ss_url.split("/d/")[1].split("/")[0]
+                print(f"[GSheet Debug] Extracted ID: {ss_id}")
+            print(f"[GSheet Debug] Targeting: {ss_url[:15]}...")
         except:
             pass
 
