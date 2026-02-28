@@ -115,6 +115,7 @@ def sync_to_gsheet(filename, data):
     try:
         # Check if secrets/connection is configured
         if "connections" not in st.secrets or "gsheets" not in st.secrets.connections:
+            st.warning("⚠️ 구글 시트 연결 설정(Secrets)이 누락되었습니다. 데이터가 서버에만 저장됩니다.")
             return
             
         conn = st.connection("gsheets", type=GSheetsConnection)
@@ -139,10 +140,28 @@ def sync_to_gsheet(filename, data):
         # Update Spreadsheet (Requires Service Account in Secrets)
         # Note: clear=True to replace previous state
         conn.update(worksheet=ws_name, data=df)
-        # print(f"DEBUG: Synced {filename} to Google Sheets worksheet '{ws_name}'")
+        st.toast(f"✅ 구글 시트 동기화 완료: {ws_name}")
         
     except Exception as e:
+        st.error(f"❌ 구글 시트 동기화 실패 ({filename}): {e}")
         print(f"DEBUG: GSheet Sync Error ({filename}): {e}")
+
+def check_gsheet_connection():
+    """Verify if GSheet connection is correctly configured and accessible"""
+    if not HAS_GSHEETS:
+        return False, "streamlit-gsheets 라이브러리가 설치되지 않았습니다."
+        
+    try:
+        if "connections" not in st.secrets or "gsheets" not in st.secrets.connections:
+            return False, "Streamlit Secrets에 'connections.gsheets' 설정이 없습니다."
+            
+        conn = st.connection("gsheets", type=GSheetsConnection)
+        # Try to read a small part of the sheet to verify access
+        # [FIX] Use a generic read test or list worksheets
+        df = conn.read(worksheet="activity_status", ttl="0s", nrows=1)
+        return True, "연결 성공! 구글 시트에 정상적으로 접근할 수 있습니다."
+    except Exception as e:
+        return False, f"연결 실패: {str(e)}\n\n(참고: 서비스 계정 이메일이 시트에 '편집자'로 공유되었는지 확인하세요.)"
 
 
 def pull_from_gsheet():

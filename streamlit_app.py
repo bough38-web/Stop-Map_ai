@@ -692,6 +692,17 @@ with st.sidebar:
                 api_df = st.session_state['api_fetched_df']
                 st.caption(f"✅ 수신된 데이터: {len(api_df)}건")
 
+        # [NEW] GSheet Connection Diagnostic Tool
+        st.subheader("📊 구글 시트 연동 상태")
+        if st.button("🔌 구글 시트 연결 확인", use_container_width=True):
+            with st.spinner("구글 시트 연결 확인 중..."):
+                success, msg = activity_logger.check_gsheet_connection()
+                if success:
+                    st.success(msg)
+                else:
+                    st.error(msg)
+                    st.info("💡 **조치 방법**:\n1. Streamlit Cloud의 'Settings > Secrets'에 정보를 올바르게 입력했는지 확인하세요.\n2. 서비스 계정 이메일을 구글 시트에 '편집자' 권한으로 추가했는지 확인하세요.")
+
 
 
 
