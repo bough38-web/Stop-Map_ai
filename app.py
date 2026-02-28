@@ -1020,9 +1020,27 @@ if raw_df is not None:
     if raw_df is None:
         raw_df = pd.DataFrame()
 
-    # [REFACTOR] Centralized Branch List Calculation
-    # GLOBAL_BRANCH_ORDER moved to top scope for absolute consistency
-    
+    # [FEATURE] Determine the actual latest date in the dataset to use instead of wall-clock time
+    # This prevents the 15-day filters from returning 0 results if the dataset is older than 15 days.
+    GLOBAL_MAX_DATE = pd.Timestamp.now().normalize()
+    if not raw_df.empty:
+        date_candidates = []
+        for col in ['최종수정시점', '인허가일자', '폐업일자']:
+            if col in raw_df.columns:
+                 # Get max date safely
+                 max_val = pd.to_datetime(raw_df[col], errors='coerce').max()
+                 if pd.notna(max_val):
+                     date_candidates.append(max_val)
+        if date_candidates:
+            GLOBAL_MAX_DATE = max(date_candidates).normalize()
+            
+    # [FIX] Capping GLOBAL_MAX_DATE to `Today - 2 days` 
+    # The public data has a strict 2-day ingestion delay. 
+    # Prevent future dataset typos (e.g., 2026-03-03) from extending the UI end date.
+    max_allowed_date = pd.Timestamp.now().normalize() - pd.Timedelta(days=2)
+    if GLOBAL_MAX_DATE > max_allowed_date:
+        GLOBAL_MAX_DATE = max_allowed_date
+
     if raw_df is not None and not raw_df.empty:
         current_branches_raw = [unicodedata.normalize('NFC', str(b)) for b in raw_df['관리지사'].unique() if pd.notna(b)]
         
@@ -2369,8 +2387,8 @@ if raw_df is not None:
 
         qf_col1, qf_col2 = st.columns(2)
         # Use pandas for robust date handling
-        today_ref = pd.Timestamp.now().date()
-        target_date = (pd.Timestamp.now() - pd.Timedelta(days=9)).date()
+        today_ref = GLOBAL_MAX_DATE.date()
+        target_date = (GLOBAL_MAX_DATE - pd.Timedelta(days=9)).date()
         
         with qf_col1:
             # Toggle logic
@@ -2388,12 +2406,14 @@ if raw_df is not None:
         if st.session_state.admin_quick_filter == 'new_7d':
              st.info(f"✨ 최근 9일 ({target_date} ~) 신규 인허가 건")
              if '인허가일자' in filter_df.columns:
-                 filter_df = filter_df[filter_df['인허가일자'].dt.date >= target_date]
+                 target_ts = pd.Timestamp(target_date)
+                 filter_df = filter_df[filter_df['인허가일자'] >= target_ts]
              
         elif st.session_state.admin_quick_filter == 'closed_7d':
              st.info(f"🚪 최근 9일 ({target_date} ~) 폐업 건")
              if '폐업일자' in filter_df.columns:
-                 filter_df = filter_df[filter_df['폐업일자'].dt.date >= target_date]
+                 target_ts = pd.Timestamp(target_date)
+                 filter_df = filter_df[filter_df['폐업일자'] >= target_ts]
 
         def get_ym_options(column):
             if column not in raw_df.columns: return []
@@ -2654,9 +2674,11 @@ if raw_df is not None:
              if not pd.api.types.is_datetime64_any_dtype(base_df['최종수정시점']):
                   base_df['최종수정시점'] = pd.to_datetime(base_df['최종수정시점'], errors='coerce')
              
+             ts_start = pd.Timestamp(g_start)
+             ts_end = pd.Timestamp(g_end) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
              base_df = base_df[
-                 (base_df['최종수정시점'].dt.date >= g_start) & 
-                 (base_df['최종수정시점'].dt.date <= g_end)
+                 (base_df['최종수정시점'] >= ts_start) & 
+                 (base_df['최종수정시점'] <= ts_end)
              ]
              
              # Show filter info for debugging/confirmation
@@ -2686,8 +2708,8 @@ if raw_df is not None:
             mask = pd.Series([False] * len(base_df), index=base_df.index)
             for keyword in keywords:
                 keyword_mask = (
-                    base_df['소재지전체주소'].astype(str).apply(lambda x: unicodedata.normalize('NFC', x)).str.contains(keyword, case=False, na=False, regex=False) |
-                    base_df['사업장명'].astype(str).apply(lambda x: unicodedata.normalize('NFC', x)).str.contains(keyword, case=False, na=False, regex=False)
+                    base_df['소재지전체주소'].astype(str).str.contains(keyword, case=False, na=False, regex=False) |
+                    base_df['사업장명'].astype(str).str.contains(keyword, case=False, na=False, regex=False)
                 )
                 mask = mask | keyword_mask  # OR logic: any keyword match
             base_df = base_df[mask]
@@ -2827,8 +2849,9 @@ if raw_df is not None:
     # Only show for Manager/Branch roles to provide personalized insight
     if st.session_state.user_role in ['manager', 'branch'] and not df.empty:
         # Calculate stats (Last 15 days)
-        ai_now = pd.Timestamp.now()
-        ai_cutoff = ai_now - pd.Timedelta(days=15)
+        # Use Dataset's Latest Date
+        ai_now = GLOBAL_MAX_DATE
+        ai_15d_ago = ai_now - pd.Timedelta(days=15)
         
         ai_df = df.copy() # Use the currently filtered df
 
@@ -2838,7 +2861,7 @@ if raw_df is not None:
                 series = ai_df[col_name]
                 if not pd.api.types.is_datetime64_any_dtype(series):
                     series = pd.to_datetime(series, errors='coerce')
-                return len(series[series >= ai_cutoff])
+                return len(series[series >= ai_15d_ago])
             return 0
 
         cnt_new = count_recent_events('인허가일자')
@@ -2957,7 +2980,7 @@ if raw_df is not None:
                 # 1. Start with Raw (but respect Role!)
                 mgr_df = raw_df[raw_df['관리지사'].astype(str).apply(lambda x: unicodedata.normalize('NFC', x)) == current_br_name].copy()
                 
-                # [SECURITY] Re-Apply Manager Filter here because we started from raw_df
+                # [SECURITY] Re-apply Manager Filter here because we started from raw_df
                 if st.session_state.user_role == 'manager':
                     if st.session_state.user_manager_code:
                         if '영업구역 수정' in mgr_df.columns:
@@ -3068,7 +3091,7 @@ if raw_df is not None:
 
     # [LAYOUT] Tab Structure Re-implementation for Compatibility (v1.31.0)
     # Using a high-persistence Radio Navigation to prevent Tab Jumping
-    nav_labels = ["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "🗣️ 관리자에게 요청하기", "📝 활동 이력"]
+    nav_labels = ["🗺️ 지도 & 분석", "📈 상세통계", "📱 모바일 리스트", "📋 데이터 그리드", "📝 활동 이력", "🗣️ 관리자에게 요청하기"]
     if st.session_state.user_role == 'admin':
         nav_labels.append("👁️ 모니터링")
         
@@ -3106,20 +3129,20 @@ if raw_df is not None:
     if active_nav == "📝 활동 이력":
         st.subheader("📝 활동 이력 관리")
         
-        # [SECURITY] Role-based access control
+        # [SECURITY] Role-based access control (Removed limit to show all data as User requested)
         if st.session_state.user_role == 'admin':
             # Admin sees all reports
-            all_reports = activity_logger.get_visit_reports(limit=200)
+            all_reports = activity_logger.get_visit_reports(limit=10000)
             st.caption("🔓 관리자 권한: 전체 활동 이력 조회 (방문, 상담중, 관심 등 모든 기록)")
         elif st.session_state.user_role == 'manager':
             # Manager sees only their own reports
             user_name = st.session_state.get('user_manager_name')
-            all_reports = activity_logger.get_visit_reports(user_name=user_name, limit=200)
+            all_reports = activity_logger.get_visit_reports(user_name=user_name, limit=10000)
             st.caption(f"🔒 담당자 '{user_name}' 님의 활동 이력 (방문, 상담, 관심 등)")
         elif st.session_state.user_role == 'branch':
             # Branch user sees only their branch reports
             user_branch = st.session_state.get('user_branch')
-            all_reports = activity_logger.get_visit_reports(user_branch=user_branch, limit=200)
+            all_reports = activity_logger.get_visit_reports(user_branch=user_branch, limit=10000)
             st.caption(f"🔒 '{user_branch}' 지사의 활동 이력 (방문, 상담, 관심 등)")
         else:
             # Unknown role - no access
@@ -3169,12 +3192,46 @@ if raw_df is not None:
             st.markdown(f"**📋 조회 결과: {len(filtered_reports)}건**")
             st.divider()
             
-            # [IMPROVED] Card-style layout
+            # [NEW] Grid View of Activity History
             if filtered_reports:
+                st.markdown("### 📊 활동 이력 (요약 그리드)")
+                df_reports = pd.DataFrame(filtered_reports)
+                
+                # Automatically extract '사업장명' and '소재지전체주소' from 'record_key' safely
+                def extract_name(k):
+                    parts = str(k).split('_', 1)
+                    return parts[0] if parts else '상호미상'
+                
+                def extract_addr(k):
+                    parts = str(k).split('_', 1)
+                    return parts[1] if len(parts) > 1 else '-'
+                
+                df_reports['사업장명'] = df_reports['record_key'].apply(extract_name)
+                df_reports['소재지전체주소'] = df_reports['record_key'].apply(extract_addr)
+                
+                # Prepare display dataframe
+                df_disp = df_reports[['사업장명', '소재지전체주소', 'resulting_status', 'content', 'user_branch', 'user_name', 'timestamp']].rename(columns={
+                    'resulting_status': '변경상태',
+                    'content': '특이사항(활동내용)',
+                    'user_branch': '관리지사',
+                    'user_name': '담당자',
+                    'timestamp': '활동일시'
+                })
+                # Show dataframe "데이터그리드처럼"
+                st.dataframe(df_disp, use_container_width=True, hide_index=True)
+                
+                st.divider()
+                st.markdown("### 📝 상세 수정 및 미디어 확인")
+                
                 for idx, rep in enumerate(filtered_reports):
-                    # Card header with status badge
+                    # [IMPROVED] Card header with status badge AND Business Name
                     status_badge = rep.get('resulting_status', '')
-                    header = f"**{idx+1}.** 🏢 {rep.get('user_branch', 'N/A')} | 👤 {rep.get('user_name')} | 📅 {rep.get('timestamp')} | 상태: {status_badge}"
+                    raw_key = str(rep.get('record_key', '_'))
+                    parts = raw_key.split('_', 1)
+                    b_name = parts[0] if len(parts) > 0 else '상호미상'
+                    b_addr = parts[1] if len(parts) > 1 else '-'
+                    
+                    header = f"**{idx+1}.** 🏢 {b_name} | {b_addr[:15]}... | 👤 {rep.get('user_name')} | 📅 {rep.get('timestamp')[:10]} | 상태: {status_badge}"
                     
                     with st.expander(header, expanded=False):
                         # Content display
@@ -3204,7 +3261,7 @@ if raw_df is not None:
                         st.divider()
                         
                         # [NEW] Action buttons in columns
-                        btn_col1, btn_col2, btn_col3 = st.columns(3)
+                        btn_col1, btn_col2, btn_col3, btn_col4 = st.columns(4)
                         
                         with btn_col1:
                             if st.button("✏️ 내용 수정", key=f"edit_content_{rep['id']}", use_container_width=True):
@@ -3217,6 +3274,24 @@ if raw_df is not None:
                         with btn_col3:
                             if st.button("🔄 상태 변경", key=f"status_change_{rep['id']}", use_container_width=True):
                                 st.session_state[f"status_mode_{rep['id']}"] = True
+                                
+                        with btn_col4:
+                            # [PERMISSIONS] Only Admin can delete directly. Others get a pre-filled VOC request.
+                            if st.session_state.user_role == 'admin':
+                                if st.button("🗑️ 이력 삭제", key=f"del_hist_{rep['id']}", type='primary', use_container_width=True):
+                                    succ, msg = activity_logger.delete_visit_report(rep['id'])
+                                    if succ:
+                                        st.success("✅ 활동 이력이 삭제되었습니다.")
+                                        st.rerun()
+                                    else:
+                                        st.error(f"❌ 오류: {msg}")
+                            else:
+                                if st.button("🗑️ 삭제요청 (관리자)", key=f"req_del_{rep['id']}", use_container_width=True, help="삭제 권한이 없습니다. 클릭 시 관리자에게 삭제를 요청할 수 있습니다."):
+                                    st.session_state.active_nav = "🗣️ 관리자에게 요청하기"
+                                    # Pre-fill VOC request details in session state if they exist
+                                    st.session_state.voc_default_subject = f"[요청] 활동 이력 삭제 요청 ({b_name})"
+                                    st.session_state.voc_default_content = f"시스템 ID [{rep['id']}] 상호: {b_name} 의 활동 이력 삭제를 요청합니다.\n사유: "
+                                    st.rerun()
                         
                         # [FEATURE] Edit mode - Content
                         if st.session_state.get(f"edit_mode_{rep['id']}", False):
@@ -3492,13 +3567,13 @@ if raw_df is not None:
                 # Row 1: Date Filters
                 st.markdown("<div style='margin-bottom: -10px;'></div>", unsafe_allow_html=True) # Spacer
                 c_q_r1_1, c_q_r1_2 = st.columns(2)
-                with c_q_r1_1: q_new = st.checkbox("🆕 신규(15일)", value=False, help="최근 15일 이내 개업(인허가)된 건")
-                with c_q_r1_2: q_closed = st.checkbox("🚫 폐업(15일)", value=False, help="최근 15일 이내 폐업된 건")
+                with c_q_r1_1: q_new = st.checkbox("🆕 신규(15일)", value=False, key="chk_q_new", help="최근 15일 이내 개업(인허가)된 건")
+                with c_q_r1_2: q_closed = st.checkbox("🚫 폐업(15일)", value=False, key="chk_q_closed", help="최근 15일 이내 폐업된 건")
 
             # Row 2: Property Filters
             c_q_r2_1, c_q_r2_2 = st.columns(2)
-            with c_q_r2_1: q_hosp = st.checkbox("🏥 병원만", value=False)
-            with c_q_r2_2: q_large = st.checkbox("🏗️ 100평↑", value=False)
+            with c_q_r2_1: q_hosp = st.checkbox("🏥 병원만", value=False, key="chk_q_hosp")
+            with c_q_r2_2: q_large = st.checkbox("🏗️ 100평↑", value=False, key="chk_q_large")
 
             # remove divider to save space
             
@@ -3508,52 +3583,34 @@ if raw_df is not None:
 
             # [FEATURE] Apply Quick Filters (Pre-Filtering for Dynamic Dropdowns)
             # 1. Date Filters (OR Logic: New OR Closed)
-            date_mask = pd.Series([False] * len(map_df_base), index=map_df_base.index)
-            has_date_filter = False
-
+            
+            # [FIX] Complete rewrite of Date Filtering to guarantee strictly correct DataFrame sizing
+            cutoff_15d = GLOBAL_MAX_DATE - pd.Timedelta(days=15)
+            filtered_df = pd.DataFrame() # Empty fallback
+            
             if opp_mode:
-                # [LOGIC] Opportunity Mode: 15 Days New OR Closed
-                has_date_filter = True
+                if '인허가일자' in map_df_base.columns and '폐업일자' in map_df_base.columns:
+                    map_df_base['인허가일자'] = pd.to_datetime(map_df_base['인허가일자'], errors='coerce')
+                    map_df_base['폐업일자'] = pd.to_datetime(map_df_base['폐업일자'], errors='coerce')
+                    
+                    mask = (map_df_base['인허가일자'] >= cutoff_15d) | (map_df_base['폐업일자'] >= cutoff_15d)
+                    map_df_base = map_df_base[mask.fillna(False)]
+            elif q_new or q_closed:
+                mask = pd.Series(False, index=map_df_base.index)
                 
-                # New (15 Days)
-                if '인허가일자' in map_df_base.columns:
-                     map_df_base['인허가일자'] = pd.to_datetime(map_df_base['인허가일자'], errors='coerce')
-                     cutoff_opp = pd.Timestamp.now() - pd.Timedelta(days=15)
-                     date_mask = date_mask | (map_df_base['인허가일자'] >= cutoff_opp)
-                     
-                # Closed (15 Days)
-                if '폐업일자' in map_df_base.columns:
-                     map_df_base['폐업일자'] = pd.to_datetime(map_df_base['폐업일자'], errors='coerce')
-                     cutoff_opp = pd.Timestamp.now() - pd.Timedelta(days=15)
-                     date_mask = date_mask | (map_df_base['폐업일자'] >= cutoff_opp)
-                     
-            else:
-                # Standard Logic
-                if q_new:
-                     has_date_filter = True
-                     if '인허가일자' in map_df_base.columns:
-                         map_df_base['인허가일자'] = pd.to_datetime(map_df_base['인허가일자'], errors='coerce')
-                         # [FIX] Changed to 15 days
-                         cutoff_new = pd.Timestamp.now() - pd.Timedelta(days=15)
-                         
-                         # [LOGIC] "New" implies Sales Opportunity. Exclude "Closed" status to remove noise.
-                         # User Complaint: "New selected but Closed appears" -> Filter out '폐업' for New items.
-                         new_cond = (map_df_base['인허가일자'] >= cutoff_new)
-                         if '영업상태명' in map_df_base.columns:
-                             new_cond = new_cond & (map_df_base['영업상태명'] != '폐업')
-                             
-                         date_mask = date_mask | new_cond
-    
-                if q_closed:
-                     has_date_filter = True
-                     if '폐업일자' in map_df_base.columns:
-                         map_df_base['폐업일자'] = pd.to_datetime(map_df_base['폐업일자'], errors='coerce')
-                         # [FIX] Changed to 15 days
-                         cutoff_closed = pd.Timestamp.now() - pd.Timedelta(days=15)
-                         date_mask = date_mask | (map_df_base['폐업일자'] >= cutoff_closed)
-
-            if has_date_filter:
-                map_df_base = map_df_base[date_mask]
+                if q_new and '인허가일자' in map_df_base.columns:
+                    map_df_base['인허가일자'] = pd.to_datetime(map_df_base['인허가일자'], errors='coerce')
+                    new_mask = (map_df_base['인허가일자'] >= cutoff_15d)
+                    if '영업상태명' in map_df_base.columns:
+                        new_mask = new_mask & (map_df_base['영업상태명'] != '폐업')
+                    mask = mask | new_mask.fillna(False)
+                    
+                if q_closed and '폐업일자' in map_df_base.columns:
+                    map_df_base['폐업일자'] = pd.to_datetime(map_df_base['폐업일자'], errors='coerce')
+                    closed_mask = (map_df_base['폐업일자'] >= cutoff_15d)
+                    mask = mask | closed_mask.fillna(False)
+                    
+                map_df_base = map_df_base[mask]
 
             # 2. Property Filters (AND Logic)
             if q_hosp:
@@ -3703,50 +3760,73 @@ if raw_df is not None:
         st.markdown("##### 📅 최근 15일 영업/폐업 추이")
         try:
             # 1. Prepare Data
-            trend_end_date = pd.Timestamp.now().normalize()
-            trend_start_date = trend_end_date - pd.Timedelta(days=14) # 15 days inclusive: [Today-6, Today]
+            trend_end_date = GLOBAL_MAX_DATE
+            trend_start_date = trend_end_date - pd.Timedelta(days=14) # 15 days inclusive: [Today-14, Today]
+            
+            # Create a continuous date range for the last 15 days
+            date_range = pd.date_range(start=trend_start_date, end=trend_end_date, freq='D')
+            trend_base_df = pd.DataFrame({'date': date_range})
+            trend_base_df['date_str'] = trend_base_df['date'].dt.strftime('%m-%d')
             
             trend_data = []
             
             # Open (In-license)
             if '인허가일자' in base_df.columns:
-                 open_7d = base_df[
+                 open_15d = base_df[
                      (base_df['인허가일자'] >= trend_start_date) & 
                      (base_df['인허가일자'] <= trend_end_date + pd.Timedelta(days=1)) 
                  ].copy()
-                 if not open_7d.empty:
-                     daily_open = open_7d.groupby(open_7d['인허가일자'].dt.date).size().reset_index(name='count')
-                     daily_open['status'] = '영업'
-                     daily_open.rename(columns={'인허가일자': 'date'}, inplace=True)
-                     trend_data.append(daily_open)
+                 
+                 open_counts = trend_base_df[['date', 'date_str']].copy()
+                 open_counts['status'] = '영업'
+                 open_counts['count'] = 0
+                 
+                 if not open_15d.empty:
+                     # Calculate counts and merge
+                     daily_open = open_15d['인허가일자'].dt.normalize().value_counts().reset_index()
+                     daily_open.columns = ['date', 'actual_count']
+                     open_counts = pd.merge(open_counts, daily_open, on='date', how='left')
+                     open_counts['count'] = open_counts['actual_count'].fillna(0).astype(int)
+                     open_counts = open_counts.drop(columns=['actual_count'])
+                 
+                 trend_data.append(open_counts)
             
             # Closed
             if '폐업일자' in base_df.columns:
-                 close_7d = base_df[
+                 close_15d = base_df[
                      (base_df['폐업일자'] >= trend_start_date) & 
                      (base_df['폐업일자'] <= trend_end_date + pd.Timedelta(days=1))
                  ].copy()
-                 if not close_7d.empty:
-                     daily_close = close_7d.groupby(close_7d['폐업일자'].dt.date).size().reset_index(name='count')
-                     daily_close['status'] = '폐업'
-                     daily_close.rename(columns={'폐업일자': 'date'}, inplace=True)
-                     trend_data.append(daily_close)
+                 
+                 close_counts = trend_base_df[['date', 'date_str']].copy()
+                 close_counts['status'] = '폐업'
+                 close_counts['count'] = 0
+                 
+                 if not close_15d.empty:
+                     # Calculate counts and merge
+                     daily_close = close_15d['폐업일자'].dt.normalize().value_counts().reset_index()
+                     daily_close.columns = ['date', 'actual_count']
+                     close_counts = pd.merge(close_counts, daily_close, on='date', how='left')
+                     close_counts['count'] = close_counts['actual_count'].fillna(0).astype(int)
+                     close_counts = close_counts.drop(columns=['actual_count'])
+                     
+                 trend_data.append(close_counts)
             
             if trend_data:
                 trend_df = pd.concat(trend_data, ignore_index=True)
                 trend_df['date'] = pd.to_datetime(trend_df['date'])
-                # [FIX] Create formatted string for x-axis to prevent duplicates (Altair Ordinal Issue)
+                
+                # [FIX] Sort by actual datetime, then map to strings
+                trend_df = trend_df.sort_values('date')
                 trend_df['date_str'] = trend_df['date'].dt.strftime('%m-%d')
                 
                 # [FIX] Explicitly define sort order using a list for Ordinal Axis
-                # 'sort="date"' caused an error because "date" is not an encoding channel or "ascending"/"descending".
-                # Providing the sorted array of strings guarantees correct order.
-                sorted_date_strs = sorted(trend_df['date'].unique())
-                sorted_date_strs = [pd.Timestamp(d).strftime('%m-%d') for d in sorted_date_strs]
+                sorted_dates = sorted(trend_df['date'].unique())
+                sorted_date_strs = [pd.Timestamp(d).strftime('%m-%d') for d in sorted_dates]
 
                 # 2. Visualize
                 trend_chart = alt.Chart(trend_df).mark_bar().encode(
-                    x=alt.X('date_str:O', sort=sorted_date_strs, axis=alt.Axis(title='날짜 (2026)')), # Explicit sort list
+                    x=alt.X('date_str:O', sort=sorted_date_strs, axis=alt.Axis(title='날짜 (2026)', labelAngle=-45)), 
                     y=alt.Y('count:Q', title='건수'),
                     color=alt.Color('status:N', 
                                     scale=alt.Scale(domain=['영업', '폐업'], range=['#AED581', '#EF9A9A']), 
@@ -3763,7 +3843,7 @@ if raw_df is not None:
                 
                 st.altair_chart(trend_chart + text, use_container_width=True)
             else:
-                st.info("최근 7일간 변동 데이터가 없습니다.")
+                st.info("최근 15일간 변동 데이터가 없습니다.")
                 
         except Exception as e:
             st.error(f"차트 생성 중 오류가 발생했습니다: {e}")
@@ -3989,30 +4069,28 @@ if raw_df is not None:
         except Exception as e:
             status_data = {}
 
-        # Add activity status and notes from storage (Optimized)
-        grid_df['record_key'] = grid_df.apply(lambda row: activity_logger.get_record_key(row), axis=1)
-        
-        # Helper to safely get data from loaded dict
-        def get_status_val(k, field):
-            return status_data.get(k, {}).get(field, '')
+        # [OPTIMIZATION] Vectorized Mapping for Activity Status
+        if 'record_key' not in grid_df.columns:
+            grid_df['record_key'] = grid_df.apply(lambda row: activity_logger.get_record_key(row), axis=1)
 
-        grid_df['활동진행상태'] = grid_df['record_key'].apply(lambda k: get_status_val(k, '활동진행상태')).astype(str)
-        grid_df['특이사항'] = grid_df['record_key'].apply(lambda k: get_status_val(k, '특이사항')).astype(str)
-        grid_df['상태변경일시'] = grid_df['record_key'].apply(lambda k: get_status_val(k, '변경일시')).astype(str)
-        grid_df['상태변경자'] = grid_df['record_key'].apply(lambda k: get_status_val(k, '변경자')).astype(str)
+        status_map = {k: v.get('활동진행상태', '') for k, v in status_data.items() if isinstance(v, dict)}
+        note_map = {k: v.get('특이사항', '') for k, v in status_data.items() if isinstance(v, dict)}
+        date_map = {k: v.get('변경일시', '') for k, v in status_data.items() if isinstance(v, dict)}
+        user_map = {k: v.get('변경자', '') for k, v in status_data.items() if isinstance(v, dict)}
+
+        grid_df['활동진행상태'] = grid_df['record_key'].map(status_map).fillna('').astype(str)
+        grid_df['특이사항'] = grid_df['record_key'].map(note_map).fillna('').astype(str)
+        grid_df['상태변경일시'] = grid_df['record_key'].map(date_map).fillna('').astype(str)
+        grid_df['상태변경자'] = grid_df['record_key'].map(user_map).fillna('').astype(str)
         
         # [DEBUG] Key Comparison - Removed by user request
         # with st.expander("🕵️ 데이터 키 정밀 분석 (Debug)", expanded=True):
         #     pass
         
-        if '인허가일자' in grid_df.columns:
-            grid_df['인허가일자'] = grid_df['인허가일자'].apply(lambda x: x.strftime('%Y-%m-%d') if pd.notna(x) else "")
-            
-        if '폐업일자' in grid_df.columns:
-            grid_df['폐업일자'] = grid_df['폐업일자'].apply(lambda x: x.strftime('%Y-%m-%d') if pd.notna(x) else "")
-        
-        if '최종수정시점' in grid_df.columns:
-            grid_df['최종수정시점'] = grid_df['최종수정시점'].apply(lambda x: x.strftime('%Y-%m-%d') if pd.notna(x) else "")
+        # [OPTIMIZATION] Vectorized Date Formatting
+        for dt_col in ['인허가일자', '폐업일자', '최종수정시점']:
+            if dt_col in grid_df.columns:
+                grid_df[dt_col] = pd.to_datetime(grid_df[dt_col], errors='coerce').dt.strftime('%Y-%m-%d').fillna("")
 
 
         grid_df = grid_df.sort_values(by=['관리지사', 'SP담당', '업태구분명'])
@@ -4303,8 +4381,12 @@ if raw_df is not None:
             st.info("건의사항, 오류 제보, 기능 요청 등을 관리자에게 전달할 수 있습니다.")
             
             with st.form("voc_request_form"):
-                voc_subj = st.text_input("📝 제목", placeholder="요청 제목을 입력하세요")
-                voc_cont = st.text_area("📄 내용", placeholder="상세 내용을 입력하세요...", height=200)
+                # [FEATURE] Pre-fill values if navigating from Activity History deletion request
+                init_subj = st.session_state.pop("voc_default_subject", "")
+                init_cont = st.session_state.pop("voc_default_content", "")
+                
+                voc_subj = st.text_input("📝 제목", value=init_subj, placeholder="요청 제목을 입력하세요")
+                voc_cont = st.text_area("📄 내용", value=init_cont, placeholder="상세 내용을 입력하세요...", height=200)
                 voc_pri = st.select_slider("⚠️ 중요도", options=["Low", "Normal", "High"], value="Normal")
                 
                 col_submit, col_reset = st.columns([1, 1])
@@ -4319,6 +4401,9 @@ if raw_df is not None:
                         u_region = st.session_state.user_branch or "Unknown"
                         if voc_manager.add_voc_request(st.session_state.user_role, u_name, u_region, voc_subj, voc_cont, voc_pri):
                             st.success("✅ 요청이 성공적으로 접수되었습니다. 관리자가 확인 후 답변드리겠습니다.")
+                            # Add a slight delay to show the success message before clearing the form
+                            import time
+                            time.sleep(1)
                             st.rerun()
                         else:
                             st.error("❌ 요청 등록에 실패했습니다. 다시 시도해주세요.")

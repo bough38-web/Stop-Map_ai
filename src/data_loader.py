@@ -103,7 +103,16 @@ def _process_and_merge_district_data(target_df: pd.DataFrame, district_file_path
                     q_tok = extract_geo_tokens(query)
                     c_tok = extract_geo_tokens(candidate)
                     
-                    if q_tok.intersection(c_tok):
+                    # [FIX] Strictly enforce City/Province (First Token) match 
+                    # before allowing token intersection match to prevent
+                    # cross-city matching (e.g. Incheon Jung-gu matching Seoul Jung-gu)
+                    q_city = str(query).split()[0] if query else ""
+                    c_city = str(candidate).split()[0] if candidate else ""
+                    
+                    # City names might be '서울' vs '서울시', so check prefix sharing
+                    city_match = q_city and c_city and (q_city in c_city or c_city in q_city)
+                    
+                    if city_match and q_tok.intersection(c_tok):
                         matched_results.append(candidate)
                     else:
                         matched_results.append(None)
