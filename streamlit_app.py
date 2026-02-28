@@ -568,6 +568,31 @@ with st.sidebar:
         - 필터를 사용하여 지사, 담당자, 업태, 영업상태 등을 선택할 수 있습니다
         """)
     
+    # [NEW] Highly Visible GSheet Sync Section
+    with st.expander("🔄 구글 시트 데이터 동기화", expanded=True):
+        st.caption("활동 이력을 구글 시트와 즉시 동기화합니다.")
+        if st.button("🔌 연결 상태 확인", use_container_width=True, key="sync_check_st_main"):
+            with st.spinner("구글 시트 연결 확인 중..."):
+                success, msg = activity_logger.check_gsheet_connection()
+                if success: st.success(msg)
+                else: 
+                    st.error(msg)
+                    st.info("💡 **조치**: 시트 '공유' 버튼 클릭 -> 서비스 계정 이메일을 '편집자'로 추가")
+        
+        c_sync1, c_sync2 = st.columns(2)
+        with c_sync1:
+            if st.button("🔄 시트로 올리기", use_container_width=True, key="sync_push_st_main"):
+                with st.spinner("전송 중..."):
+                    success, msg = activity_logger.push_to_gsheet()
+                    if success: st.success(msg)
+                    else: st.error(msg)
+        with c_sync2:
+            if st.button("📥 시트에서 받기", use_container_width=True, key="sync_pull_st_main"):
+                with st.spinner("가져오는 중..."):
+                    activity_logger.pull_from_gsheet()
+                    st.success("완료!")
+                    st.rerun()
+    
     st.markdown("---")
 
     st.header("⚙️ 설정 & 데이터")
@@ -691,31 +716,6 @@ with st.sidebar:
             if 'api_fetched_df' in st.session_state:
                 api_df = st.session_state['api_fetched_df']
                 st.caption(f"✅ 수신된 데이터: {len(api_df)}건")
-
-        # [NEW] GSheet Connection Diagnostic Tool
-        st.subheader("📊 구글 시트 연동 상태")
-        if st.button("🔌 구글 시트 연결 확인", use_container_width=True):
-            with st.spinner("구글 시트 연결 확인 중..."):
-                success, msg = activity_logger.check_gsheet_connection()
-                if success:
-                    st.success(msg)
-                else:
-                    st.error(msg)
-                    st.info("💡 **조치 방법**:\n1. Streamlit Cloud의 'Settings > Secrets'에 정보를 올바르게 입력했는지 확인하세요.\n2. 서비스 계정 이메일을 구글 시트에 '편집자' 권한으로 추가했는지 확인하세요.")
-
-        c_sync1, c_sync2 = st.columns(2)
-        with c_sync1:
-            if st.button("🔄 시트로 올리기", use_container_width=True, help="컴퓨터에 저장된 모든 활동 이력을 구글 시트로 강제 전송합니다."):
-                with st.spinner("데이터 전송 중..."):
-                    success, msg = activity_logger.push_to_gsheet()
-                    if success: st.success(msg)
-                    else: st.error(msg)
-        with c_sync2:
-            if st.button("📥 시트에서 받기", use_container_width=True, help="구글 시트에 저장된 데이터를 컴퓨터로 가져옵니다."):
-                with st.spinner("데이터 가져오는 중..."):
-                    activity_logger.pull_from_gsheet()
-                    st.success("동기화 완료! 잠시 후 데이터가 반영됩니다.")
-                    st.rerun()
 
 
 
