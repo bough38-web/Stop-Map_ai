@@ -156,12 +156,22 @@ def check_gsheet_connection():
             return False, "Streamlit Secrets에 'connections.gsheets' 설정이 없습니다."
             
         conn = st.connection("gsheets", type=GSheetsConnection)
-        # Try to read a small part of the sheet to verify access
-        # [FIX] Use a generic read test or list worksheets
-        df = conn.read(worksheet="activity_status", ttl="0s", nrows=1)
-        return True, "연결 성공! 구글 시트에 정상적으로 접근할 수 있습니다."
+        
+        # [NEW] Try to get all worksheet names to verify existence
+        try:
+            # Note: streamlit-gsheets doesn't have a direct 'list_worksheets', 
+            # but we can try to trigger an error or use the internal client if available.
+            # For now, let's just try to read the first sheet to see if the URL is valid.
+            df = conn.read(worksheet="activity_status", ttl="0s", nrows=1)
+            return True, "연결 성공! 구글 시트와 통신이 원활합니다."
+        except Exception as read_e:
+            error_msg = str(read_e)
+            if "400" in error_msg:
+                return False, f"연결 실패 (HTTP 400): 시트 구조나 탭 이름이 맞지 않습니다.\n\n**확인 사항**:\n1. 스프레드시트 하단의 탭 이름이 정확히 `activity_status`, `visit_reports`, `change_history` 인지 확인하세요. (공백 주의)\n2. `secrets.toml`의 `spreadsheet` 주소가 정확한지 확인하세요."
+            return False, f"연결 실패: {error_msg}"
+            
     except Exception as e:
-        return False, f"연결 실패: {str(e)}\n\n(참고: 서비스 계정 이메일이 시트에 '편집자'로 공유되었는지 확인하세요.)"
+        return False, f"설정 오류: {str(e)}\n\n(참고: 서비스 계정 이메일이 시트에 '편집자'로 공유되었는지 확인하세요.)"
 
 
 def pull_from_gsheet():
