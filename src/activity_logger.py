@@ -168,18 +168,38 @@ def check_gsheet_connection():
         except:
             pass
 
-        # [NEW] Try to get all worksheet names to verify existence
+        # [NEW] Try to get all worksheet names to verify existence using internal client
         try:
-            # Note: streamlit-gsheets doesn't have a direct 'list_worksheets', 
-            # but we can try to trigger an error or use the internal client if available.
-            # For now, let's just try to read the first sheet to see if the URL is valid.
-            df = conn.read(worksheet="activity_status", ttl="0s", nrows=1)
-            return True, "연결 성공! 구글 시트와 통신이 원활합니다."
+            # streamlit-gsheets stores the internal client in _conn
+            if hasattr(conn, "_conn") and hasattr(conn._conn, "spreadsheet"):
+                spreadsheet = conn._conn.spreadsheet
+                worksheets = spreadsheet.worksheets()
+                ws_names = [ws.title for ws in worksheets]
+                print(f"[GSheet Debug] Found Worksheets: {ws_names}")
+                
+                # Check for activity_status
+                if "activity_status" in ws_names:
+                    # If it exists, try reading specifically
+                    df = conn.read(worksheet="activity_status", ttl="0s", nrows=1)
+                    return True, f"연결 성공! (워크시트 목록: {', '.join(ws_names)})"
+                else:
+                    return False, f"연결 실패: 'activity_status' 탭을 찾을 수 없습니다.\n\n현재 탭 목록: `{ws_names}`"
+            else:
+                # Fallback to standard read if internal access fails
+                df = conn.read(worksheet="activity_status", ttl="0s", nrows=1)
+                return True, "연결 성공! (데이터 읽기 확인 완료)"
+                
         except Exception as read_e:
             error_msg = str(read_e)
+            full_error = repr(read_e)
             if "400" in error_msg:
-                return False, f"연결 실패 (HTTP 400): 시트 구조나 탭 이름이 맞지 않습니다.\n\n**확인 사항**:\n1. 스프레드시트 하단의 탭 이름이 정확히 `activity_status`, `visit_reports`, `change_history` 인지 확인하세요. (공백 주의)\n2. `secrets.toml`의 `spreadsheet` 주소가 정확한지 확인하세요."
-            return False, f"연결 실패: {error_msg}"
+                # Try to get generic info if specific worksheet fails
+                try:
+                    metadata = conn.read(ttl="0s", nrows=1)
+                    return False, f"연결 실패 (HTTP 400): 시트 구조는 보이나 특정 탭 읽기 실패.\n\n**상세 오류**: `{full_error}`"
+                except:
+                    return False, f"연결 실패 (HTTP 400): 시트 접근 자체가 거부되었습니다.\n\n**상세 오류**: `{full_error}`\n\n**해결법**: 1. 시트 URL이 정확한지 확인. 2. 서비스 계정 권한 확인."
+            return False, f"연결 실패: {error_msg}\n\n`{full_error}`"
             
     except Exception as e:
         return False, f"설정 오류: {str(e)}\n\n(참고: 서비스 계정 이메일이 시트에 '편집자'로 공유되었는지 확인하세요.)"

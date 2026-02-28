@@ -603,7 +603,7 @@ with st.sidebar:
             try:
                 ss_url = st.secrets.connections.gsheets.get("spreadsheet", "N/A")
                 st.caption(f"Spreadsheet ID: ...{ss_url[-15:] if 'd/' in ss_url else 'N/A'}")
-                st.caption(f"App Version: 20260301-v2")
+                st.caption(f"App Version: 20260301-v5-debug")
             except:
                 st.caption("Secrets 로드 실패")
     
