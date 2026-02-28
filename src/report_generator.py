@@ -35,7 +35,8 @@ def generate_static_report(zip_path, district_path):
     recent_mod = len(df[df['modified_dt'] >= month_ago])
 
     # 3. Generate HTML
-    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    from src import utils
+    now_str = utils.get_now_kst().strftime("%Y-%m-%d %H:%M")
     
     branch_rows = ""
     for branch, count in branch_counts.items():
