@@ -43,6 +43,13 @@ def upload_to_gdrive(file_path, filename):
         
         # Upload
         file_metadata = {'name': filename}
+        
+        # [NEW] Use Shared Folder ID to bypass Service Account 0GB quota
+        # The user must share a folder with the service account and provide the ID
+        drive_folder_id = st.secrets.get("drive_folder_id") or creds_info.get("drive_folder_id")
+        if drive_folder_id:
+            file_metadata['parents'] = [drive_folder_id]
+            
         media = MediaFileUpload(str(file_path), resumable=True)
         file = drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
         file_id = file.get('id')
@@ -57,8 +64,12 @@ def upload_to_gdrive(file_path, filename):
         err_msg = str(e)
         print(f"DEBUG: GDrive Upload Error: {err_msg}")
         if "HttpError 403" in err_msg:
-            st.error(f"⚠️ 구글 드라이브 권한 오류: Drive API가 활성화되지 않았거나 폴더 권한이 없습니다.\n\n상세내용: {err_msg}")
-            st.info("💡 위 상세내용에 링크가 있다면 클릭하여 'Enable'을 눌러주세요.")
+            if "storageQuotaExceeded" in err_msg or "storage quota" in err_msg.lower():
+                st.error("⚠️ 구글 드라이브 용량 부족 에러: 서비스 계정은 독립 용량이 없습니다.")
+                st.info("💡 조치 필요: 폴더를 생성하여 서비스 계정을 '편집자'로 초대하고 폴더 ID를 설정해 주세요.")
+            else:
+                st.error(f"⚠️ 구글 드라이브 권한 오류: Drive API 활성화 여부나 폴더 권한을 확인해 주세요.\n\n상세내용: {err_msg}")
+                st.info("💡 위 상세내용에 링크가 있다면 클릭하여 'Enable'을 눌러주세요.")
         elif "ImportError" in err_msg or "ModuleNotFoundError" in err_msg:
             st.error("⚠️ 라이브러리 누락: google-api-python-client 등을 설치 중입니다. 잠시 후 상단 'Re-run'을 눌러주세요.")
         else:
@@ -787,12 +798,17 @@ def update_visit_report(report_id, new_content, new_photo_files=None):
                 drive_link = upload_to_gdrive(save_path, fname)
                 photo_paths[i] = drive_link if drive_link else str(fname)
             
-            # Update report fields
+            # Update report fields (Only overwrite if we got a link/path)
+            # This protects old photos if the new upload fails
             if photo_paths[0]: 
                 report['photo_path'] = photo_paths[0]
                 report['photo_path1'] = photo_paths[0]
             if photo_paths[1]: report['photo_path2'] = photo_paths[1]
             if photo_paths[2]: report['photo_path3'] = photo_paths[2]
+            
+            # Ensure consistency for old single-path display
+            if not report.get('photo_path') and report.get('photo_path1'):
+                report['photo_path'] = report['photo_path1']
             
         # Prepare for save
         reports[target_idx] = report
