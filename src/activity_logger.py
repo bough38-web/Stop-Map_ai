@@ -44,7 +44,14 @@ def upload_to_gdrive(file_path, filename):
         return f"https://drive.google.com/uc?export=view&id={file_id}"
         
     except Exception as e:
-        print(f"DEBUG: GDrive Upload Error: {e}")
+        err_msg = str(e)
+        print(f"DEBUG: GDrive Upload Error: {err_msg}")
+        if "HttpError 403" in err_msg:
+            st.error("⚠️ 구글 드라이브 권한 오류: Drive API가 활성화되지 않았거나 폴더 권한이 없습니다.")
+        elif "ImportError" in err_msg or "ModuleNotFoundError" in err_msg:
+            st.error("⚠️ 라이브러리 누락: google-api-python-client 등을 설치 중입니다. 잠시 후 상단 'Re-run'을 눌러주세요.")
+        else:
+            st.error(f"⚠️ 업로드 실패: {err_msg[:50]}...")
         return None
 
 # Storage directory
