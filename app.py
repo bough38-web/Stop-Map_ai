@@ -603,7 +603,7 @@ with st.sidebar:
             try:
                 ss_url = st.secrets.connections.gsheets.get("spreadsheet", "N/A")
                 st.caption(f"Spreadsheet ID: ...{ss_url[-15:] if 'd/' in ss_url else 'N/A'}")
-                st.caption(f"App Version: 20260301-v14-final")
+                st.caption(f"App Version: 20260301-v15-final-fix")
             except:
                 st.caption("Secrets 로드 실패")
     
@@ -3260,15 +3260,15 @@ if raw_df is not None:
                     if col not in df_reports.columns:
                         df_reports[col] = ''
                 
-                # Prepare display dataframe
-                df_disp = df_reports[['사업장명', '소재지전체주소', 'resulting_status', 'content', 'user_branch', 'user_name', 'timestamp']].rename(columns={
-                    'resulting_status': '변경상태',
-                    'content': '특이사항(활동내용)',
+                # Prepare display dataframe (Reordered as requested)
+                df_disp = df_reports[['user_branch', 'user_name', 'resulting_status', 'content', 'timestamp', '사업장명', '소재지전체주소']].rename(columns={
                     'user_branch': '관리지사',
                     'user_name': '담당자',
+                    'resulting_status': '변경상태',
+                    'content': '특이사항(활동내용)',
                     'timestamp': '활동일시'
                 })
-                # Show dataframe "데이터그리드처럼"
+                # Show dataframe
                 st.dataframe(df_disp, use_container_width=True, hide_index=True)
                 
                 st.divider()
@@ -3282,7 +3282,14 @@ if raw_df is not None:
                     b_name = parts[0] if len(parts) > 0 else '상호미상'
                     b_addr = parts[1] if len(parts) > 1 else '-'
                     
-                    header = f"**{idx+1}.** 🏢 {b_name} | {b_addr[:15]}... | 👤 {rep.get('user_name')} | 📅 {rep.get('timestamp')[:10]} | 상태: {status_badge}"
+                    # [NEW] Count photos
+                    p_count = 0
+                    for k in ["photo_path1", "photo_path2", "photo_path3", "photo_path"]:
+                        if rep.get(k) and str(rep.get(k)).strip() and str(rep.get(k)).lower() != "nan":
+                            p_count += 1
+                    p_label = f" | 📸 사진 {p_count}장" if p_count > 0 else ""
+                    
+                    header = f"**{idx+1}.** 🏢 {b_name} | {rep.get('user_name')} | {status_badge}{p_label} | 📅 {rep.get('timestamp')[:16]}"
                     
                     with st.expander(header, expanded=False):
                         # Content display

@@ -28,9 +28,15 @@ def upload_to_gdrive(file_path, filename):
                       'client_x509_cert_url']
         creds_clean = {k: creds_info[k] for k in valid_keys if k in creds_info}
         
-        # [FIX] Handle literal \n in private_key from Streamlit Secrets
+        # [FIX] Handle literal \n and potential whitespace in private_key from Streamlit Secrets
         if 'private_key' in creds_clean:
-            creds_clean['private_key'] = creds_clean['private_key'].replace("\\n", "\n")
+            pk = creds_clean['private_key']
+            if isinstance(pk, str):
+                # Replace escaped \n with actual newlines
+                pk = pk.replace("\\n", "\n")
+                # Remove extra quotes if present
+                pk = pk.strip("'").strip('"')
+                creds_clean['private_key'] = pk
         
         credentials = service_account.Credentials.from_service_account_info(creds_clean)
         drive_service = build('drive', 'v3', credentials=credentials)
@@ -56,7 +62,9 @@ def upload_to_gdrive(file_path, filename):
         elif "ImportError" in err_msg or "ModuleNotFoundError" in err_msg:
             st.error("⚠️ 라이브러리 누락: google-api-python-client 등을 설치 중입니다. 잠시 후 상단 'Re-run'을 눌러주세요.")
         else:
-            st.error(f"⚠️ 업로드 실패: {err_msg[:50]}...")
+            st.error(f"⚠️ 업로드 실패 (기타): {err_msg}")
+            with st.expander("🛠 개발자용 상세 에러 (Traceback)"):
+                st.exception(e)
         return None
 
 # [NEW] Image Resizing Helper
