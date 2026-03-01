@@ -603,7 +603,7 @@ with st.sidebar:
             try:
                 ss_url = st.secrets.connections.gsheets.get("spreadsheet", "N/A")
                 st.caption(f"Spreadsheet ID: ...{ss_url[-15:] if 'd/' in ss_url else 'N/A'}")
-                st.caption(f"App Version: 20260301-v13-media-fix")
+                st.caption(f"App Version: 20260301-v14-final")
             except:
                 st.caption("Secrets 로드 실패")
     
@@ -3319,10 +3319,15 @@ if raw_df is not None:
                                         with p_cols[i]:
                                             try:
                                                 st.image(p_url, use_container_width=True)
+                                                if p_url.startswith("http"):
+                                                    # Make link more visible
+                                                    st.markdown(f"[🔗 원본보기]({p_url})")
                                             except:
                                                 st.caption("⚠️ 이미지 로드 실패")
                                 else:
                                     st.image(photos_to_show[0], use_container_width=True)
+                                    if photos_to_show[0].startswith("http"):
+                                        st.markdown(f"[🔗 큰 화면(Drive)에서 보기]({photos_to_show[0]})")
                         
                         st.divider()
                         
