@@ -65,8 +65,9 @@ def upload_to_gdrive(file_path, filename):
         print(f"DEBUG: GDrive Upload Error: {err_msg}")
         if "HttpError 403" in err_msg:
             if "storageQuotaExceeded" in err_msg or "storage quota" in err_msg.lower():
+                sa_email = creds_clean.get("client_email", "알 수 없음")
                 st.error("⚠️ 구글 드라이브 용량 부족 에러: 서비스 계정은 독립 용량이 없습니다.")
-                st.info("💡 조치 필요: 폴더를 생성하여 서비스 계정을 '편집자'로 초대하고 폴더 ID를 설정해 주세요.")
+                st.warning(f"💡 조치 방법 (필수): \n1. 구글 드라이브에 폴더를 만드세요.\n2. 폴더를 **{sa_email}** 에 '편집자'로 공유하세요.\n3. 폴더 주소의 ID를 설정에 넣어주세요.")
             else:
                 st.error(f"⚠️ 구글 드라이브 권한 오류: Drive API 활성화 여부나 폴더 권한을 확인해 주세요.\n\n상세내용: {err_msg}")
                 st.info("💡 위 상세내용에 링크가 있다면 클릭하여 'Enable'을 눌러주세요.")
