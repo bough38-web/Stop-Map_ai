@@ -603,7 +603,7 @@ with st.sidebar:
             try:
                 ss_url = st.secrets.connections.gsheets.get("spreadsheet", "N/A")
                 st.caption(f"Spreadsheet ID: ...{ss_url[-15:] if 'd/' in ss_url else 'N/A'}")
-                st.caption(f"App Version: 20260301-v12-multi-photo")
+                st.caption(f"App Version: 20260301-v13-media-fix")
             except:
                 st.caption("Secrets 로드 실패")
     
@@ -3383,12 +3383,12 @@ if raw_df is not None:
                         if st.session_state.get(f"photo_mode_{rep['id']}", False):
                             with st.form(key=f"form_photo_{rep['id']}"):
                                 st.caption("📸 사진을 추가하세요")
-                                new_photo = st.file_uploader("사진 선택", type=['jpg', 'png', 'jpeg'], key=f"uploader_{rep['id']}")
+                                new_photos = st.file_uploader("사진 선택 (최대 3장)", type=['jpg', 'png', 'jpeg'], key=f"uploader_{rep['id']}", accept_multiple_files=True)
                                 
                                 col_save, col_cancel = st.columns(2)
                                 if col_save.form_submit_button("💾 저장", use_container_width=True):
-                                    if new_photo:
-                                        succ, msg = activity_logger.update_visit_report(rep['id'], None, new_photo)
+                                    if new_photos:
+                                        succ, msg = activity_logger.update_visit_report(rep['id'], None, new_photos)
                                         if succ:
                                             st.success("✅ 사진이 추가되었습니다!")
                                             st.session_state[f"photo_mode_{rep['id']}"] = False

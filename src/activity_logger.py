@@ -28,6 +28,10 @@ def upload_to_gdrive(file_path, filename):
                       'client_x509_cert_url']
         creds_clean = {k: creds_info[k] for k in valid_keys if k in creds_info}
         
+        # [FIX] Handle literal \n in private_key from Streamlit Secrets
+        if 'private_key' in creds_clean:
+            creds_clean['private_key'] = creds_clean['private_key'].replace("\\n", "\n")
+        
         credentials = service_account.Credentials.from_service_account_info(creds_clean)
         drive_service = build('drive', 'v3', credentials=credentials)
         
@@ -723,12 +727,12 @@ def register_visit_batch(batch_list):
         print(f"CRITICAL ERROR in register_visit_batch: {e}")
         return False, str(e)
 
-def update_visit_report(report_id, new_content, new_photo_file=None):
+def update_visit_report(report_id, new_content, new_photo_files=None):
     """
     Update an existing visit report.
     - report_id: ID of the report to update
-    - new_content: New text content (appended or replaced? Let's assume replace or user handles appending)
-    - new_photo_file: Streamlit UploadedFile (optional)
+    - new_content: New text content (replacing existing)
+    - new_photo_files: List of Streamlit UploadedFiles (optional)
     """
     try:
         reports = load_json_file(VISIT_REPORT_FILE)
@@ -743,8 +747,12 @@ def update_visit_report(report_id, new_content, new_photo_file=None):
         if new_content:
             report['content'] = new_content
             
-        # Update Photo
-        if new_photo_file:
+        # Update Photos (if provided, they replace existing ones in the paths)
+        if new_photo_files:
+            # Handle single file or list
+            if not isinstance(new_photo_files, list):
+                new_photo_files = [new_photo_files]
+                
             from src import utils
             from dateutil import parser
             ts_str = utils.get_now_kst_str()
@@ -752,16 +760,30 @@ def update_visit_report(report_id, new_content, new_photo_file=None):
                 timestamp_kst = parser.parse(ts_str)
                 file_prefix = f"{timestamp_kst.strftime('%Y%m%d_%H%M%S')}_update"
             except Exception:
-                file_prefix = "update_photo"
+                file_prefix = "update"
+            
+            photo_paths = [None, None, None]
+            for i, photo_file in enumerate(new_photo_files[:3]):
+                if not photo_file: continue
                 
-            ext = new_photo_file.name.split('.')[-1] if '.' in new_photo_file.name else "jpg"
-            fname = f"{file_prefix}_photo.{ext}"
-            save_path = VISIT_MEDIA_DIR / fname
+                # Resize
+                resized_data = resize_image(photo_file)
+                
+                fname = f"{file_prefix}_photo_{i+1}.jpg"
+                save_path = VISIT_MEDIA_DIR / fname
+                
+                with open(save_path, "wb") as f:
+                    f.write(resized_data)
+                
+                drive_link = upload_to_gdrive(save_path, fname)
+                photo_paths[i] = drive_link if drive_link else str(fname)
             
-            with open(save_path, "wb") as f:
-                f.write(new_photo_file.getvalue())
-            
-            report['photo_path'] = str(fname)
+            # Update report fields
+            if photo_paths[0]: 
+                report['photo_path'] = photo_paths[0]
+                report['photo_path1'] = photo_paths[0]
+            if photo_paths[1]: report['photo_path2'] = photo_paths[1]
+            if photo_paths[2]: report['photo_path3'] = photo_paths[2]
             
         # Prepare for save
         reports[target_idx] = report
