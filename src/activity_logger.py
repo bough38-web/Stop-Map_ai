@@ -10,6 +10,43 @@ try:
 except ImportError:
     HAS_GSHEETS = False
 
+# [NEW] Drive Media Persistence Helper
+def upload_to_gdrive(file_path, filename):
+    """Uploads a file to Google Drive and returns a public view link."""
+    if not HAS_GSHEETS or "connections" not in st.secrets or "gsheets" not in st.secrets.connections:
+        return None
+        
+    try:
+        from googleapiclient.discovery import build
+        from googleapiclient.http import MediaFileUpload
+        from google.oauth2 import service_account
+        
+        # Use existing secrets
+        creds_info = dict(st.secrets.connections.gsheets)
+        valid_keys = ['type', 'project_id', 'private_key_id', 'private_key', 'client_email', 
+                      'client_id', 'auth_uri', 'token_uri', 'auth_provider_x509_cert_url', 
+                      'client_x509_cert_url']
+        creds_clean = {k: creds_info[k] for k in valid_keys if k in creds_info}
+        
+        credentials = service_account.Credentials.from_service_account_info(creds_clean)
+        drive_service = build('drive', 'v3', credentials=credentials)
+        
+        # Upload
+        file_metadata = {'name': filename}
+        media = MediaFileUpload(str(file_path), resumable=True)
+        file = drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        file_id = file.get('id')
+        
+        # Make public
+        drive_service.permissions().create(fileId=file_id, body={'type': 'anyone', 'role': 'reader'}).execute()
+        
+        # Return public link
+        return f"https://drive.google.com/uc?export=view&id={file_id}"
+        
+    except Exception as e:
+        print(f"DEBUG: GDrive Upload Error: {e}")
+        return None
+
 # Storage directory
 # Use absolute path resolution to avoid issues with Streamlit execution context
 # Storage directory - [FIX] Move outside project to prevent Streamlit reload loops
@@ -499,7 +536,10 @@ def register_visit(record_key, content, audio_file, photo_file, user_info, force
             save_path = VISIT_MEDIA_DIR / fname
             with open(save_path, "wb") as f:
                 f.write(audio_file.getvalue())
-            audio_path = str(fname)
+            
+            # [NEW] Upload to Drive for cross-device persistence
+            drive_link = upload_to_gdrive(save_path, fname)
+            audio_path = drive_link if drive_link else str(fname)
             
         if photo_file:
             ext = photo_file.name.split('.')[-1] if '.' in photo_file.name else "jpg"
@@ -507,7 +547,10 @@ def register_visit(record_key, content, audio_file, photo_file, user_info, force
             save_path = VISIT_MEDIA_DIR / fname
             with open(save_path, "wb") as f:
                 f.write(photo_file.getvalue())
-            photo_path = str(fname)
+            
+            # [NEW] Upload to Drive for cross-device persistence
+            drive_link = upload_to_gdrive(save_path, fname)
+            photo_path = drive_link if drive_link else str(fname)
 
         # 2. Determine New Status
         # Default to "✅ 방문" if not forced. 
@@ -728,4 +771,9 @@ def get_media_path(filename):
     # Ensure filename is a valid non-empty string to prevent Path join errors (e.g. with NaN)
     if not isinstance(filename, str) or not filename.strip() or filename.lower() == "nan":
         return None
+        
+    # [NEW] If it's already a URL (e.g. GDrive link), return as is
+    if filename.startswith("http"):
+        return filename
+        
     return str(VISIT_MEDIA_DIR / filename)

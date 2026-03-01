@@ -603,7 +603,7 @@ with st.sidebar:
             try:
                 ss_url = st.secrets.connections.gsheets.get("spreadsheet", "N/A")
                 st.caption(f"Spreadsheet ID: ...{ss_url[-15:] if 'd/' in ss_url else 'N/A'}")
-                st.caption(f"App Version: 20260301-v9-final")
+                st.caption(f"App Version: 20260301-v10-cloud-media")
             except:
                 st.caption("Secrets 로드 실패")
     
@@ -3295,14 +3295,14 @@ if raw_df is not None:
                         with media_col1:
                             if rep.get("audio_path"):
                                 audio_p = activity_logger.get_media_path(rep.get("audio_path"))
-                                if audio_p and os.path.exists(audio_p):
+                                if audio_p and (audio_p.startswith("http") or os.path.exists(audio_p)):
                                     st.markdown("**🎤 음성 녹음:**")
                                     st.audio(audio_p)
                         
                         with media_col2:
                             if rep.get("photo_path"):
                                 photo_p = activity_logger.get_media_path(rep.get("photo_path"))
-                                if photo_p and os.path.exists(photo_p):
+                                if photo_p and (photo_p.startswith("http") or os.path.exists(photo_p)):
                                     try:
                                         st.markdown("**📸 현장 사진:**")
                                         st.image(photo_p, use_container_width=True)
