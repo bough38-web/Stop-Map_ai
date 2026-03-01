@@ -725,5 +725,7 @@ def get_visit_reports(record_key=None, user_name=None, user_branch=None, limit=1
     return reports[:limit]
 
 def get_media_path(filename):
-    if not filename: return None
+    # Ensure filename is a valid non-empty string to prevent Path join errors (e.g. with NaN)
+    if not isinstance(filename, str) or not filename.strip() or filename.lower() == "nan":
+        return None
     return str(VISIT_MEDIA_DIR / filename)
