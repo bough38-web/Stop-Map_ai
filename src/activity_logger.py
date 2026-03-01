@@ -205,6 +205,9 @@ def check_gsheet_connection():
             if "400" in error_msg:
                 return False, f"연결 실패 (HTTP 400): `{mode_text}`으로 시트 접근 실패.\n\n**상세 오류**: `{full_error}`\n\n**조치**: {'Secrets 설정을 다시 확인하세요.' if is_service_account else '서비스 계정 정보를 Secrets에 등록하세요.'}"
             
+            if "Permission" in full_error:
+                return False, f"연결 실패 (권한 오류): `{mode_text}` 인증은 성공했으나, 시트에 접근할 권한이 없습니다.\n\n**상세 오류**: `{full_error}`\n\n**해결법**:\n1. 구글 시트 [공유] 단추를 누르고 `{gs_secrets.get('client_email')}`를 **편집자**로 추가했는지 확인하세요.\n2. [Google Cloud Console](https://console.cloud.google.com/apis/library/sheets.googleapis.com)에서 **Google Sheets API**를 '사용'으로 설정했는지 확인하세요."
+
             return False, f"연결 실패: {error_msg}\n\n`{full_error}`"
             
     except Exception as e:
