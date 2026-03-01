@@ -161,8 +161,13 @@ def check_gsheet_connection():
         is_service_account = False
         try:
             gs_secrets = st.secrets.connections.gsheets
-            if gs_secrets.get("type") == "service_account" and gs_secrets.get("private_key"):
+            pk = gs_secrets.get("private_key", "")
+            if gs_secrets.get("type") == "service_account" and pk:
                 is_service_account = True
+                if not pk.startswith("-----BEGIN"):
+                    print("[GSheet Debug] Warning: private_key does not start with BEGIN header")
+                if "\\n" in pk and "\n" not in pk:
+                    print("[GSheet Debug] Tip: private_key uses literal '\\n' instead of newlines")
             
             ss_url = gs_secrets.get("spreadsheet", "N/A")
             print(f"[GSheet Debug] Mode: {'Service Account' if is_service_account else 'Public URL'}")
