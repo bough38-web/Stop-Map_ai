@@ -157,14 +157,16 @@ def check_gsheet_connection():
             
         conn = st.connection("gsheets", type=GSheetsConnection)
         
-        # [DEBUG] Log spreadsheet info to terminal
+        # [DEBUG] Check authentication mode
+        is_service_account = False
         try:
-            ss_url = st.secrets.connections.gsheets.get("spreadsheet", "N/A")
-            # [ROBUST] Extract ID from URL if provided as full link
-            if "docs.google.com/spreadsheets/d/" in ss_url:
-                ss_id = ss_url.split("/d/")[1].split("/")[0]
-                print(f"[GSheet Debug] Extracted ID: {ss_id}")
-            print(f"[GSheet Debug] Targeting: {ss_url[:15]}...")
+            gs_secrets = st.secrets.connections.gsheets
+            if gs_secrets.get("type") == "service_account" and gs_secrets.get("private_key"):
+                is_service_account = True
+            
+            ss_url = gs_secrets.get("spreadsheet", "N/A")
+            print(f"[GSheet Debug] Mode: {'Service Account' if is_service_account else 'Public URL'}")
+            print(f"[GSheet Debug] Targeting: {ss_url[:20]}...")
         except:
             pass
 
@@ -180,21 +182,23 @@ def check_gsheet_connection():
         try:
             # Attempt to read the specific worksheet
             df = conn.read(worksheet="activity_status", ttl="0s", nrows=1)
-            return True, f"연결 성공! (확인된 탭: {', '.join(discovered_ws) if discovered_ws else '알수없음'})"
+            mode_text = "서비스 계정 인증" if is_service_account else "공개 URL 방식"
+            return True, f"연결 성공! ({mode_text}, 확인된 탭: {', '.join(discovered_ws) if discovered_ws else '알수없음'})"
         except Exception as read_e:
             error_msg = str(read_e)
             full_error = repr(read_e)
+            mode_text = "서비스 계정 인증" if is_service_account else "공개 URL 방식"
             
             # If we found worksheets but failed to read the specific one
             if discovered_ws:
                 if "activity_status" not in discovered_ws:
-                    return False, f"연결 실패 (탭 누락): 'activity_status' 탭을 찾을 수 없습니다.\n\n현재 시트의 탭 목록: `{discovered_ws}`"
+                    return False, f"연결 실패 (탭 누락): 'activity_status' 탭을 찾을 수 없습니다.\n\n현재 모드: `{mode_text}`\n\n탭 목록: `{discovered_ws}`"
                 else:
-                    return False, f"연결 실패 (구조 오류): 'activity_status' 탭이 존재하지만 읽을 수 없습니다.\n\n**상세 오류**: `{full_error}`\n\n**탭 목록**: `{discovered_ws}`\n\n**조치**: 시트의 1행(헤더)에 빈 칸이나 특수문자가 없는지 확인하세요."
+                    return False, f"연결 실패 (구조 오류): 'activity_status' 탭이 존재하지만 읽을 수 없습니다.\n\n현재 모드: `{mode_text}`\n\n**상세 오류**: `{full_error}`"
             
-            # General fallback if listing failed or generic 400
+            # General fallback
             if "400" in error_msg:
-                return False, f"연결 실패 (HTTP 400): 시트 접근 또는 특정 탭 읽기 실패.\n\n**상세 오류**: `{full_error}`\n\n**추측**: 시트 ID/URL이 잘못되었거나 서비스 계정 권한이 부족합니다."
+                return False, f"연결 실패 (HTTP 400): `{mode_text}`으로 시트 접근 실패.\n\n**상세 오류**: `{full_error}`\n\n**조치**: {'Secrets 설정을 다시 확인하세요.' if is_service_account else '서비스 계정 정보를 Secrets에 등록하세요.'}"
             
             return False, f"연결 실패: {error_msg}\n\n`{full_error}`"
             
