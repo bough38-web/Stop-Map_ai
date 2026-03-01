@@ -13,4 +13,5 @@ pyproj
 st-gsheets-connection
 google-api-python-client
 google-auth
-# Force Rebuild 20260301-2
+Pillow
+# Force Rebuild 20260301-3

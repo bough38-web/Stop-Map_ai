@@ -368,7 +368,7 @@ if st.session_state.get("visit_active"):
                     photo_val = None
                     
                 if not photo_val:
-                    photo_val = st.file_uploader("또는 사진 업로드", type=['jpg', 'png', 'jpeg'], label_visibility="collapsed")
+                    photo_val = st.file_uploader("또는 사진 업로드 (최대 3장)", type=['jpg', 'png', 'jpeg'], label_visibility="collapsed", accept_multiple_files=True)
 
             submitted = st.form_submit_button("💾 방문 결과 저장", type="primary", use_container_width=True)
             
@@ -394,7 +394,7 @@ if st.session_state.get("visit_active"):
                             audio_val, 
                             photo_val, 
                             u_info,
-                            forced_status="✅ 방문"  # Ensure status is saved to activity_status.json
+                            forced_status="✅ 방문"
                         )
                         
                         if success:
@@ -603,7 +603,7 @@ with st.sidebar:
             try:
                 ss_url = st.secrets.connections.gsheets.get("spreadsheet", "N/A")
                 st.caption(f"Spreadsheet ID: ...{ss_url[-15:] if 'd/' in ss_url else 'N/A'}")
-                st.caption(f"App Version: 20260301-v11-debug-media")
+                st.caption(f"App Version: 20260301-v12-multi-photo")
             except:
                 st.caption("Secrets 로드 실패")
     
@@ -3300,14 +3300,29 @@ if raw_df is not None:
                                     st.audio(audio_p)
                         
                         with media_col2:
-                            if rep.get("photo_path"):
-                                photo_p = activity_logger.get_media_path(rep.get("photo_path"))
-                                if photo_p and (photo_p.startswith("http") or os.path.exists(photo_p)):
-                                    try:
-                                        st.markdown("**📸 현장 사진:**")
-                                        st.image(photo_p, use_container_width=True)
-                                    except:
-                                        st.caption(f"⚠️ 이미지 로드 실패: {rep.get('photo_path')}")
+                            # Show up to 3 photos
+                            photos_to_show = []
+                            for key in ["photo_path1", "photo_path2", "photo_path3", "photo_path"]:
+                                p_path = rep.get(key)
+                                if p_path:
+                                    p_url = activity_logger.get_media_path(p_path)
+                                    if p_url and (p_url.startswith("http") or os.path.exists(p_url)):
+                                        if p_url not in photos_to_show:
+                                            photos_to_show.append(p_url)
+                            
+                            if photos_to_show:
+                                st.markdown(f"**📸 현장 사진 ({len(photos_to_show)}장):**")
+                                # Use columns for side-by-side if multiple
+                                if len(photos_to_show) > 1:
+                                    p_cols = st.columns(len(photos_to_show))
+                                    for i, p_url in enumerate(photos_to_show):
+                                        with p_cols[i]:
+                                            try:
+                                                st.image(p_url, use_container_width=True)
+                                            except:
+                                                st.caption("⚠️ 이미지 로드 실패")
+                                else:
+                                    st.image(photos_to_show[0], use_container_width=True)
                         
                         st.divider()
                         

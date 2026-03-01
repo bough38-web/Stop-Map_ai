@@ -54,6 +54,27 @@ def upload_to_gdrive(file_path, filename):
             st.error(f"⚠️ 업로드 실패: {err_msg[:50]}...")
         return None
 
+# [NEW] Image Resizing Helper
+def resize_image(image_file, max_size=(800, 800)):
+    """Resizes an image while maintaining aspect ratio using PIL."""
+    try:
+        from PIL import Image
+        import io
+        
+        img = Image.open(image_file)
+        # Convert to RGB if necessary (for PNGs with transparency)
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+            
+        img.thumbnail(max_size, Image.Resampling.LANCZOS)
+        
+        output = io.BytesIO()
+        img.save(output, format="JPEG", quality=85)
+        return output.getvalue()
+    except Exception as e:
+        print(f"DEBUG: Image Resize Error: {e}")
+        return image_file.getvalue() if hasattr(image_file, 'getvalue') else None
+
 # Storage directory
 # Use absolute path resolution to avoid issues with Streamlit execution context
 # Storage directory - [FIX] Move outside project to prevent Streamlit reload loops
@@ -510,26 +531,22 @@ VISIT_MEDIA_DIR.mkdir(exist_ok=True)
 
 # ===== ATOMIC TRANSACTIONS (REDESIGN) =====
 
-def register_visit(record_key, content, audio_file, photo_file, user_info, forced_status=None):
+def register_visit(record_key, content, audio_file, photo_files, user_info, forced_status=None):
     """
     ATOMIC OPERATION: Register a visit.
-    1. Save Visit Report
-    2. Update Activity Status (to 'Visit' or forced status)
-    3. Log History
-    
-    Returns: (bool, msg)
+    - photo_files: list of up to 3 photo files or a single file
     """
     try:
         from src import utils
+        import io
+        
         # 1. Save Media
         audio_path = None
-        photo_path = None
+        photo_paths = [None, None, None]
         
-        # [FIX] Force KST Timezone to prevent UTC Server Display Bug
-        ts_str = utils.get_now_kst_str() # e.g. "2026-03-01 03:00:00"
+        # [FIX] Force KST Timezone
+        ts_str = utils.get_now_kst_str()
         
-        # For file prefix, create a clean string from the KST timestamp
-        # Converting KST string back to datetime to use strftime
         from dateutil import parser
         try:
             timestamp_kst = parser.parse(ts_str)
@@ -544,24 +561,30 @@ def register_visit(record_key, content, audio_file, photo_file, user_info, force
             with open(save_path, "wb") as f:
                 f.write(audio_file.getvalue())
             
-            # [NEW] Upload to Drive for cross-device persistence
             drive_link = upload_to_gdrive(save_path, fname)
             audio_path = drive_link if drive_link else str(fname)
             
-        if photo_file:
-            ext = photo_file.name.split('.')[-1] if '.' in photo_file.name else "jpg"
-            fname = f"{file_prefix}_photo.{ext}"
-            save_path = VISIT_MEDIA_DIR / fname
-            with open(save_path, "wb") as f:
-                f.write(photo_file.getvalue())
-            
-            # [NEW] Upload to Drive for cross-device persistence
-            drive_link = upload_to_gdrive(save_path, fname)
-            photo_path = drive_link if drive_link else str(fname)
+        if photo_files:
+            # Handle both single file and list
+            if not isinstance(photo_files, list):
+                photo_files = [photo_files]
+                
+            for i, photo_file in enumerate(photo_files[:3]):
+                if not photo_file: continue
+                
+                # Resize image (Small size as requested)
+                resized_data = resize_image(photo_file)
+                
+                fname = f"{file_prefix}_photo_{i+1}.jpg"
+                save_path = VISIT_MEDIA_DIR / fname
+                
+                with open(save_path, "wb") as f:
+                    f.write(resized_data)
+                
+                drive_link = upload_to_gdrive(save_path, fname)
+                photo_paths[i] = drive_link if drive_link else str(fname)
 
         # 2. Determine New Status
-        # Default to "✅ 방문" if not forced. 
-        # If user selected a specific status in a dropdown, use that.
         new_status = forced_status if forced_status else ACTIVITY_STATUS_MAP["방문"]
         new_status = normalize_status(new_status)
 
@@ -573,11 +596,14 @@ def register_visit(record_key, content, audio_file, photo_file, user_info, force
             "record_key": record_key,
             "content": content,
             "audio_path": audio_path,
-            "photo_path": photo_path,
+            "photo_path": photo_paths[0], # Legacy support
+            "photo_path1": photo_paths[0],
+            "photo_path2": photo_paths[1],
+            "photo_path3": photo_paths[2],
             "user_name": user_info.get("name"),
             "user_role": user_info.get("role"),
             "user_branch": user_info.get("branch"),
-            "resulting_status": new_status # Link result
+            "resulting_status": new_status
         }
         
         # 4. Update Status Entry
