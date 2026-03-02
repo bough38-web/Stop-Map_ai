@@ -4378,7 +4378,9 @@ if raw_df is not None:
                                 row['record_key'],
                                 raw_status,
                                 row['특이사항'],
-                                current_user
+                                current_user,
+                                user_branch=st.session_state.get('user_branch'),
+                                user_role=st.session_state.get('user_role')
                             )
                         
                         saved_count += 1

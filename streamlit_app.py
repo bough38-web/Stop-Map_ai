@@ -229,7 +229,7 @@ if "visit_action" in st.query_params:
             # We should update the status to '방문' immediately when clicked on map.
             if q_key:
                 u_name = st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or "Unknown"
-                activity_logger.save_activity_status(q_key, '방문', f"모바일 지도에서 방문 처리 ({u_name})", u_name)
+                activity_logger.save_activity_status(q_key, '방문', f"모바일 지도에서 방문 처리 ({u_name})", u_name, user_branch=st.session_state.get('user_branch'), user_role=st.session_state.get('user_role'))
                 # Also log a system visit report? User said "방문 이력에 나오도록"
                 activity_logger.save_visit_report(
                     record_key=q_key,
@@ -3363,7 +3363,9 @@ if raw_df is not None:
                                         record_key=record_key,
                                         status=new_status,
                                         notes=status_note or rep.get('content', ''),
-                                        user_name=current_user
+                                        user_name=current_user,
+                                        user_branch=st.session_state.get('user_branch'),
+                                        user_role=st.session_state.get('user_role')
                                     )
                                     
                                     st.success(f"✅ 상태가 '{new_status}'로 변경되었습니다!")
