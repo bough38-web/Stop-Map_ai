@@ -674,6 +674,7 @@ with st.sidebar:
                      zip_opts = [os.path.basename(f) for f in local_zips]
                      # [UX] Auto-select priority data files if available
                      preferred_zips = [
+                         "LOCALDATA_2026_ONLY.zip", # [NEW] Extracted 2026 data
                          "LOCALDATA_NOWMON_CSV.zip", 
                          "LOCALDATA_NOWMON_CSV_2월.zip", 
                          "LOCALDATA_YESTERDAY_CSV.zip"
