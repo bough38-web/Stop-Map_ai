@@ -41,14 +41,18 @@ def upload_to_gdrive(file_path, filename):
         credentials = service_account.Credentials.from_service_account_info(creds_clean)
         drive_service = build('drive', 'v3', credentials=credentials)
         
+        # [DEBUG] Identify which Folder ID is being used
+        drive_folder_id = st.secrets.get("drive_folder_id") or creds_info.get("drive_folder_id")
+        print(f"DEBUG: GDrive - Detected Folder ID: {drive_folder_id}")
+        
         # Upload
         file_metadata = {'name': filename}
         
         # [NEW] Use Shared Folder ID to bypass Service Account 0GB quota
-        # The user must share a folder with the service account and provide the ID
-        drive_folder_id = st.secrets.get("drive_folder_id") or creds_info.get("drive_folder_id")
         if drive_folder_id:
             file_metadata['parents'] = [drive_folder_id]
+        else:
+            print("DEBUG: GDrive - No Folder ID provided. Using default service account root.")
             
         media = MediaFileUpload(str(file_path), resumable=True)
         file = drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
@@ -66,10 +70,21 @@ def upload_to_gdrive(file_path, filename):
         if "HttpError 403" in err_msg:
             if "storageQuotaExceeded" in err_msg or "storage quota" in err_msg.lower():
                 sa_email = creds_clean.get("client_email", "알 수 없음")
-                st.error("⚠️ 구글 드라이브 용량 부족 에러: 서비스 계정은 독립 용량이 없습니다.")
-                st.warning(f"💡 조치 방법 (필수): \n1. 구글 드라이브에 폴더를 만드세요.\n2. 폴더를 **{sa_email}** 에 '편집자'로 공유하세요.\n3. 폴더 주소의 ID를 설정에 넣어주세요.")
+                st.error(f"⚠️ **구글 드라이브 용량 부족 (Quota Exceeded)**\n\n현재 폴더 ID: `{drive_folder_id or '미지정'}`")
+                st.markdown(f"""
+                서비스 계정은 기본 용량이 0GB이므로, 본인의 드라이브 폴더를 공유해 주셔야 합니다:
+
+                
+                1. **폴더 생성**: 본인 구글 드라이브에 사진 저장용 폴더를 만드세요.
+                2. **공유 설정**: 폴더 우클릭 -> '공유' -> 아래 이메일을 **편집자**로 추가:
+                   `{sa_email}`
+                3. **ID 설정**: 폴더 주소창의 마지막 부분(ID)을 복사하여 Streamlit Secrets에 등록하세요.
+                   * 예: `https://drive.google.com/drive/folders/1abc...xyz` -> **`1abc...xyz`** 부분만 복사
+                   * Secrets 설정: `drive_folder_id = "복사한_ID"`
+                """)
             else:
                 st.error(f"⚠️ 구글 드라이브 권한 오류: Drive API 활성화 여부나 폴더 권한을 확인해 주세요.\n\n상세내용: {err_msg}")
+
                 st.info("💡 위 상세내용에 링크가 있다면 클릭하여 'Enable'을 눌러주세요.")
         elif "ImportError" in err_msg or "ModuleNotFoundError" in err_msg:
             st.error("⚠️ 라이브러리 누락: google-api-python-client 등을 설치 중입니다. 잠시 후 상단 'Re-run'을 눌러주세요.")
@@ -217,7 +232,7 @@ def sync_to_gsheet(filename, data):
         if isinstance(data, list):
             df = pd.DataFrame(data)
         elif isinstance(data, dict):
-            # For dict-based statuses, flatten or convert to rows
+            # For dict-based statuses (activity_status), flatten to rows
             rows = []
             for k, v in data.items():
                 row = {"record_key": k}
@@ -227,10 +242,33 @@ def sync_to_gsheet(filename, data):
         else:
             return
             
+        # [NEW] Enforce Column Ordering and User-friendly Names for GSheet
+        if ws_name in ["activity_status", "visit_reports"]:
+            # 1. Ensure photo columns exist (even if all None)
+            for c in ["photo_path1", "photo_path2", "photo_path3"]:
+                if c not in df.columns:
+                    df[c] = None
+                    
+            # 2. Standard columns and ordering
+            if ws_name == "activity_status":
+                cols_order = ["record_key", "활동진행상태", "특이사항", "photo_path1", "photo_path2", "photo_path3", "변경일시", "변경자"]
+                # Filter to existing columns + photo columns we just ensured
+                df = df[[c for c in cols_order if c in df.columns]]
+                # Map names to Korean
+                rename_map = {"photo_path1": "사진1", "photo_path2": "사진2", "photo_path3": "사진3"}
+                df = df.rename(columns=rename_map)
+            elif ws_name == "visit_reports":
+                cols_order = ["timestamp", "record_key", "content", "resulting_status", "photo_path1", "photo_path2", "photo_path3", "user_name", "user_branch"]
+                df = df[[c for c in cols_order if c in df.columns]]
+                rename_map = {"photo_path1": "사진1", "photo_path2": "사진2", "photo_path3": "사진3", "content": "방문내용", "resulting_status": "결과상태"}
+                df = df.rename(columns=rename_map)
+            
         # Update Spreadsheet (Requires Service Account in Secrets)
         # Note: clear=True to replace previous state
         conn.update(worksheet=ws_name, data=df)
         st.toast(f"✅ 구글 시트 동기화 완료: {ws_name}")
+
+
         
     except Exception as e:
         st.error(f"❌ 구글 시트 동기화 실패 ({filename}): {e}")
@@ -420,7 +458,7 @@ def get_activity_status(record_key):
     })
 
 
-def save_activity_status(record_key, status, notes, user_name):
+def save_activity_status(record_key, status, notes, user_name, user_branch=None, user_role=None):
     """
     Save activity status for a record (Direct Update).
     Automatically creates a visit report entry if status changes for visibility.
@@ -437,8 +475,12 @@ def save_activity_status(record_key, status, notes, user_name):
         "활동진행상태": status,
         "특이사항": notes,
         "변경일시": ts_str,
-        "변경자": user_name
+        "변경자": user_name,
+        "photo_path1": old_data.get("photo_path1"),
+        "photo_path2": old_data.get("photo_path2"),
+        "photo_path3": old_data.get("photo_path3")
     }
+
     
     statuses[record_key] = new_data
     save_json_file(ACTIVITY_STATUS_FILE, statuses)
@@ -459,7 +501,12 @@ def save_activity_status(record_key, status, notes, user_name):
                 "content": f"[시스템 자동] 활동 상태가 '{status}'(으)로 변경되었습니다. (특이사항: {notes or '-'})",
                 "audio_path": None,
                 "photo_path": None,
+                "photo_path1": None,
+                "photo_path2": None,
+                "photo_path3": None,
                 "user_name": user_name,
+                "user_role": user_role,
+                "user_branch": user_branch,
                 "resulting_status": status
             }
             
@@ -469,6 +516,7 @@ def save_activity_status(record_key, status, notes, user_name):
             save_json_file(VISIT_REPORT_FILE, reports)
             
     return True
+
 
 
 def log_change_history(record_key, old_data, new_data, user_name):
@@ -631,12 +679,15 @@ def register_visit(record_key, content, audio_file, photo_files, user_info, forc
             "resulting_status": new_status
         }
         
-        # 4. Update Status Entry
+        # 4. Update Status Entry (Latest status overview)
         status_entry = {
             "활동진행상태": new_status,
-            "특이사항": content, # Sync notes
+            "특이사항": content[:150], # Summary
             "변경일시": ts_str,
-            "변경자": user_info.get("name")
+            "변경자": user_info.get("name"),
+            "photo_path1": photo_paths[0],
+            "photo_path2": photo_paths[1],
+            "photo_path3": photo_paths[2]
         }
         
         # 5. EXECUTE WRITES (Sequential)
@@ -647,13 +698,6 @@ def register_visit(record_key, content, audio_file, photo_files, user_info, forc
         save_json_file(VISIT_REPORT_FILE, reports)
         
         # B. Status & History
-        status_entry = {
-            "활동진행상태": new_status,
-            "특이사항": content, # Sync notes
-            "변경일시": ts_str,
-            "변경자": user_info.get("name")
-        }
-        
         statuses = load_json_file(ACTIVITY_STATUS_FILE)
         old_data = statuses.get(record_key, {})
         statuses[record_key] = status_entry
@@ -662,6 +706,7 @@ def register_visit(record_key, content, audio_file, photo_files, user_info, forc
         # Log History if changed
         if old_data.get("활동진행상태") != new_status or old_data.get("특이사항") != content:
             log_change_history(record_key, old_data, status_entry, user_info.get("name"))
+
         
         return True, "저장 완료"
         
@@ -716,21 +761,30 @@ def register_visit_batch(batch_list):
                 "content": content,
                 "audio_path": None,
                 "photo_path": None,
+                "photo_path1": None,
+                "photo_path2": None,
+                "photo_path3": None,
                 "user_name": user_info.get("name"),
                 "user_role": user_info.get("role"),
                 "user_branch": user_info.get("branch"),
                 "resulting_status": new_status
             }
+
             reports.append(visit_entry)
             
-            # Update Status Entry
+            # 3. Update activity status (Latest status)
             old_status_data = statuses.get(record_key, {})
+            
             new_status_data = {
                 "활동진행상태": new_status,
-                "특이사항": content,
+                "특이사항": content[:100] + "..." if len(content) > 100 else content,
                 "변경일시": ts_str,
-                "변경자": user_info.get("name")
+                "변경자": user_info.get("name"),
+                "photo_path1": visit_entry.get("photo_path1"),
+                "photo_path2": visit_entry.get("photo_path2"),
+                "photo_path3": visit_entry.get("photo_path3")
             }
+            
             statuses[record_key] = new_status_data
             
             # Log History if changed
@@ -748,12 +802,13 @@ def register_visit_batch(batch_list):
         print(f"CRITICAL ERROR in register_visit_batch: {e}")
         return False, str(e)
 
-def update_visit_report(report_id, new_content, new_photo_files=None):
+def update_visit_report(report_id, new_content=None, new_photo_files=None, deleted_photo_indices=None):
     """
     Update an existing visit report.
     - report_id: ID of the report to update
-    - new_content: New text content (replacing existing)
+    - new_content: New text content (optional)
     - new_photo_files: List of Streamlit UploadedFiles (optional)
+    - deleted_photo_indices: List of indices (0, 1, 2) to clear
     """
     try:
         reports = load_json_file(VISIT_REPORT_FILE)
@@ -764,11 +819,19 @@ def update_visit_report(report_id, new_content, new_photo_files=None):
             
         report = reports[target_idx]
         
-        # Update Content
-        if new_content:
+        # 1. Update Content
+        if new_content is not None:
             report['content'] = new_content
             
-        # Update Photos (if provided, they replace existing ones in the paths)
+        # 2. Handle Deletions
+        if deleted_photo_indices:
+            for idx in deleted_photo_indices:
+                p_key = f"photo_path{idx+1}"
+                report[p_key] = None
+                if idx == 0:
+                    report['photo_path'] = None
+            
+        # 3. Update/Add Photos
         if new_photo_files:
             # Handle single file or list
             if not isinstance(new_photo_files, list):
@@ -779,37 +842,46 @@ def update_visit_report(report_id, new_content, new_photo_files=None):
             ts_str = utils.get_now_kst_str()
             try:
                 timestamp_kst = parser.parse(ts_str)
-                file_prefix = f"{timestamp_kst.strftime('%Y%m%d_%H%M%S')}_update"
+                file_prefix = f"{timestamp_kst.strftime('%Y%m%d_%H%M%S')}_upd"
             except Exception:
-                file_prefix = "update"
+                file_prefix = "upd"
             
-            photo_paths = [None, None, None]
-            for i, photo_file in enumerate(new_photo_files[:3]):
-                if not photo_file: continue
-                
-                # Resize
-                resized_data = resize_image(photo_file)
-                
-                fname = f"{file_prefix}_photo_{i+1}.jpg"
-                save_path = VISIT_MEDIA_DIR / fname
-                
-                with open(save_path, "wb") as f:
-                    f.write(resized_data)
-                
-                drive_link = upload_to_gdrive(save_path, fname)
-                photo_paths[i] = drive_link if drive_link else str(fname)
+            # Find empty slots or overwrite starting from first empty
+            photo_slots = ["photo_path1", "photo_path2", "photo_path3"]
+            uploaded_count = 0
             
-            # Update report fields (Only overwrite if we got a link/path)
-            # This protects old photos if the new upload fails
-            if photo_paths[0]: 
-                report['photo_path'] = photo_paths[0]
-                report['photo_path1'] = photo_paths[0]
-            if photo_paths[1]: report['photo_path2'] = photo_paths[1]
-            if photo_paths[2]: report['photo_path3'] = photo_paths[2]
+            for slot in photo_slots:
+                if uploaded_count >= len(new_photo_files):
+                    break
+                    
+                # If slot is empty, fill it. If not, only overwrite if we are forced?
+                # For simplicity here: find first None slot or just append to end?
+                # Realistically, if user provides new files, they usually want to ADD them to empty slots.
+                if not report.get(slot):
+                    photo_file = new_photo_files[uploaded_count]
+                    if not photo_file: continue
+                    
+                    resized_data = resize_image(photo_file)
+                    idx_num = slot[-1]
+                    fname = f"{file_prefix}_{report_id[-5:]}_{idx_num}.jpg"
+                    save_path = VISIT_MEDIA_DIR / fname
+                    
+                    with open(save_path, "wb") as f:
+                        f.write(resized_data)
+                    
+                    drive_link = upload_to_gdrive(save_path, fname)
+                    report[slot] = drive_link if drive_link else str(fname)
+                    if slot == "photo_path1":
+                        report["photo_path"] = report[slot]
+                        
+                    uploaded_count += 1
+
+            # If all slots were full but we still have files, we could overwrite, 
+            # but usually user deletes first then adds.
             
-            # Ensure consistency for old single-path display
-            if not report.get('photo_path') and report.get('photo_path1'):
-                report['photo_path'] = report['photo_path1']
+        # Ensure consistency for old single-path display
+        if not report.get('photo_path') and report.get('photo_path1'):
+            report['photo_path'] = report['photo_path1']
             
         # Prepare for save
         reports[target_idx] = report
@@ -818,7 +890,9 @@ def update_visit_report(report_id, new_content, new_photo_files=None):
         return True, "수정 완료"
         
     except Exception as e:
+        print(f"ERROR in update_visit_report: {e}")
         return False, str(e)
+
 
 def delete_visit_report(report_id):
     """지정된 ID의 방문/활동 이력을 삭제합니다."""

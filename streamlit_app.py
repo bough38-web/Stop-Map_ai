@@ -362,7 +362,8 @@ if st.session_state.get("visit_active"):
                     photo_val = None
                     
                 if not photo_val:
-                    photo_val = st.file_uploader("또는 사진 업로드", type=['jpg', 'png', 'jpeg'], label_visibility="collapsed")
+                    photo_val = st.file_uploader("또는 사진 업로드 (최대 3장)", type=['jpg', 'png', 'jpeg'], label_visibility="collapsed", accept_multiple_files=True)
+
 
             submitted = st.form_submit_button("💾 방문 결과 저장", type="primary", use_container_width=True)
             
@@ -568,38 +569,63 @@ with st.sidebar:
         - 필터를 사용하여 지사, 담당자, 업태, 영업상태 등을 선택할 수 있습니다
         """)
     
-    # [NEW] Highly Visible GSheet Sync Section
-    with st.expander("🔄 구글 시트 데이터 동기화", expanded=True):
-        st.caption("활동 이력을 구글 시트와 즉시 동기화합니다.")
-        if st.button("🔌 연결 상태 확인", use_container_width=True, key="sync_check_st_main"):
-            with st.spinner("구글 시트 연결 확인 중..."):
-                success, msg = activity_logger.check_gsheet_connection()
-                if success: st.success(msg)
-                else: 
-                    st.error(msg)
-                    st.info("💡 **조치**: 시트 '공유' 버튼 클릭 -> 서비스 계정 이메일을 '편집자'로 추가")
-        
-        c_sync1, c_sync2 = st.columns(2)
-        with c_sync1:
-            if st.button("🔄 시트로 올리기", use_container_width=True, key="sync_push_st_main"):
-                with st.spinner("전송 중..."):
-                    success, msg = activity_logger.push_to_gsheet()
-                    if success: st.success(msg)
-                    else: st.error(msg)
-        with c_sync2:
-            if st.button("📥 시트에서 받기", use_container_width=True, key="sync_pull_st_main"):
-                with st.spinner("가져오는 중..."):
-                    activity_logger.pull_from_gsheet()
-                    st.success("완료!")
-                    st.rerun()
-
-        with st.sidebar.expander("🛠 기술 지원 정보 (Debug)", expanded=False):
+    # [NEW] Highly Visible GSheet Sync Section (Admin Only)
+    if st.session_state.get('user_role') == 'admin':
+        with st.expander("🔄 구글 시트 데이터 동기화", expanded=True):
+            st.caption("활동 이력을 구글 시트와 즉시 동기화합니다.")
+            
+            # [NEW] Direct Link to Google Sheet
             try:
-                ss_url = st.secrets.connections.gsheets.get("spreadsheet", "N/A")
-                st.caption(f"Spreadsheet ID: ...{ss_url[-15:] if 'd/' in ss_url else 'N/A'}")
-                st.caption(f"App Version: 20260301-v2")
-            except:
-                st.caption("Secrets 로드 실패")
+                ss_url = st.secrets.connections.gsheets.get("spreadsheet")
+                if ss_url:
+                    st.link_button("🚀 구글 스프레드시트 바로가기", ss_url, use_container_width=True, type="primary")
+                    st.divider()
+            except: pass
+
+            st.info("💡 **구글 드라이브 설정 안내**\n사진 저장 폴더의 '공유' 버튼을 눌러 아래 계정을 **편집자**로 추가해야 링크가 생성됩니다:\n`field-sales-assistant@my-project-field-sales-488900.iam.gserviceaccount.com`")
+            
+            # [NEW] Check GDrive Folder ID status
+            drive_id = st.secrets.get("drive_folder_id")
+            if not drive_id:
+                try: drive_id = st.secrets.connections.gsheets.get("drive_folder_id")
+                except: pass
+                
+            if drive_id:
+                st.success(f"📁 사진 저장 폴더 ID 설정됨")
+            else:
+                st.warning("⚠️ 'drive_folder_id'가 Secrets에 없습니다. (0GB 용량 제한 주의)")
+
+
+            if st.button("🔌 연결 상태 확인", use_container_width=True, key="sync_check_st_main"):
+                with st.spinner("구글 시트 연결 확인 중..."):
+                    success, msg = activity_logger.check_gsheet_connection()
+                    if success: st.success(msg)
+                    else: 
+                        st.error(msg)
+                        st.info("💡 **조치**: 시트 '공유' 버튼 클릭 -> 서비스 계정 이메일을 '편집자'로 추가")
+            
+            c_sync1, c_sync2 = st.columns(2)
+            with c_sync1:
+                if st.button("🔄 시트로 올리기", use_container_width=True, key="sync_push_st_main"):
+                    with st.spinner("전송 중..."):
+                        success, msg = activity_logger.push_to_gsheet()
+                        if success: st.success(msg)
+                        else: st.error(msg)
+            with c_sync2:
+                if st.button("📥 시트에서 받기", use_container_width=True, key="sync_pull_st_main"):
+                    with st.spinner("가져오는 중..."):
+                        activity_logger.pull_from_gsheet()
+                        st.success("완료!")
+                        st.rerun()
+
+            with st.sidebar.expander("🛠 기술 지원 정보 (Debug)", expanded=False):
+                try:
+                    ss_url = st.secrets.connections.gsheets.get("spreadsheet", "N/A")
+                    st.caption(f"Spreadsheet ID: ...{ss_url[-15:] if 'd/' in ss_url else 'N/A'}")
+                    st.caption(f"App Version: 20260301-v2")
+                except:
+                    st.caption("Secrets 로드 실패")
+
     
     st.markdown("---")
 
@@ -3217,24 +3243,38 @@ if raw_df is not None:
                         st.info(rep.get('content', ''))
                         
                         # Media display
-                        media_col1, media_col2 = st.columns(2)
+                        # 1. Audio
+                        if rep.get("audio_path"):
+                            audio_p = activity_logger.get_media_path(rep.get("audio_path"))
+                            is_url = isinstance(audio_p, str) and audio_p.startswith('http')
+                            if audio_p and (is_url or os.path.exists(audio_p)):
+                                st.markdown("**🎤 음성 녹음:**")
+                                st.audio(audio_p)
                         
-                        with media_col1:
-                            if rep.get("audio_path"):
-                                audio_p = activity_logger.get_media_path(rep.get("audio_path"))
-                                if audio_p and os.path.exists(audio_p):
-                                    st.markdown("**🎤 음성 녹음:**")
-                                    st.audio(audio_p)
+                        # 2. Photos (Up to 3)
+                        photos = [rep.get("photo_path1"), rep.get("photo_path2"), rep.get("photo_path3")]
+                        # Fallback for legacy data
+                        if not any(photos) and rep.get("photo_path"):
+                            photos[0] = rep.get("photo_path")
+                            
+                        valid_photos = []
+                        for p in photos:
+                            if p:
+                                full_p = activity_logger.get_media_path(p)
+                                is_url = isinstance(full_p, str) and full_p.startswith('http')
+                                if full_p and (is_url or os.path.exists(full_p)):
+                                    valid_photos.append(full_p)
                         
-                        with media_col2:
-                            if rep.get("photo_path"):
-                                photo_p = activity_logger.get_media_path(rep.get("photo_path"))
-                                if photo_p and os.path.exists(photo_p):
+                        if valid_photos:
+                            st.markdown("**📸 현장 사진:**")
+                            cols = st.columns(len(valid_photos))
+                            for i, p_path in enumerate(valid_photos):
+                                with cols[i]:
                                     try:
-                                        st.markdown("**📸 현장 사진:**")
-                                        st.image(photo_p, use_container_width=True)
-                                    except:
-                                        st.caption(f"⚠️ 이미지 로드 실패: {rep.get('photo_path')}")
+                                        st.image(p_path, use_container_width=True, caption=f"사진 {i+1}")
+                                    except Exception as e:
+                                        st.caption(f"⚠️ 로드 실패: {p_path}")
+
                         
                         st.divider()
                         
@@ -3242,26 +3282,50 @@ if raw_df is not None:
                         btn_col1, btn_col2, btn_col3 = st.columns(3)
                         
                         with btn_col1:
-                            if st.button("✏️ 내용 수정", key=f"edit_content_{rep['id']}", use_container_width=True):
+                            if st.button("📝 내역 수정", key=f"edit_content_{rep['id']}", use_container_width=True):
                                 st.session_state[f"edit_mode_{rep['id']}"] = True
                         
                         with btn_col2:
-                            if st.button("📸 사진 추가", key=f"add_photo_{rep['id']}", use_container_width=True):
-                                st.session_state[f"photo_mode_{rep['id']}"] = True
+                            # [REMOVED] Redundant button, merged into 'Edit'
+                            pass
+
                         
                         with btn_col3:
                             if st.button("🔄 상태 변경", key=f"status_change_{rep['id']}", use_container_width=True):
                                 st.session_state[f"status_mode_{rep['id']}"] = True
                         
-                        # [FEATURE] Edit mode - Content
+                        # [FEATURE] Edit mode - Content & Photos
                         if st.session_state.get(f"edit_mode_{rep['id']}", False):
                             with st.form(key=f"form_edit_{rep['id']}"):
-                                st.caption("📝 방문 내용을 수정하세요")
+                                st.caption("📝 방문 내용 및 사진을 수정하세요")
                                 new_text = st.text_area("내용", value=rep.get("content", ""), height=150)
+                                
+                                # [NEW] Manage existing photos
+                                current_photos = [rep.get("photo_path1"), rep.get("photo_path2"), rep.get("photo_path3")]
+                                del_indices = []
+                                
+                                if any(current_photos):
+                                    st.markdown("**📸 기존 사진 삭제**")
+                                    p_cols = st.columns(3)
+                                    for i, p_link in enumerate(current_photos):
+                                        if p_link:
+                                            with p_cols[i]:
+                                                f_p = activity_logger.get_media_path(p_link)
+                                                st.image(f_p, use_container_width=True)
+                                                if st.checkbox("삭제", key=f"del_p_{rep['id']}_{i}"):
+                                                    del_indices.append(i)
+                                
+                                # [NEW] Add new photos
+                                new_photos = st.file_uploader("🆕 새 사진 추가", type=['jpg', 'png', 'jpeg'], key=f"upd_p_{rep['id']}", accept_multiple_files=True)
                                 
                                 col_save, col_cancel = st.columns(2)
                                 if col_save.form_submit_button("💾 저장", use_container_width=True):
-                                    succ, msg = activity_logger.update_visit_report(rep['id'], new_text, None)
+                                    succ, msg = activity_logger.update_visit_report(
+                                        report_id=rep['id'], 
+                                        new_content=new_text, 
+                                        new_photo_files=new_photos,
+                                        deleted_photo_indices=del_indices
+                                    )
                                     if succ:
                                         st.success("✅ 수정되었습니다!")
                                         st.session_state[f"edit_mode_{rep['id']}"] = False
@@ -3272,30 +3336,12 @@ if raw_df is not None:
                                 if col_cancel.form_submit_button("취소", use_container_width=True):
                                     st.session_state[f"edit_mode_{rep['id']}"] = False
                                     st.rerun()
+
                         
-                        # [FEATURE] Photo mode
-                        if st.session_state.get(f"photo_mode_{rep['id']}", False):
-                            with st.form(key=f"form_photo_{rep['id']}"):
-                                st.caption("📸 사진을 추가하세요")
-                                new_photo = st.file_uploader("사진 선택", type=['jpg', 'png', 'jpeg'], key=f"uploader_{rep['id']}")
-                                
-                                col_save, col_cancel = st.columns(2)
-                                if col_save.form_submit_button("💾 저장", use_container_width=True):
-                                    if new_photo:
-                                        succ, msg = activity_logger.update_visit_report(rep['id'], None, new_photo)
-                                        if succ:
-                                            st.success("✅ 사진이 추가되었습니다!")
-                                            st.session_state[f"photo_mode_{rep['id']}"] = False
-                                            st.rerun()
-                                        else:
-                                            st.error(f"❌ 오류: {msg}")
-                                    else:
-                                        st.warning("사진을 선택해주세요")
-                                
-                                if col_cancel.form_submit_button("취소", use_container_width=True):
-                                    st.session_state[f"photo_mode_{rep['id']}"] = False
-                                    st.rerun()
+
+                        # [REMOVED] Photo mode (Merged into Edit mode)
                         
+
                         # [FEATURE] Status change mode
                         if st.session_state.get(f"status_mode_{rep['id']}", False):
                             with st.form(key=f"form_status_{rep['id']}"):
@@ -4249,34 +4295,27 @@ if raw_df is not None:
                              )
                         # [NEW] Check if this is an Interest Registration
                         elif "관심" in raw_status:
-                             # Register Interest (Status + Interest Log + Visit History Draft)
-                             # 1. Status Update
+                             # Register Interest (Status + Interest Log)
+                             # 1. Status Update (Now also creates a visit report entry internally)
                              activity_logger.save_activity_status(
                                 row['record_key'],
                                 raw_status,
                                 row['특이사항'],
-                                current_user
-                            )
-                            # 2. Log Interest explicitly if not already? 
-                            # (Optional, but user asked for "Interest" to be tracked. 
-                            # Grid edit might not have lat/lon easily, so skip spatial log, just status/visit history.)
-                             activity_logger.save_visit_report(
-                                record_key=row['record_key'],
-                                user_name=current_user,
+                                current_user,
                                 user_branch=st.session_state.get('user_branch'),
-                                content=f"[시스템] 데이터 그리드에서 '관심' 상태로 변경했습니다.",
-                                photo_path=None,
-                                audio_path=None
+                                user_role=st.session_state.get('user_role')
                             )
                         else:
-                             # Just Status Update (Atomic: Status + History)
-                             # [NEW] Report generation now handled internally by activity_logger.py
+                             # Just Status Update (Atomic: Status + History + Report)
                              activity_logger.save_activity_status(
                                 row['record_key'],
                                 raw_status,
                                 row['특이사항'],
-                                current_user
+                                current_user,
+                                user_branch=st.session_state.get('user_branch'),
+                                user_role=st.session_state.get('user_role')
                             )
+
                         
                         saved_count += 1
                 
