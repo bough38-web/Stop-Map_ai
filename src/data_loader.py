@@ -333,10 +333,15 @@ def load_and_process_data(zip_file_path_or_obj: Any, district_file_path_or_obj: 
             address_col = [c for c in df.columns if '주소' in c][0]
             
             # Filter standard headers
-            # [FIX] Removed regional filter to allow Nationwide data
-            # df_filtered = df[df[address_col].str.contains('서울|경기|강원', na=False)]
-            df_filtered = df # Load everything
-            dfs.append(df_filtered)
+            # [OPTIMIZATION] Filter for 2026 onwards for performance as requested
+            if '인허가일자' in df.columns:
+                # Use string comparison for speed, including anything from 2026 onwards
+                df_filtered = df[df['인허가일자'] >= '2026']
+            else:
+                df_filtered = df
+                
+            if not df_filtered.empty:
+                dfs.append(df_filtered)
         except Exception:
             continue
             

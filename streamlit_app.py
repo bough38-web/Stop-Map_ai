@@ -3225,7 +3225,7 @@ if raw_df is not None:
                 
                 filtered_reports = [
                     r for r in filtered_reports 
-                    if datetime.strptime(r.get('timestamp', '2020-01-01 00:00:00'), "%Y-%m-%d %H:%M:%S") >= cutoff_date
+                    if pd.to_datetime(r.get('timestamp', '2020-01-01 00:00:00')) >= cutoff_date
                 ]
             
             st.markdown(f"**📋 조회 결과: {len(filtered_reports)}건**")
