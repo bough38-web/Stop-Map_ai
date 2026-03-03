@@ -575,7 +575,7 @@ with st.sidebar:
         """)
     
     # [NEW] Highly Visible GSheet Sync Section (Admin Only)
-    if st.session_state.user_role == 'admin':
+    if st.session_state.get('user_role') == 'admin':
         with st.expander("🔄 구글 시트 데이터 동기화", expanded=True):
             st.caption("활동 이력을 구글 시트와 즉시 동기화합니다.")
             
