@@ -251,14 +251,16 @@ def sync_to_gsheet(filename, data):
                     
             # 2. Standard columns and ordering
             if ws_name == "activity_status":
-                cols_order = ["record_key", "활동진행상태", "특이사항", "photo_path1", "photo_path2", "photo_path3", "변경일시", "변경자"]
+                # [REFINED] Google 이름 제외 (Exclude Changer Name)
+                cols_order = ["record_key", "활동진행상태", "특이사항", "photo_path1", "photo_path2", "photo_path3", "변경일시"]
                 # Filter to existing columns + photo columns we just ensured
                 df = df[[c for c in cols_order if c in df.columns]]
                 # Map names to Korean
                 rename_map = {"photo_path1": "사진1", "photo_path2": "사진2", "photo_path3": "사진3"}
                 df = df.rename(columns=rename_map)
             elif ws_name == "visit_reports":
-                cols_order = ["timestamp", "record_key", "content", "resulting_status", "photo_path1", "photo_path2", "photo_path3", "user_name", "user_branch"]
+                # [REFINED] Google 이름 제외 (Exclude User Name)
+                cols_order = ["timestamp", "record_key", "content", "resulting_status", "photo_path1", "photo_path2", "photo_path3", "user_branch"]
                 df = df[[c for c in cols_order if c in df.columns]]
                 rename_map = {"photo_path1": "사진1", "photo_path2": "사진2", "photo_path3": "사진3", "content": "방문내용", "resulting_status": "결과상태"}
                 df = df.rename(columns=rename_map)
@@ -913,12 +915,18 @@ def get_visit_reports(record_key=None, user_name=None, user_branch=None, limit=1
     if not isinstance(reports, list): reports = []
     
     # [FIX] Ensure all reports have an 'id' (KeyError protection)
+    id_fixed = False
     for r in reports:
         if 'id' not in r:
             # Generate a stable-ish ID based on timestamp and record_key
             ts = r.get('timestamp', '00000000')
             rk = r.get('record_key', 'unk')
             r['id'] = f"rep_fix_{ts}_{rk[:5]}".replace(" ", "_").replace(":", "").replace("-", "")
+            id_fixed = True
+    
+    # [NEW] Persist fixed IDs so deletion can find them
+    if id_fixed:
+        save_json_file(VISIT_REPORT_FILE, reports)
 
     if record_key:
         reports = [r for r in reports if r.get("record_key") == record_key]

@@ -574,38 +574,47 @@ with st.sidebar:
         - 필터를 사용하여 지사, 담당자, 업태, 영업상태 등을 선택할 수 있습니다
         """)
     
-    # [NEW] Highly Visible GSheet Sync Section
-    with st.expander("🔄 구글 시트 데이터 동기화", expanded=True):
-        st.caption("활동 이력을 구글 시트와 즉시 동기화합니다.")
-        if st.button("🔌 연결 상태 확인", use_container_width=True, key="sync_check_main"):
-            with st.spinner("구글 시트 연결 확인 중..."):
-                success, msg = activity_logger.check_gsheet_connection()
-                if success: st.success(msg)
-                else: 
-                    st.error(msg)
-                    st.info("💡 **조치**: 시트 '공유' 버튼 클릭 -> 서비스 계정 이메일을 '편집자'로 추가")
-        
-        c_sync1, c_sync2 = st.columns(2)
-        with c_sync1:
-            if st.button("🔄 시트로 올리기", use_container_width=True, key="sync_push_main"):
-                with st.spinner("전송 중..."):
-                    success, msg = activity_logger.push_to_gsheet()
-                    if success: st.success(msg)
-                    else: st.error(msg)
-        with c_sync2:
-            if st.button("📥 시트에서 받기", use_container_width=True, key="sync_pull_main"):
-                with st.spinner("가져오는 중..."):
-                    activity_logger.pull_from_gsheet()
-                    st.success("완료!")
-                    st.rerun()
-
-        with st.expander("🛠 기술 지원 정보 (Debug)", expanded=False):
+    # [NEW] Highly Visible GSheet Sync Section (Admin Only)
+    if st.session_state.user_role == 'admin':
+        with st.expander("🔄 구글 시트 데이터 동기화", expanded=True):
+            st.caption("활동 이력을 구글 시트와 즉시 동기화합니다.")
+            
+            # [NEW] Direct Spreadsheet Link Button
             try:
-                ss_url = st.secrets.connections.gsheets.get("spreadsheet", "N/A")
-                st.caption(f"Spreadsheet ID: ...{ss_url[-15:] if 'd/' in ss_url else 'N/A'}")
-                st.caption(f"App Version: 20260301-v18-final-ready")
-            except:
-                st.caption("Secrets 로드 실패")
+                ss_url = st.secrets.connections.gsheets.get("spreadsheet", "")
+                if ss_url:
+                    st.link_button("🔗 구글 시트 열기 (바로가기)", ss_url, use_container_width=True)
+            except: pass
+            
+            if st.button("🔌 연결 상태 확인", use_container_width=True, key="sync_check_main"):
+                with st.spinner("구글 시트 연결 확인 중..."):
+                    success, msg = activity_logger.check_gsheet_connection()
+                    if success: st.success(msg)
+                    else: 
+                        st.error(msg)
+                        st.info("💡 **조치**: 시트 '공유' 버튼 클릭 -> 서비스 계정 이메일을 '편집자'로 추가")
+            
+            c_sync1, c_sync2 = st.columns(2)
+            with c_sync1:
+                if st.button("🔄 시트로 올리기", use_container_width=True, key="sync_push_main"):
+                    with st.spinner("전송 중..."):
+                        success, msg = activity_logger.push_to_gsheet()
+                        if success: st.success(msg)
+                        else: st.error(msg)
+            with c_sync2:
+                if st.button("📥 시트에서 받기", use_container_width=True, key="sync_pull_main"):
+                    with st.spinner("가져오는 중..."):
+                        activity_logger.pull_from_gsheet()
+                        st.success("완료!")
+                        st.rerun()
+    
+            with st.expander("🛠 기술 지원 정보 (Debug)", expanded=False):
+                try:
+                    ss_url = st.secrets.connections.gsheets.get("spreadsheet", "N/A")
+                    st.caption(f"Spreadsheet ID: ...{ss_url[-15:] if 'd/' in ss_url else 'N/A'}")
+                    st.caption(f"App Version: 20260301-v18-final-ready")
+                except:
+                    st.caption("Secrets 로드 실패")
     
     st.markdown("---")
 
