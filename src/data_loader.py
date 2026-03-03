@@ -353,12 +353,17 @@ def load_and_process_data(zip_file_path_or_obj: Any, district_file_path_or_obj: 
     # [STATS] Before Mix Count
     count_before = len(concatenated_df)
     
+    # [FIX] Sort by '인허가일자' FIRST so drop_duplicates keeps the LATEST record
+    if '인허가일자' in concatenated_df.columns:
+        concatenated_df['인허가일자'] = pd.to_datetime(concatenated_df['인허가일자'], errors='coerce')
+        # Sort descending to keep latest
+        concatenated_df.sort_values(by='인허가일자', ascending=False, inplace=True, na_position='last')
+
     # [IMPROVED] Use normalized key for better duplicate detection
-    # This handles cases where same business has both 소재지주소 and 도로명주소
     from . import utils
     
     # Generate normalized key for each record
-    concatenated_df['_temp_key'] = concatenated_df.apply(
+    concatenated_df['record_key'] = concatenated_df.apply(
         lambda row: utils.generate_record_key(
             row.get('사업장명', ''),
             row.get('소재지전체주소', '') or row.get('도로명전체주소', '') or row.get('주소', '')
@@ -366,11 +371,8 @@ def load_and_process_data(zip_file_path_or_obj: Any, district_file_path_or_obj: 
         axis=1
     )
     
-    # Remove duplicates based on normalized key
-    concatenated_df.drop_duplicates(subset=['_temp_key'], inplace=True)
-    # [OPTIMIZATION] Keep key for later use to avoid re-calculation
-    concatenated_df.rename(columns={'_temp_key': 'record_key'}, inplace=True)
-    # concatenated_df.drop(columns=['_temp_key'], inplace=True)
+    # Remove duplicates based on normalized key (keep='first' now keeps the LATEST due to sorting)
+    concatenated_df.drop_duplicates(subset=['record_key'], keep='first', inplace=True)
     
     # [STATS] After Mix Count
     count_after = len(concatenated_df)
