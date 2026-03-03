@@ -3345,81 +3345,81 @@ if raw_df is not None:
                         btn_col1, btn_col2, btn_col3, btn_col4 = st.columns(4)
                         
                         with btn_col1:
-                            if st.button("✏️ 내용 수정", key=f"edit_content_{rep['id']}", use_container_width=True):
-                                st.session_state[f"edit_mode_{rep['id']}"] = True
+                            if st.button("✏️ 내용 수정", key=f"edit_content_{rep.get('id', f'fallback_{idx}')}", use_container_width=True):
+                                st.session_state[f"edit_mode_{rep.get('id', f'fallback_{idx}')}"] = True
                         
                         with btn_col2:
-                            if st.button("📸 사진 추가", key=f"add_photo_{rep['id']}", use_container_width=True):
-                                st.session_state[f"photo_mode_{rep['id']}"] = True
+                            if st.button("📸 사진 추가", key=f"add_photo_{rep.get('id', f'fallback_{idx}')}", use_container_width=True):
+                                st.session_state[f"photo_mode_{rep.get('id', f'fallback_{idx}')}"] = True
                         
                         with btn_col3:
-                            if st.button("🔄 상태 변경", key=f"status_change_{rep['id']}", use_container_width=True):
-                                st.session_state[f"status_mode_{rep['id']}"] = True
+                            if st.button("🔄 상태 변경", key=f"status_change_{rep.get('id', f'fallback_{idx}')}", use_container_width=True):
+                                st.session_state[f"status_mode_{rep.get('id', f'fallback_{idx}')}"] = True
                                 
                         with btn_col4:
                             # [PERMISSIONS] Only Admin can delete directly. Others get a pre-filled VOC request.
                             if st.session_state.user_role == 'admin':
-                                if st.button("🗑️ 이력 삭제", key=f"del_hist_{rep['id']}", type='primary', use_container_width=True):
-                                    succ, msg = activity_logger.delete_visit_report(rep['id'])
+                                if st.button("🗑️ 이력 삭제", key=f"del_hist_{rep.get('id', f'fallback_{idx}')}", type='primary', use_container_width=True):
+                                    succ, msg = activity_logger.delete_visit_report(rep.get('id'))
                                     if succ:
                                         st.success("✅ 활동 이력이 삭제되었습니다.")
                                         st.rerun()
                                     else:
                                         st.error(f"❌ 오류: {msg}")
                             else:
-                                if st.button("🗑️ 삭제요청 (관리자)", key=f"req_del_{rep['id']}", use_container_width=True, help="삭제 권한이 없습니다. 클릭 시 관리자에게 삭제를 요청할 수 있습니다."):
+                                if st.button("🗑️ 삭제요청 (관리자)", key=f"req_del_{rep.get('id', f'fallback_{idx}')}", use_container_width=True, help="삭제 권한이 없습니다. 클릭 시 관리자에게 삭제를 요청할 수 있습니다."):
                                     st.session_state.active_nav = "🗣️ 관리자에게 요청하기"
                                     # Pre-fill VOC request details in session state if they exist
                                     st.session_state.voc_default_subject = f"[요청] 활동 이력 삭제 요청 ({b_name})"
-                                    st.session_state.voc_default_content = f"시스템 ID [{rep['id']}] 상호: {b_name} 의 활동 이력 삭제를 요청합니다.\n사유: "
+                                    st.session_state.voc_default_content = f"시스템 ID [{rep.get('id', 'N/A')}] 상호: {b_name} 의 활동 이력 삭제를 요청합니다.\n사유: "
                                     st.rerun()
                         
                         # [FEATURE] Edit mode - Content
-                        if st.session_state.get(f"edit_mode_{rep['id']}", False):
-                            with st.form(key=f"form_edit_{rep['id']}"):
+                        if st.session_state.get(f"edit_mode_{rep.get('id', f'fallback_{idx}')}", False):
+                            with st.form(key=f"form_edit_{rep.get('id', f'fallback_{idx}')}"):
                                 st.caption("📝 방문 내용을 수정하세요")
                                 new_text = st.text_area("내용", value=rep.get("content", ""), height=150)
                                 
                                 col_save, col_cancel = st.columns(2)
                                 if col_save.form_submit_button("💾 저장", use_container_width=True):
-                                    succ, msg = activity_logger.update_visit_report(rep['id'], new_text, None)
+                                    succ, msg = activity_logger.update_visit_report(rep.get('id'), new_text, None)
                                     if succ:
                                         st.success("✅ 수정되었습니다!")
-                                        st.session_state[f"edit_mode_{rep['id']}"] = False
+                                        st.session_state[f"edit_mode_{rep.get('id', f'fallback_{idx}')}"] = False
                                         st.rerun()
                                     else:
                                         st.error(f"❌ 오류: {msg}")
                                 
                                 if col_cancel.form_submit_button("취소", use_container_width=True):
-                                    st.session_state[f"edit_mode_{rep['id']}"] = False
+                                    st.session_state[f"edit_mode_{rep.get('id', f'fallback_{idx}')}"] = False
                                     st.rerun()
                         
                         # [FEATURE] Photo mode
-                        if st.session_state.get(f"photo_mode_{rep['id']}", False):
-                            with st.form(key=f"form_photo_{rep['id']}"):
+                        if st.session_state.get(f"photo_mode_{rep.get('id', f'fallback_{idx}')}", False):
+                            with st.form(key=f"form_photo_{rep.get('id', f'fallback_{idx}')}"):
                                 st.caption("📸 사진을 추가하세요")
-                                new_photos = st.file_uploader("사진 선택 (최대 3장)", type=['jpg', 'png', 'jpeg'], key=f"uploader_{rep['id']}", accept_multiple_files=True)
+                                new_photos = st.file_uploader("사진 선택 (최대 3장)", type=['jpg', 'png', 'jpeg'], key=f"uploader_{rep.get('id', f'fallback_{idx}')}", accept_multiple_files=True)
                                 
-                                col_save, col_cancel = st.columns(2)
-                                if col_save.form_submit_button("💾 저장", use_container_width=True):
+                                col_p_save, col_p_cancel = st.columns(2)
+                                if col_p_save.form_submit_button("💾 사진 저장", use_container_width=True):
                                     if new_photos:
-                                        succ, msg = activity_logger.update_visit_report(rep['id'], None, new_photos)
+                                        succ, msg = activity_logger.update_visit_report(rep.get('id'), None, new_photos)
                                         if succ:
                                             st.success("✅ 사진이 추가되었습니다!")
-                                            st.session_state[f"photo_mode_{rep['id']}"] = False
+                                            st.session_state[f"photo_mode_{rep.get('id', f'fallback_{idx}')}"] = False
                                             st.rerun()
                                         else:
                                             st.error(f"❌ 오류: {msg}")
                                     else:
                                         st.warning("사진을 선택해주세요")
                                 
-                                if col_cancel.form_submit_button("취소", use_container_width=True):
-                                    st.session_state[f"photo_mode_{rep['id']}"] = False
+                                if col_p_cancel.form_submit_button("취소", use_container_width=True):
+                                    st.session_state[f"photo_mode_{rep.get('id', f'fallback_{idx}')}"] = False
                                     st.rerun()
                         
                         # [FEATURE] Status change mode
-                        if st.session_state.get(f"status_mode_{rep['id']}", False):
-                            with st.form(key=f"form_status_{rep['id']}"):
+                        if st.session_state.get(f"status_mode_{rep.get('id', f'fallback_{idx}')}", False):
+                            with st.form(key=f"form_status_{rep.get('id', f'fallback_{idx}')}"):
                                 st.caption("🔄 활동 상태를 변경하세요")
                                 status_opts = list(activity_logger.ACTIVITY_STATUS_MAP.values())
                                 current_status = rep.get('resulting_status', '')
@@ -3428,8 +3428,8 @@ if raw_df is not None:
                                 new_status = st.selectbox("새 상태", status_opts, index=current_idx)
                                 status_note = st.text_area("변경 사유 (선택)", placeholder="상태 변경 사유를 입력하세요")
                                 
-                                col_save, col_cancel = st.columns(2)
-                                if col_save.form_submit_button("💾 저장", use_container_width=True):
+                                col_s_save, col_s_cancel = st.columns(2)
+                                if col_s_save.form_submit_button("💾 저장", use_container_width=True):
                                     # Update activity status
                                     record_key = rep.get('record_key')
                                     current_user = st.session_state.get('user_manager_name') or st.session_state.get('user_branch') or '관리자'
@@ -3442,12 +3442,12 @@ if raw_df is not None:
                                     )
                                     
                                     st.success(f"✅ 상태가 '{new_status}'로 변경되었습니다!")
-                                    st.session_state[f"status_mode_{rep['id']}"] = False
+                                    st.session_state[f"status_mode_{rep.get('id', f'fallback_{idx}')}"] = False
                                     st.cache_data.clear()
                                     st.rerun()
                                 
-                                if col_cancel.form_submit_button("취소", use_container_width=True):
-                                    st.session_state[f"status_mode_{rep['id']}"] = False
+                                if col_s_cancel.form_submit_button("취소", use_container_width=True):
+                                    st.session_state[f"status_mode_{rep.get('id', f'fallback_{idx}')}"] = False
                                     st.rerun()
             else:
                 st.info("선택한 조건에 맞는 방문 기록이 없습니다.")

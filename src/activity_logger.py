@@ -912,6 +912,14 @@ def get_visit_reports(record_key=None, user_name=None, user_branch=None, limit=1
     reports = load_json_file(VISIT_REPORT_FILE)
     if not isinstance(reports, list): reports = []
     
+    # [FIX] Ensure all reports have an 'id' (KeyError protection)
+    for r in reports:
+        if 'id' not in r:
+            # Generate a stable-ish ID based on timestamp and record_key
+            ts = r.get('timestamp', '00000000')
+            rk = r.get('record_key', 'unk')
+            r['id'] = f"rep_fix_{ts}_{rk[:5]}".replace(" ", "_").replace(":", "").replace("-", "")
+
     if record_key:
         reports = [r for r in reports if r.get("record_key") == record_key]
     if user_name:
