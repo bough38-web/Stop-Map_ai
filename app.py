@@ -3227,12 +3227,14 @@ if raw_df is not None:
                 days_map = {"최근 7일": 7, "최근 30일": 30, "최근 90일": 90}
                 cutoff_days = days_map[sel_period]
                 from src import utils
-                now_kst = utils.get_now_kst()
                 cutoff_date = now_kst - timedelta(days=cutoff_days)
+                # Ensure cutoff_date is timezone-aware for safe comparison
+                if cutoff_date.tzinfo is None:
+                    cutoff_date = cutoff_date.tz_localize('Asia/Seoul')
                 
                 filtered_reports = [
                     r for r in filtered_reports 
-                    if pd.to_datetime(r.get('timestamp', '2020-01-01 00:00:00')) >= cutoff_date
+                    if pd.to_datetime(r.get('timestamp', '2020-01-01 00:00:00'), utc=True).tz_convert('Asia/Seoul') >= cutoff_date
                 ]
             
             st.markdown(f"**📋 조회 결과: {len(filtered_reports)}건**")
