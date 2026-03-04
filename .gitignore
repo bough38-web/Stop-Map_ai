@@ -23,3 +23,4 @@ storage/*.json
 *.zip
 !data/LOCALDATA_NOWMON_CSV.zip
 !data/LOCALDATA_NOWMON_CSV_2월.zip
+!data/LOCALDATA_NOWMON_CSV_3월.zip
