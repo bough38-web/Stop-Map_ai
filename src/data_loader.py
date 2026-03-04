@@ -333,10 +333,41 @@ def load_and_process_data(zip_file_path_or_obj: Any, district_file_path_or_obj: 
             address_col = [c for c in df.columns if '주소' in c][0]
             
             # Filter standard headers
-            # [OPTIMIZATION] Filter for 2026 onwards for performance as requested
+            # [OPTIMIZATION] Smart Filter for 2026 onwards
             if '인허가일자' in df.columns:
-                # Use string comparison for speed, including anything from 2026 onwards
-                df_filtered = df[df['인허가일자'] >= '2026']
+                # Find status column to differentiate active vs closed
+                # [FIX] Must look for '상태명' to avoid grabbing '상태코드' which contains numbers instead of text
+                status_cols = [c for c in df.columns if '상태명' in c]
+                
+                if status_cols:
+                    status_col = status_cols[0]
+                    # 영업/정상은 2026년 이후만, 폐업 등은 전체 포함
+                    # Extract year strictly as integer, defaulting invalid to 0
+                    raw_dates = df['인허가일자'].fillna('').astype(str).str.replace(r'[^0-9]', '', regex=True)
+                    df['parsed_temp_year'] = pd.to_numeric(raw_dates.str[:4], errors='coerce').fillna(0).astype(int)
+                    
+                    is_active = df[status_col].str.contains('영업|정상', na=False)
+                    is_valid_date = df['parsed_temp_year'] >= 2026
+                    
+                    # 폐업일자 2026년 이후 조건 추가
+                    if '폐업일자' in df.columns:
+                        raw_close_dates = df['폐업일자'].fillna('').astype(str).str.replace(r'[^0-9]', '', regex=True)
+                        close_years = pd.to_numeric(raw_close_dates.str[:4], errors='coerce').fillna(0).astype(int)
+                        # We only keep closed businesses if they actually closed in 2026 or later
+                        is_valid_close_date = close_years >= 2026
+                    else:
+                        # Fallback if no close date column, we have to assume True or False.
+                        # Usually, checking status is enough, but user requested strict 2026 closure
+                        is_valid_close_date = False
+                    
+                    mask_active = is_active & is_valid_date
+                    mask_closed = ~is_active & is_valid_close_date
+                    
+                    df_filtered = df[mask_active | mask_closed].drop(columns=['parsed_temp_year'])
+                else:
+                    raw_dates = df['인허가일자'].fillna('').astype(str).str.replace(r'[^0-9]', '', regex=True)
+                    temp_years = pd.to_numeric(raw_dates.str[:4], errors='coerce').fillna(0).astype(int)
+                    df_filtered = df[temp_years >= 2026]
             else:
                 df_filtered = df
                 
@@ -417,9 +448,16 @@ def load_and_process_data(zip_file_path_or_obj: Any, district_file_path_or_obj: 
              target_df['소재지전체주소'] = target_df['주소']
 
     # Date Parsing
-    for col in ['인허가일자', '폐업일자']:
+    date_cols = ['인허가일자', '폐업일자', '재개업일자']
+    for col in date_cols:
         if col in target_df.columns:
             target_df[col] = pd.to_datetime(target_df[col], errors='coerce')
+            
+    # [FIX] Compute '최종수정시점' for accurate Period Filtering in app.py
+    # Takes the maximum valid date among Permit, Closure, and Re-open dates.
+    available_dates = [c for c in date_cols if c in target_df.columns]
+    if available_dates:
+        target_df['최종수정시점'] = target_df[available_dates].max(axis=1)
     
     if '인허가일자' in target_df.columns:
         target_df.sort_values(by='인허가일자', ascending=False, inplace=True)

@@ -638,8 +638,8 @@ with st.sidebar:
         local_zips = sorted(glob.glob(os.path.join("data", "*.zip")), key=os.path.getmtime, reverse=True)
         local_excels = sorted(glob.glob(os.path.join("data", "*.xlsx")), key=os.path.getmtime, reverse=True)
         
-        # Force Priority for 20260119
-        priority_file_match = [f for f in local_excels if '20260119' in f]
+        # Force Priority for 20260304
+        priority_file_match = [f for f in local_excels if '20260304' in f]
         if priority_file_match:
             # Move to front
             for p in priority_file_match:
@@ -656,19 +656,19 @@ with st.sidebar:
                 file_opts = [os.path.basename(f) for f in local_excels]
                 sel_file_idx = 0
                 
-                # Try to default to the 20260119 one if present in opts
+                # Try to default to the 20260304 one if present in opts
                 for i, fname in enumerate(file_opts):
-                    if '20260119' in fname:
+                    if '20260304' in fname:
                         sel_file_idx = i
                         break
                         
                 sel_file = st.selectbox("사용할 영업구역 파일", file_opts, index=sel_file_idx)
                 uploaded_dist = os.path.join("data", sel_file)
                 
-                if '20260119' in sel_file:
+                if '20260304' in sel_file:
                      st.success(f"✅ **[최신]** 로드된 파일: {sel_file}")
                 else:
-                     st.warning(f"⚠️ 로드된 파일: {sel_file} (20260119 파일 권장)")
+                     st.warning(f"⚠️ 로드된 파일: {sel_file} (20260304 파일 권장)")
         
         if not use_local_dist:
             uploaded_dist = st.file_uploader("영업구역 데이터 (Excel)", type="xlsx", key="dist_uploader")
@@ -681,10 +681,12 @@ with st.sidebar:
                  if use_local_zip:
                      # Let user choose zip if multiple
                      zip_opts = [os.path.basename(f) for f in local_zips]
-                     # [UX] Auto-select priority data files if available
+                     # [UX] Auto-select priority data files if available (Use full data to include pre-2026 closed businesses)
                      preferred_zips = [
-                         "LOCALDATA_2026_ONLY.zip", # [NEW] Extracted 2026 data
+                         "LOCALDATA_NOWMON_CSV_3월.zip",
                          "LOCALDATA_NOWMON_CSV.zip", 
+                         "LOCALDATA_NOWMON_CSV-3월.zip",
+                         "LOCALDATA_2026_ONLY.zip", 
                          "LOCALDATA_NOWMON_CSV_2월.zip", 
                          "LOCALDATA_YESTERDAY_CSV.zip"
                      ]
@@ -692,13 +694,12 @@ with st.sidebar:
                      preferred_zips = [unicodedata.normalize('NFC', z) for z in preferred_zips]
                      zip_opts_norm = [unicodedata.normalize('NFC', z) for z in zip_opts]
                      
-                     # [FIX] Find AND pick ONLY the single most preferred zip to prevent double loading
+                     # [UPDATE] Select BOTH top priority files if they exist to combine data
                      default_zips = []
-                     for pz in preferred_zips:
+                     for pz in preferred_zips[:2]: # Only auto-select the top 2 (3월 and base) to avoid loading everything
                          matching = [zip_opts[i] for i, z in enumerate(zip_opts_norm) if z == pz]
                          if matching:
-                             default_zips = [matching[0]]
-                             break
+                             default_zips.extend(matching)
                      
                      if not default_zips and zip_opts: 
                          default_zips = [zip_opts[0]]
@@ -2282,11 +2283,17 @@ if raw_df is not None:
         if 'global_date_range' not in st.session_state:
             st.session_state.global_date_range = ()
         
-        # [NEW] Ensure 'sb_mod_period' (Sidebar) and 'global_date_range' (Tab) are synced
-        if 'sb_mod_period' in st.session_state:
-            # If sidebar was changed, sync to global
-            if st.session_state.sb_mod_period != st.session_state.global_date_range:
-                st.session_state.global_date_range = st.session_state.sb_mod_period
+        # [NEW] Ensure 'sb_mod_period' (Sidebar) and 'tab_mod_period' (Tab) cleanly sync to 'global_date_range'
+        def _sync_date_state(key):
+            val = st.session_state.get(key)
+            prev_key = f"prev_{key}"
+            if isinstance(val, (list, tuple)) and val != st.session_state.get(prev_key):
+                st.session_state[prev_key] = val
+                if len(val) == 2 or len(val) == 0:
+                    st.session_state.global_date_range = val
+        
+        _sync_date_state('sb_mod_period')
+        _sync_date_state('tab_mod_period')
         
         global_date_range = st.session_state.global_date_range
         
@@ -3655,16 +3662,20 @@ if raw_df is not None:
             # [MOVED] Global Date Range Filter
             st.markdown("##### 🕵️ 기간 조회 (최종수정일 기준)")
             st.caption("전체 탭(지도, 통계, 리스트)에 공통 적용됩니다.")
+            
+            # [FIX] Do NOT tie the widget key directly to the global state. 
+            # Doing so forces Streamlit to auto-overwrite the state with incomplete tuples instantly.
             g_val = st.date_input(
                 "조회 기간 선택",
                 value=st.session_state.global_date_range,
                 label_visibility="collapsed",
-                key="global_date_range"
+                key="tab_mod_period" # Decoupled key
             )
             
             # [NEW] Validation message for incomplete range
-            if isinstance(g_val, (list, tuple)) and len(g_val) == 1:
-                st.warning("⚠️ 종료일을 선택해주세요.")
+            if isinstance(st.session_state.get('tab_mod_period'), (list, tuple)):
+                if len(st.session_state.tab_mod_period) == 1:
+                    st.warning("⚠️ 종료일을 선택해주세요.")
             st.divider()
 
             # [MOVED] AI Analysis Block removed from here
