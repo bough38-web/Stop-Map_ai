@@ -104,6 +104,9 @@ def render_login_page(global_branch_opts: List[str], raw_df: Optional[pd.DataFra
                 # Use authoritative manager list if available
                 if mgr_info_list:
                     mgr_candidates = pd.DataFrame(mgr_info_list)
+                    # [FIX] Standardize keys if they came from mgr_info_list
+                    if 'name' in mgr_candidates.columns:
+                        mgr_candidates.rename(columns={'name': 'SP담당', 'code': '영업구역 수정', 'branch': '관리지사'}, inplace=True)
                 else:
                     mgr_candidates = raw_df.copy()
                 

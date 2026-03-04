@@ -1538,7 +1538,14 @@ if raw_df is not None:
                     sel_br_for_mgr = st.selectbox("소속 지사 선택", ["전체"] + global_branch_opts, key="login_br_sel")
                     
                     if raw_df is not None:
-                        mgr_candidates = pd.DataFrame(mgr_info_list) if 'mgr_info_list' in locals() and mgr_info_list else raw_df.copy()
+                        # [FIX] Standardize mgr_candidates to always have consistent columns
+                        if 'mgr_info_list' in locals() and mgr_info_list:
+                            mgr_candidates = pd.DataFrame(mgr_info_list)
+                            # Ensure columns are standardized if they came from mgr_info_list
+                            mgr_candidates.rename(columns={'name': 'SP담당', 'code': '영업구역 수정', 'branch': '관리지사'}, inplace=True)
+                        else:
+                            mgr_candidates = raw_df.copy()
+                        
                         if sel_br_for_mgr != "전체":
                             mgr_candidates = mgr_candidates[mgr_candidates['관리지사'] == sel_br_for_mgr]
                         
