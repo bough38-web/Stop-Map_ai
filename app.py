@@ -2281,6 +2281,13 @@ if raw_df is not None:
         # [NEW] Initialize Date Filter from Session State (for filtering logic before UI render)
         if 'global_date_range' not in st.session_state:
             st.session_state.global_date_range = ()
+        
+        # [NEW] Ensure 'sb_mod_period' (Sidebar) and 'global_date_range' (Tab) are synced
+        if 'sb_mod_period' in st.session_state:
+            # If sidebar was changed, sync to global
+            if st.session_state.sb_mod_period != st.session_state.global_date_range:
+                st.session_state.global_date_range = st.session_state.sb_mod_period
+        
         global_date_range = st.session_state.global_date_range
         
         if raw_df is not None and not raw_df.empty:
@@ -2504,10 +2511,14 @@ if raw_df is not None:
         st.markdown("##### 📅 수정 기간 (기간 선택)")
         mod_range = st.date_input(
             "시작일 - 종료일",
-            value=[],
+            value=st.session_state.global_date_range,
             help="데이터의 최종 수정일(인허가/폐업/활동) 기준",
             key="sb_mod_period"
         )
+        
+        # Validation message for incomplete range
+        if isinstance(mod_range, (list, tuple)) and len(mod_range) == 1:
+            st.warning("⚠️ 종료일을 선택해주세요.")
         
         # 5. Status
         st.markdown("##### 영업상태")
@@ -2726,8 +2737,11 @@ if raw_df is not None:
     
     # [FEATURE] Global Date Range Filter (최종수정일 기준)
     # Applied to base_df so it affects ALL tabs (Map, Stats, Mobile, Grid)
-    if 'global_date_range' in st.session_state and len(st.session_state.global_date_range) == 2:
-        g_start, g_end = st.session_state.global_date_range
+    # [FIX] Unify Sidebar and Tab logic: use session state 'global_date_range'
+    g_range = st.session_state.get('global_date_range', ())
+    
+    if isinstance(g_range, (list, tuple)) and len(g_range) == 2:
+        g_start, g_end = g_range
         
         # Ensure '최종수정시점' is valid datetime
         if '최종수정시점' in base_df.columns:
@@ -2735,8 +2749,11 @@ if raw_df is not None:
              if not pd.api.types.is_datetime64_any_dtype(base_df['최종수정시점']):
                   base_df['최종수정시점'] = pd.to_datetime(base_df['최종수정시점'], errors='coerce')
              
-             ts_start = pd.Timestamp(g_start)
-             ts_end = pd.Timestamp(g_end) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+             # [FIX] TypeError: Invalid comparison between tz-aware and tz-naive
+             # Localize filter Timestamps to Asia/Seoul (KST)
+             ts_start = pd.Timestamp(g_start).tz_localize('Asia/Seoul')
+             ts_end = (pd.Timestamp(g_end) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)).tz_localize('Asia/Seoul')
+             
              base_df = base_df[
                  (base_df['최종수정시점'] >= ts_start) & 
                  (base_df['최종수정시점'] <= ts_end)
@@ -3638,12 +3655,16 @@ if raw_df is not None:
             # [MOVED] Global Date Range Filter
             st.markdown("##### 🕵️ 기간 조회 (최종수정일 기준)")
             st.caption("전체 탭(지도, 통계, 리스트)에 공통 적용됩니다.")
-            st.date_input(
+            g_val = st.date_input(
                 "조회 기간 선택",
-                value=(),
+                value=st.session_state.global_date_range,
                 label_visibility="collapsed",
                 key="global_date_range"
             )
+            
+            # [NEW] Validation message for incomplete range
+            if isinstance(g_val, (list, tuple)) and len(g_val) == 1:
+                st.warning("⚠️ 종료일을 선택해주세요.")
             st.divider()
 
             # [MOVED] AI Analysis Block removed from here
