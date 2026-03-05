@@ -7,8 +7,8 @@ def normalize_nfc(s):
     return unicodedata.normalize('NFC', str(s))
 
 def merge_manager_db():
-    f1 = 'data/1.영업구역별_주소현행화20260304.xlsx'
-    f2 = 'data/2.영업구역별_주소현행화_담당자추가_20260304.xlsx'
+    f1 = 'data/temp_bkp/1.영업구역별_주소현행화20260304.xlsx'
+    f2 = 'data/temp_bkp/2.영업구역별_주소현행화_담당자추가_20260304.xlsx'
     output = 'data/영업구역별_주소현행화_최종_20260304.xlsx'
 
     print(f"Loading {f1}...")
