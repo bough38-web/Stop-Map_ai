@@ -11,8 +11,8 @@ except ImportError:
     HAS_GSHEETS = False
 
 # [NEW] Drive Media Persistence Helper
-def upload_to_gdrive(file_path, filename):
-    """Uploads a file to Google Drive and returns a public view link."""
+def get_gdrive_service_and_creds():
+    """Returns (drive_service, credentials) authorized from streamlit secrets"""
     if not HAS_GSHEETS or "connections" not in st.secrets or "gsheets" not in st.secrets.connections:
         return None
         
@@ -40,7 +40,17 @@ def upload_to_gdrive(file_path, filename):
         
         credentials = service_account.Credentials.from_service_account_info(creds_clean)
         drive_service = build('drive', 'v3', credentials=credentials)
+        return drive_service, credentials, creds_clean # [NEW] Return creds_clean too
+    except Exception as e:
+        print(f"DEBUG: GDrive Auth Error: {e}")
+        return None, None, None
+
+def upload_to_gdrive(file_path, filename):
+    """Uploads a file to Google Drive and returns a public view link."""
+    drive_service, _, creds_clean = get_gdrive_service_and_creds()
+    if not drive_service: return None
         
+    try:
         # [DEBUG] Identify which Folder ID is being used
         drive_folder_id = st.secrets.get("drive_folder_id") or creds_info.get("drive_folder_id")
         print(f"DEBUG: GDrive - Detected Folder ID: {drive_folder_id}")
@@ -209,8 +219,16 @@ def save_json_file(filepath, data):
             if 'temp_path' in locals() and os.path.exists(temp_path):
                 os.remove(temp_path)
         except: pass
-        return False
-
+def get_gspread_client():
+    """Get authorized gspread client from secrets"""
+    try:
+        import gspread
+        _, credentials, _ = get_gdrive_service_and_creds()
+        if credentials:
+            return gspread.authorize(credentials)
+    except Exception as e:
+        print(f"DEBUG: gspread Auth Error: {e}")
+    return None
 
 def sync_to_gsheet(filename, data, **kwargs):
     """Sync specific JSON data to Google Sheets for persistence"""
@@ -287,18 +305,24 @@ def sync_to_gsheet(filename, data, **kwargs):
                 rename_map = {"timestamp": "일시", "user_role": "권한", "user_name": "사용자", "user_branch": "지사", "action": "작업", "details": "상세내용"}
                 df = df.rename(columns=rename_map)
             
-        # [REFINED] Robust Auto-create logic
+        # [REFINED] Robust Auto-create logic using direct gspread if provided
+        gc = kwargs.get('gspread_client')
+        spreadsheet = kwargs.get('spreadsheet_obj')
         existing_titles = kwargs.get('existing_titles')
+
         try:
-            # Try multiple ways to get the gspread spreadsheet object
-            spreadsheet = None
-            if hasattr(conn, "_conn") and hasattr(conn._conn, "spreadsheet"):
-                spreadsheet = conn._conn.spreadsheet
-            elif hasattr(conn, "_instance") and hasattr(conn._instance, "spreadsheet"):
-                spreadsheet = conn._instance.spreadsheet
-            elif hasattr(conn, "client"): # Some versions
-                # If we only have client, we might need spreadsheet ID
-                pass
+            # 1. Try to get spreadsheet object if not provided
+            if not spreadsheet and gc:
+                ss_url = st.secrets.connections.gsheets.get("spreadsheet", "")
+                if ss_url:
+                    spreadsheet = gc.open_by_url(ss_url)
+            
+            # 2. Try falling back to streamlit-gsheets internal (for single calls)
+            if not spreadsheet:
+                if hasattr(conn, "_conn") and hasattr(conn._conn, "spreadsheet"):
+                    spreadsheet = conn._conn.spreadsheet
+                elif hasattr(conn, "_instance") and hasattr(conn._instance, "spreadsheet"):
+                    spreadsheet = conn._instance.spreadsheet
 
             if spreadsheet:
                 if existing_titles is None:
@@ -307,14 +331,14 @@ def sync_to_gsheet(filename, data, **kwargs):
                 if ws_name not in existing_titles:
                     spreadsheet.add_worksheet(title=ws_name, rows=100, cols=20)
                     print(f"DEBUG: Created missing worksheet: {ws_name}")
+            else:
+                print(f"DEBUG: Skipping auto-creation as spreadsheet object could not be retrieved")
         except Exception as create_e:
             print(f"DEBUG: Failed to auto-create worksheet {ws_name}: {create_e}")
 
         # Update Spreadsheet
         conn.update(worksheet=ws_name, data=df)
         st.toast(f"✅ {ws_name} 동기화 완료")
-
-
         
     except Exception as e:
         # [REFINED] Log to console always, but only show Toast/Error to Admin
@@ -456,14 +480,19 @@ def push_to_gsheet():
         if "connections" not in st.secrets or "gsheets" not in st.secrets.connections:
              return False, "연결 설정이 없습니다."
 
-        conn = st.connection("gsheets", type=GSheetsConnection)
-        
-        # [NEW] Pre-fetch all worksheets to avoid multiple calls
+        # [NEW] Batch setup for efficiency
+        gc = get_gspread_client()
+        spreadsheet = None
         existing_titles = []
-        try:
-            if hasattr(conn, "_conn") and hasattr(conn._conn, "spreadsheet"):
-                existing_titles = [ws.title for ws in conn._conn.spreadsheet.worksheets()]
-        except: pass
+        
+        if gc:
+            try:
+                ss_url = st.secrets.connections.gsheets.get("spreadsheet", "")
+                if ss_url:
+                    spreadsheet = gc.open_by_url(ss_url)
+                    existing_titles = [ws.title for ws in spreadsheet.worksheets()]
+            except Exception as ss_e:
+                print(f"DEBUG: Batch Sync - Could not open spreadsheet: {ss_e}")
 
         files_to_sync = {
             "activity_status.json": load_json_file(ACTIVITY_STATUS_FILE),
@@ -479,7 +508,7 @@ def push_to_gsheet():
         for filename, data in files_to_sync.items():
             if data:
                 status_text.info(f"📤 {filename} 동기화 중...")
-                sync_to_gsheet(filename, data, existing_titles=existing_titles)
+                sync_to_gsheet(filename, data, gspread_client=gc, spreadsheet_obj=spreadsheet, existing_titles=existing_titles)
                 success_count += 1
         
         status_text.empty()
