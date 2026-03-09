@@ -438,25 +438,43 @@ def pull_from_gsheet():
             
         conn = st.connection("gsheets", type=GSheetsConnection)
         
-        files_to_sync = {
-            "activity_status": ACTIVITY_STATUS_FILE,
-            "visit_reports": VISIT_REPORT_FILE,
-            "change_history": CHANGE_HISTORY_FILE,
-            "access_logs": ACCESS_LOG_FILE,
-            "usage_logs": USAGE_LOG_FILE
+        # [REFINED] Use Korean worksheet names for pulling too
+        mapping = {
+            "로그인 이력": ACCESS_LOG_FILE,
+            "사용 이력": USAGE_LOG_FILE,
+            "방문보고서": VISIT_REPORT_FILE,
+            "활동상태": ACTIVITY_STATUS_FILE,
+            "변경내역": CHANGE_HISTORY_FILE
         }
         
-        for ws_name, local_path in files_to_sync.items():
+        for ws_name_kr, local_path in mapping.items():
             try:
-                df = conn.read(worksheet=ws_name, ttl="0s")
+                # Read from Korean worksheet name
+                df = conn.read(worksheet=ws_name_kr, ttl="0s")
                 if df is not None and not df.empty:
+                    # Map Korean headers back to internal keys for JSON stability
+                    if ws_name_kr == "로그인 이력":
+                        rename_map = {"일시": "timestamp", "권한": "user_role", "사용자": "user_name", "작업": "action"}
+                        df = df.rename(columns=rename_map)
+                    elif ws_name_kr == "사용 이력":
+                        rename_map = {"일시": "timestamp", "권한": "user_role", "사용자": "user_name", "지사": "user_branch", "작업": "action", "상세내용": "details"}
+                        df = df.rename(columns=rename_map)
+                        # JSON decode details column if it's a string
+                        if "details" in df.columns:
+                            def safe_json_load(val):
+                                if isinstance(val, str) and (val.startswith('{') or val.startswith('[')):
+                                    try: return json.loads(val)
+                                    except: return val
+                                return val
+                            df["details"] = df["details"].apply(safe_json_load)
+
                     # Convert back to JSON structure
-                    if ws_name == "activity_status":
+                    if ws_name_kr == "활동상태":
                         # Dict by record_key
                         new_data = {}
                         for _, row in df.iterrows():
                             d = row.to_dict()
-                            key = d.pop("record_key", None)
+                            key = d.pop("record_key", d.pop("ID", None)) # Try both
                             if key: new_data[key] = d
                     else:
                         # List of dicts
@@ -464,9 +482,9 @@ def pull_from_gsheet():
                     
                     # Save locally
                     save_json_file(local_path, new_data)
-                    # print(f"DEBUG: Pulled '{ws_name}' from Google Sheets to {local_path}")
+                    # print(f"DEBUG: Pulled '{ws_name_kr}' from Google Sheets to {local_path}")
             except Exception as inner_e:
-                print(f"DEBUG: Pulled error for {ws_name}: {inner_e}")
+                print(f"DEBUG: Pulled error for {ws_name_kr}: {inner_e}")
                 
     except Exception as e:
         print(f"DEBUG: GSheet Pull Error: {e}")
