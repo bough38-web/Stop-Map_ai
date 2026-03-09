@@ -287,12 +287,20 @@ def sync_to_gsheet(filename, data, **kwargs):
                 rename_map = {"timestamp": "일시", "user_role": "권한", "user_name": "사용자", "user_branch": "지사", "action": "작업", "details": "상세내용"}
                 df = df.rename(columns=rename_map)
             
-        # [NEW] Auto-create worksheet if missing (Optimized: Check only if necessary)
-        # We can pass an optional list of existing titles to avoid multiple API calls
+        # [REFINED] Robust Auto-create logic
         existing_titles = kwargs.get('existing_titles')
         try:
+            # Try multiple ways to get the gspread spreadsheet object
+            spreadsheet = None
             if hasattr(conn, "_conn") and hasattr(conn._conn, "spreadsheet"):
                 spreadsheet = conn._conn.spreadsheet
+            elif hasattr(conn, "_instance") and hasattr(conn._instance, "spreadsheet"):
+                spreadsheet = conn._instance.spreadsheet
+            elif hasattr(conn, "client"): # Some versions
+                # If we only have client, we might need spreadsheet ID
+                pass
+
+            if spreadsheet:
                 if existing_titles is None:
                     existing_titles = [ws.title for ws in spreadsheet.worksheets()]
                 
@@ -309,8 +317,17 @@ def sync_to_gsheet(filename, data, **kwargs):
 
         
     except Exception as e:
-        st.error(f"❌ 구글 시트 동기화 실패 ({filename}): {e}")
+        # [REFINED] Log to console always, but only show Toast/Error to Admin
         print(f"DEBUG: GSheet Sync Error ({filename}): {e}")
+        
+        # If it's a WorksheetNotFound, we can try one more thing or just report it
+        is_admin = st.session_state.get('user_role') == 'admin' or st.session_state.get('admin_auth')
+        
+        if is_admin:
+            if "not found" in str(e).lower() or "worksheetnotfound" in str(type(e)).lower():
+                st.error(f"❌ '{ws_name}' 시트를 찾을 수 없습니다. 구글 시트에서 '편집자' 권한이 있는지 확인해 주세요.")
+            else:
+                st.error(f"❌ 구글 시트 동기화 실패 ({filename}): {e}")
 
 def check_gsheet_connection():
     """Verify if GSheet connection is correctly configured and accessible"""
