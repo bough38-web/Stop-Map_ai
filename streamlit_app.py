@@ -599,7 +599,14 @@ with st.sidebar:
             if st.button("🔌 연결 상태 확인", use_container_width=True, key="sync_check_st_main"):
                 with st.spinner("구글 시트 연결 확인 중..."):
                     success, msg = activity_logger.check_gsheet_connection()
-                    if success: st.success(msg)
+                    if success: 
+                        st.success(msg)
+                        # [NEW] Show which sheet is linked
+                        try:
+                            ss_url = st.secrets.connections.gsheets.get("spreadsheet", "")
+                            if ss_url:
+                                st.caption(f"🔗 연결된 시트 주소: {ss_url[:40]}...")
+                        except: pass
                     else: 
                         st.error(msg)
                         st.info("💡 **조치**: 시트 '공유' 버튼 클릭 -> 서비스 계정 이메일을 '편집자'로 추가")
@@ -1566,6 +1573,8 @@ if raw_df is not None:
                                     
                                     activity_logger.log_access('manager', p_name, 'login')
                                     usage_logger.log_usage('manager', p_name, st.session_state.get('user_branch', ''), 'login', {'manager_code': p_code})
+                                    # [NEW] Sync from GSheet on Login
+                                    activity_logger.pull_from_gsheet()
                                     st.query_params.clear() # [FIX] Clear params
                                     st.rerun()
                                 else: st.error("패스워드가 올바르지 않습니다.")
@@ -1587,6 +1596,8 @@ if raw_df is not None:
                                 st.session_state.sb_branch = s_branch # Pre-set filter
                                 activity_logger.log_access('branch', s_branch, 'login')
                                 usage_logger.log_usage('branch', s_branch, s_branch, 'login')
+                                # [NEW] Sync from GSheet on Login
+                                activity_logger.pull_from_gsheet()
                                 st.query_params.clear() # [FIX] Clear params
                                 st.rerun()
                             else: st.error("패스워드가 올바르지 않습니다.")
@@ -1605,6 +1616,8 @@ if raw_df is not None:
                                 st.session_state.admin_auth = True
                                 activity_logger.log_access('admin', '관리자', 'login')
                                 usage_logger.log_usage('admin', '관리자', '전체', 'login')
+                                # [NEW] Sync from GSheet on Login
+                                activity_logger.pull_from_gsheet()
                                 st.query_params.clear() # [FIX] Clear any params before rerun
                                 st.rerun()
                             else: st.error("암호가 올바르지 않습니다.")

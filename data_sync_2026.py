@@ -44,6 +44,15 @@ def run_sync():
         # 1. Sort by date
         if '인허가일자' in final_df.columns:
             final_df['인허가일자'] = pd.to_datetime(final_df['인허가일자'], errors='coerce')
+            
+            # [NEW] Exclude Weekends (Sat=5, Sun=6)
+            print("🗓 Filtering out weekends...")
+            final_df = final_df[final_df['인허가일자'].dt.weekday < 5]
+            
+            # [NEW] Log unique dates for verification
+            unique_dates = final_df['인허가일자'].dt.strftime('%Y-%m-%d').dropna().unique()
+            print(f"📊 Unique dates in data: {sorted(list(unique_dates))}")
+            
             final_df.sort_values(by='인허가일자', ascending=False, inplace=True, na_position='last')
         
         # 2. Drop duplicates (name + addr)
@@ -56,8 +65,11 @@ def run_sync():
         final_df.drop_duplicates(subset=['_sync_key'], keep='first', inplace=True)
         final_df.drop(columns=['_sync_key'], inplace=True)
         
-        print(f"✅ Final row count after deduplication: {len(final_df)}")
+        print(f"✅ Final row count after deduplication & weekend filter: {len(final_df)}")
         print("💾 Saving optimized output...")
+        
+        # Convert back to string for CSV saving (optional, but good for consistency)
+        final_df['인허가일자'] = final_df['인허가일자'].dt.strftime('%Y%m%d')
         final_df.to_csv(output_csv, index=False, encoding='cp949')
         
         with zipfile.ZipFile(output_zip, 'w', compression=zipfile.ZIP_DEFLATED) as z:

@@ -30,15 +30,9 @@ def load_json_file(filepath):
     return []
 
 def save_json_file(filepath, data):
-    """Save data to JSON file"""
-    try:
-        filepath.parent.mkdir(parents=True, exist_ok=True)
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        return True
-    except Exception as e:
-        print(f"Error saving {filepath}: {e}")
-        return False
+    """Save data to JSON file (Redirects to activity_logger for GSheet Sync)"""
+    from . import activity_logger
+    return activity_logger.save_json_file(filepath, data)
 
 # ===== USAGE LOGGING =====
 

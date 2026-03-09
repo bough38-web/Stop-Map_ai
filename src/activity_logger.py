@@ -130,7 +130,7 @@ except Exception:
     STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 ACCESS_LOG_FILE = STORAGE_DIR / "access_logs.json"
-ACTIVITY_STATUS_FILE = STORAGE_DIR / "activity_status.json"
+USAGE_LOG_FILE = STORAGE_DIR / "usage_logs.json"
 ACTIVITY_STATUS_FILE = STORAGE_DIR / "activity_status.json"
 CHANGE_HISTORY_FILE = STORAGE_DIR / "change_history.json"
 
@@ -198,7 +198,7 @@ def save_json_file(filepath, data):
         os.replace(temp_path, filepath)
         
         # [NEW] Sync to GSheet if it's one of the persistent files
-        if filepath.name in ["activity_status.json", "visit_reports.json", "change_history.json"]:
+        if filepath.name in ["activity_status.json", "visit_reports.json", "change_history.json", "access_logs.json", "usage_logs.json"]:
             sync_to_gsheet(filepath.name, data)
             
         return True
@@ -212,7 +212,7 @@ def save_json_file(filepath, data):
         return False
 
 
-def sync_to_gsheet(filename, data):
+def sync_to_gsheet(filename, data, **kwargs):
     """Sync specific JSON data to Google Sheets for persistence"""
     if not HAS_GSHEETS: return
     
@@ -226,7 +226,17 @@ def sync_to_gsheet(filename, data):
         conn = st.connection("gsheets", type=GSheetsConnection)
         
         # Determine Worksheet Name
-        ws_name = filename.split('.')[0] # e.g. activity_status
+        internal_ws_name = filename.split('.')[0] # e.g. activity_status
+        
+        # [NEW] Map to Korean Sheet names for user readability
+        ws_name_map = {
+            "access_logs": "로그인 이력",
+            "usage_logs": "사용 이력",
+            "activity_status": "활동상태",
+            "visit_reports": "방문보고서",
+            "change_history": "변경내역"
+        }
+        ws_name = ws_name_map.get(internal_ws_name, internal_ws_name)
         
         # Convert to DataFrame
         if isinstance(data, list):
@@ -243,14 +253,14 @@ def sync_to_gsheet(filename, data):
             return
             
         # [NEW] Enforce Column Ordering and User-friendly Names for GSheet
-        if ws_name in ["activity_status", "visit_reports"]:
+        if internal_ws_name in ["activity_status", "visit_reports", "access_logs", "usage_logs"]:
             # 1. Ensure photo columns exist (even if all None)
             for c in ["photo_path1", "photo_path2", "photo_path3"]:
                 if c not in df.columns:
                     df[c] = None
                     
             # 2. Standard columns and ordering
-            if ws_name == "activity_status":
+            if internal_ws_name == "activity_status":
                 # [REFINED] Google 이름 제외 (Exclude Changer Name)
                 cols_order = ["record_key", "활동진행상태", "특이사항", "photo_path1", "photo_path2", "photo_path3", "변경일시"]
                 # Filter to existing columns + photo columns we just ensured
@@ -258,17 +268,43 @@ def sync_to_gsheet(filename, data):
                 # Map names to Korean
                 rename_map = {"photo_path1": "사진1", "photo_path2": "사진2", "photo_path3": "사진3"}
                 df = df.rename(columns=rename_map)
-            elif ws_name == "visit_reports":
+            elif internal_ws_name == "visit_reports":
                 # [REFINED] Google 이름 제외 (Exclude User Name)
                 cols_order = ["timestamp", "record_key", "content", "resulting_status", "photo_path1", "photo_path2", "photo_path3", "user_branch"]
                 df = df[[c for c in cols_order if c in df.columns]]
                 rename_map = {"photo_path1": "사진1", "photo_path2": "사진2", "photo_path3": "사진3", "content": "방문내용", "resulting_status": "결과상태"}
                 df = df.rename(columns=rename_map)
+            elif internal_ws_name == "access_logs":
+                # [NEW] Accessor Log Ordering
+                cols_order = ["timestamp", "user_role", "user_name", "action"]
+                df = df[[c for c in cols_order if c in df.columns]]
+                rename_map = {"timestamp": "상태일시", "user_role": "권한", "user_name": "사용자", "action": "작업"}
+                df = df.rename(columns=rename_map)
+            elif internal_ws_name == "usage_logs":
+                # [NEW] Usage Log Ordering
+                cols_order = ["timestamp", "user_role", "user_name", "user_branch", "action", "details"]
+                df = df[[c for c in cols_order if c in df.columns]]
+                rename_map = {"timestamp": "일시", "user_role": "권한", "user_name": "사용자", "user_branch": "지사", "action": "작업", "details": "상세내용"}
+                df = df.rename(columns=rename_map)
             
-        # Update Spreadsheet (Requires Service Account in Secrets)
-        # Note: clear=True to replace previous state
+        # [NEW] Auto-create worksheet if missing (Optimized: Check only if necessary)
+        # We can pass an optional list of existing titles to avoid multiple API calls
+        existing_titles = kwargs.get('existing_titles')
+        try:
+            if hasattr(conn, "_conn") and hasattr(conn._conn, "spreadsheet"):
+                spreadsheet = conn._conn.spreadsheet
+                if existing_titles is None:
+                    existing_titles = [ws.title for ws in spreadsheet.worksheets()]
+                
+                if ws_name not in existing_titles:
+                    spreadsheet.add_worksheet(title=ws_name, rows=100, cols=20)
+                    print(f"DEBUG: Created missing worksheet: {ws_name}")
+        except Exception as create_e:
+            print(f"DEBUG: Failed to auto-create worksheet {ws_name}: {create_e}")
+
+        # Update Spreadsheet
         conn.update(worksheet=ws_name, data=df)
-        st.toast(f"✅ 구글 시트 동기화 완료: {ws_name}")
+        st.toast(f"✅ {ws_name} 동기화 완료")
 
 
         
@@ -318,7 +354,14 @@ def check_gsheet_connection():
             # Attempt to read the specific worksheet
             df = conn.read(worksheet="activity_status", ttl="0s", nrows=1)
             mode_text = "서비스 계정 인증" if is_service_account else "공개 URL 방식"
-            return True, f"연결 성공! ({mode_text}, 확인된 탭: {', '.join(discovered_ws) if discovered_ws else '알수없음'})"
+            
+            # [NEW] Masked Spreadsheet ID for verification
+            ss_id = "N/A"
+            if ss_url and "/d/" in ss_url:
+                ss_id = ss_url.split("/d/")[1].split("/")[0]
+            masked_id = ss_id[:5] + "..." + ss_id[-5:] if len(ss_id) > 10 else ss_id
+            
+            return True, f"연결 성공! ({mode_text}, ID: {masked_id}, 확인된 탭: {', '.join(discovered_ws) if discovered_ws else '알수없음'})"
         except Exception as read_e:
             error_msg = str(read_e)
             full_error = repr(read_e)
@@ -357,7 +400,9 @@ def pull_from_gsheet():
         files_to_sync = {
             "activity_status": ACTIVITY_STATUS_FILE,
             "visit_reports": VISIT_REPORT_FILE,
-            "change_history": CHANGE_HISTORY_FILE
+            "change_history": CHANGE_HISTORY_FILE,
+            "access_logs": ACCESS_LOG_FILE,
+            "usage_logs": USAGE_LOG_FILE
         }
         
         for ws_name, local_path in files_to_sync.items():
@@ -391,20 +436,37 @@ def push_to_gsheet():
     if not HAS_GSHEETS: return False, "GSheet 라이브러리 미설치"
     
     try:
+        if "connections" not in st.secrets or "gsheets" not in st.secrets.connections:
+             return False, "연결 설정이 없습니다."
+
+        conn = st.connection("gsheets", type=GSheetsConnection)
+        
+        # [NEW] Pre-fetch all worksheets to avoid multiple calls
+        existing_titles = []
+        try:
+            if hasattr(conn, "_conn") and hasattr(conn._conn, "spreadsheet"):
+                existing_titles = [ws.title for ws in conn._conn.spreadsheet.worksheets()]
+        except: pass
+
         files_to_sync = {
             "activity_status.json": load_json_file(ACTIVITY_STATUS_FILE),
             "visit_reports.json": load_json_file(VISIT_REPORT_FILE),
-            "change_history.json": load_json_file(CHANGE_HISTORY_FILE)
+            "change_history.json": load_json_file(CHANGE_HISTORY_FILE),
+            "access_logs.json": load_json_file(ACCESS_LOG_FILE),
+            "usage_logs.json": load_json_file(USAGE_LOG_FILE)
         }
         
         success_count = 0
+        status_text = st.empty() # For real-time updates
+        
         for filename, data in files_to_sync.items():
             if data:
-                # Reuse existing sync_to_gsheet logic
-                sync_to_gsheet(filename, data)
+                status_text.info(f"📤 {filename} 동기화 중...")
+                sync_to_gsheet(filename, data, existing_titles=existing_titles)
                 success_count += 1
         
-        return True, f"{success_count}개 항목 동기화 완료"
+        status_text.empty()
+        return True, f"{success_count}개 파일 동기화 완료"
     except Exception as e:
         return False, str(e)
 
