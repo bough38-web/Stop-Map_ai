@@ -1,3 +1,4 @@
+# Version: 2026-03-10_v3 (Final Robust Timestamp Fix)
 import json
 import os
 from datetime import datetime, timedelta
@@ -5,10 +6,6 @@ from pathlib import Path
 import pandas as pd
 
 # Storage directory
-# Storage directory - [FIX] Move outside project to prevent Streamlit reload loops
-# BASE_DIR = Path(os.path.abspath(__file__)).parent.parent
-# Storage directory - [FIX] Move outside project to prevent Streamlit reload loops
-# [CLOUD_COMPAT] Handle read-only home directory by falling back to /tmp
 STORAGE_DIR = Path(os.path.expanduser("~")) / ".sales_assistant_data"
 try:
     STORAGE_DIR.mkdir(parents=True, exist_ok=True)
@@ -39,13 +36,6 @@ def save_json_file(filepath, data):
 def log_usage(user_role, user_name, user_branch, action, details=None):
     """
     Log user usage activity
-    
-    Args:
-        user_role: 'admin', 'branch', 'manager'
-        user_name: User's name
-        user_branch: User's branch
-        action: Action type (login, logout, search, filter, tab_change, map_view, export, etc.)
-        details: Additional details (dict)
     """
     logs = load_json_file(USAGE_LOG_FILE)
     
@@ -70,12 +60,6 @@ def log_usage(user_role, user_name, user_branch, action, details=None):
 def get_usage_logs(days=30, user_name=None, user_branch=None, action=None):
     """
     Get usage logs with filters
-    
-    Args:
-        days: Number of days to look back
-        user_name: Filter by user name
-        user_branch: Filter by branch
-        action: Filter by action type
     """
     logs = load_json_file(USAGE_LOG_FILE)
     
@@ -84,7 +68,10 @@ def get_usage_logs(days=30, user_name=None, user_branch=None, action=None):
     
     # Convert to DataFrame for easier filtering
     df = pd.DataFrame(logs)
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    
+    # [FIX] Robust timestamp conversion
+    df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+    df = df.dropna(subset=['timestamp'])
     
     # Filter by date
     from . import utils
@@ -104,9 +91,6 @@ def get_usage_logs(days=30, user_name=None, user_branch=None, action=None):
 def get_usage_stats(days=30):
     """
     Get usage statistics for admin dashboard
-    
-    Returns:
-        dict with various statistics
     """
     logs = load_json_file(USAGE_LOG_FILE)
     
@@ -122,9 +106,22 @@ def get_usage_stats(days=30):
         }
     
     df = pd.DataFrame(logs)
-    df['timestamp'] = pd.to_datetime(df["timestamp"], errors="coerce")
-    df = df.dropna(subset=["timestamp"])
     
+    # [FIX] Robust timestamp conversion
+    df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+    df = df.dropna(subset=['timestamp'])
+    
+    if df.empty:
+        return {
+            "total_actions": 0,
+            "unique_users": 0,
+            "actions_by_type": {},
+            "actions_by_user": {},
+            "actions_by_branch": {},
+            "daily_activity": {},
+            "hourly_activity": {}
+        }
+
     # Filter by date
     from . import utils
     cutoff_date = utils.get_now_kst() - timedelta(days=days)
@@ -170,7 +167,10 @@ def get_user_activity_timeline(user_name, days=7):
         return []
     
     df = pd.DataFrame(logs)
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    
+    # [FIX] Robust timestamp conversion
+    df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+    df = df.dropna(subset=['timestamp'])
     
     # Filter by user and date
     from . import utils
@@ -185,15 +185,6 @@ def get_user_activity_timeline(user_name, days=7):
 def log_navigation(user_role, user_name, user_branch, business_name, address, lat, lon):
     """
     Log navigation/route request to a specific business
-    
-    Args:
-        user_role: User's role
-        user_name: User's name
-        user_branch: User's branch
-        business_name: Target business name
-        address: Business address
-        lat: Latitude
-        lon: Longitude
     """
     log_usage(user_role, user_name, user_branch, 'navigation', {
         'business_name': business_name,
@@ -205,13 +196,6 @@ def log_navigation(user_role, user_name, user_branch, business_name, address, la
 def get_navigation_history(days=30, user_name=None, user_branch=None):
     """
     Get navigation history with business details
-    
-    Returns list of navigation events with:
-    - timestamp
-    - user info
-    - business name
-    - address
-    - coordinates
     """
     logs = load_json_file(USAGE_LOG_FILE)
     
@@ -225,7 +209,10 @@ def get_navigation_history(days=30, user_name=None, user_branch=None):
         return []
     
     df = pd.DataFrame(nav_logs)
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    
+    # [FIX] Robust timestamp conversion
+    df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+    df = df.dropna(subset=['timestamp'])
     
     # Filter by date
     from . import utils
@@ -257,9 +244,6 @@ def get_navigation_history(days=30, user_name=None, user_branch=None):
 def get_navigation_stats(days=30):
     """
     Get navigation statistics for visualization
-    
-    Returns:
-        dict with navigation-specific statistics
     """
     nav_history = get_navigation_history(days=days)
     
@@ -290,7 +274,7 @@ def get_navigation_stats(days=30):
         'top_businesses': df['business_name'].value_counts().head(20).to_dict(),
         
         # Daily navigation trend
-        'daily_navigations': df.groupby(pd.to_datetime(df['timestamp']).dt.date).size().to_dict()
+        'daily_navigations': df.groupby(pd.to_datetime(df['timestamp'], errors='coerce').dt.date).size().to_dict()
     }
     
     # Convert date keys to strings
@@ -301,16 +285,6 @@ def get_navigation_stats(days=30):
 def log_interest(user_role, user_name, user_branch, business_name, address, road_address, lat, lon):
     """
     Log when a user marks a business as interesting
-    
-    Args:
-        user_role: User's role
-        user_name: User's name
-        user_branch: User's branch
-        business_name: Business name
-        address: Full address
-        road_address: Road address
-        lat: Latitude
-        lon: Longitude
     """
     log_usage(user_role, user_name, user_branch, 'interest', {
         'business_name': business_name,
@@ -323,13 +297,6 @@ def log_interest(user_role, user_name, user_branch, business_name, address, road
 def get_interest_history(days=30, user_name=None, user_branch=None):
     """
     Get interest marking history with business details
-    
-    Returns list of interest events with:
-    - timestamp
-    - user info
-    - business name
-    - address
-    - coordinates
     """
     logs = load_json_file(USAGE_LOG_FILE)
     
@@ -343,7 +310,10 @@ def get_interest_history(days=30, user_name=None, user_branch=None):
         return []
     
     df = pd.DataFrame(interest_logs)
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    
+    # [FIX] Robust timestamp conversion
+    df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+    df = df.dropna(subset=['timestamp'])
     
     # Filter by date
     from . import utils
@@ -376,9 +346,6 @@ def get_interest_history(days=30, user_name=None, user_branch=None):
 def get_interest_stats(days=30):
     """
     Get interest statistics for visualization
-    
-    Returns:
-        dict with interest-specific statistics
     """
     interest_history = get_interest_history(days=days)
     
@@ -410,7 +377,7 @@ def get_interest_stats(days=30):
         'top_businesses': df['business_name'].value_counts().head(20).to_dict(),
         
         # Daily interest trend
-        'daily_interests': df.groupby(pd.to_datetime(df['timestamp']).dt.date).size().to_dict()
+        'daily_interests': df.groupby(pd.to_datetime(df['timestamp'], errors='coerce').dt.date).size().to_dict()
     }
     
     # Convert date keys to strings
