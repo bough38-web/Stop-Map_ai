@@ -18,6 +18,21 @@ from src import report_generator
 from src import activity_logger  # Activity logging and status tracking
 from src import usage_logger  # Usage tracking for admin monitoring
 from src import voc_manager  # VOC / Request Manager
+
+# [NEW] Version v6: Persistence & Auto-Sync Enhancement
+# [SYSTEM] Initial Sync - Pull from GSheet if local data is missing (Cloud Persistence Fix)
+if 'initial_sync_done' not in st.session_state:
+    with st.spinner("🔄 서버 데이터 동기화 중..."):
+        try:
+            # Check if local logs exist, if not pull from GSheet
+            from src.activity_logger import ACCESS_LOG_FILE, USAGE_LOG_FILE
+            if not ACCESS_LOG_FILE.exists() or ACCESS_LOG_FILE.stat().st_size < 10:
+                activity_logger.pull_from_gsheet()
+                st.session_state.initial_sync_done = True
+                print("DEBUG: Initial Sync from GSheet completed.")
+        except Exception as e:
+            print(f"DEBUG: Initial Sync Error: {e}")
+    st.session_state.initial_sync_done = True
 from src.ai_scoring import calculate_ai_scores # [NEW] Expert Feat 1: AI Scoring
 
 # --- Global Constants & Normalization ---

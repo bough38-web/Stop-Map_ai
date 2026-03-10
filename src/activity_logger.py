@@ -1,4 +1,4 @@
-# Version: 2026-03-10_v4 (Login History & Timezone Fix)
+# Version: 2026-03-10_v6 (Login/Monitoring Sync Fix & Diagnostics)
 import json
 import os
 from datetime import datetime
@@ -145,6 +145,16 @@ USAGE_LOG_FILE = STORAGE_DIR / "usage_logs.json"
 ACTIVITY_STATUS_FILE = STORAGE_DIR / "activity_status.json"
 CHANGE_HISTORY_FILE = STORAGE_DIR / "change_history.json"
 
+# [NEW] Diagnostic Helper
+def get_storage_info():
+    """Returns storage directory and file existence status"""
+    files = {
+        "access_logs": ACCESS_LOG_FILE.exists(),
+        "usage_logs": USAGE_LOG_FILE.exists(),
+        "activity_status": ACTIVITY_STATUS_FILE.exists()
+    }
+    return str(STORAGE_DIR), files
+
 # [CONSTANTS] Activity Status Constants
 # Centralized source of truth for all activity statuses
 ACTIVITY_STATUS_MAP = {
@@ -215,6 +225,8 @@ def save_json_file(filepath, data):
         return True
     except Exception as e:
         print(f"DEBUG: Error saving {filepath}: {e}")
+        st.error(f"⚠️ 데이터 저장 오류 ({filepath.name}): {e}") 
+        st.error(f"⚠️ 데이터 저장 오류 ({filepath.name}): {e}") # Show to user for debugging
         # Try to clean up temp
         try:
             if 'temp_path' in locals() and os.path.exists(temp_path):

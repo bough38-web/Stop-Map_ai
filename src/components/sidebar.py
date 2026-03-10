@@ -161,8 +161,25 @@ def render_sidebar():
                 st.caption("미입력 시: 기본 지도 사용")
         
         st.sidebar.markdown("---")
-        st.sidebar.caption("🚀 Version: 2026-03-10_v5")
-        st.sidebar.caption("✅ Login History & Data Update applied")
+        st.sidebar.caption("🚀 Version: 2026-03-10_v6")
+        st.sidebar.caption("✅ Persistence & Auto-Sync Fix applied")
+        
+        # [NEW] Admin Diagnostic Info
+        if st.session_state.get('user_role') == 'admin':
+            with st.sidebar.expander("🔍 시스템 진단 (Admin)", expanded=False):
+                from src import activity_logger
+                storage_path, file_status = activity_logger.get_storage_info()
+                st.caption(f"📂 저장경로: `{storage_path}`")
+                for f, exists in file_status.items():
+                    icon = "✅" if exists else "❌"
+                    st.caption(f"{icon} {f}")
+                
+                if st.button("♻️ 로컬 데이터 초기화", type="secondary", use_container_width=True):
+                    import shutil
+                    if os.path.exists(storage_path):
+                        shutil.rmtree(storage_path)
+                        st.info("로컬 초기화됨. 새로고침 시 시트에서 다시 불러옵니다.")
+                        st.rerun()
     
     return {
         'data_source': data_source,
