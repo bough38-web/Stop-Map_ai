@@ -1,4 +1,4 @@
-# Deploy Timestamp: 2026-03-10 17:48:00 (Force Reload - Login History Fix v5)
+# Deploy Timestamp: 2026-03-11 07:05:00 (Version: 20260301-v18-final-ready)
 import streamlit as st
 import pandas as pd
 import pandas as pd
@@ -19,7 +19,7 @@ from src import activity_logger  # Activity logging and status tracking
 from src import usage_logger  # Usage tracking for admin monitoring
 from src import voc_manager  # VOC / Request Manager
 
-# [NEW] Version v6: Persistence & Auto-Sync Enhancement
+# [RELEASE] Version: 20260301-v18-final-ready
 # [SYSTEM] Initial Sync - Pull from GSheet if local data is missing (Cloud Persistence Fix)
 if 'initial_sync_done' not in st.session_state:
     with st.spinner("🔄 서버 데이터 동기화 중..."):
