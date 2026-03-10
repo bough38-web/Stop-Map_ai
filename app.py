@@ -712,7 +712,7 @@ with st.sidebar:
                      
                      # [UPDATE] Select BOTH top priority files if they exist to combine data
                      default_zips = []
-                     for pz in preferred_zips[:2]: # Only auto-select the top 2 (3월 and base) to avoid loading everything
+                     for pz in preferred_zips[:3]: # [FIX] Expand to top 3 to ensure combining 3월 + Baseline
                          matching = [zip_opts[i] for i, z in enumerate(zip_opts_norm) if z == pz]
                          if matching:
                              default_zips.extend(matching)
