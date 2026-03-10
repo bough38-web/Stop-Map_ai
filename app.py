@@ -1043,6 +1043,11 @@ if uploaded_dist:
                  # [FEATURE] Store data stats in session state for later "Help" (?) query
                  st.session_state['data_load_stats'] = stats
              
+             # [NEW v13] Admin Sync Notification
+             if st.session_state.get('show_admin_sync_toast') and st.session_state.get('user_role') == 'admin':
+                 st.toast("🔑 로그인 동기화 완료 (Admin Only)", icon="✅")
+                 st.session_state['show_admin_sync_toast'] = False
+             
     elif data_source == "OpenAPI 연동 (Auto)" and api_df is not None:
         with st.spinner("🌐 API 데이터 매칭중..."):
              # [FIX] Unpack 4 values
@@ -1637,12 +1642,13 @@ if raw_df is not None:
                         pw = st.text_input("최고 관리자 암호", type="password", key="adm_login_pw")
                         if st.form_submit_button("통합 관리 시스템 접속 👑", type="primary", use_container_width=True):
                             if pw == "admin1234!!":
-                                st.session_state.user_role = 'admin'
-                                st.session_state.admin_auth = True
-                                activity_logger.log_access('admin', '관리자', 'login')
-                                usage_logger.log_usage('admin', '관리자', '전체', 'login')
-                                st.query_params.clear() # [FIX] Clear any params before rerun
-                                st.rerun()
+                                 st.session_state.user_role = 'admin'
+                                 st.session_state.admin_auth = True
+                                 st.session_state['show_admin_sync_toast'] = True
+                                 activity_logger.log_access('admin', '관리자', 'login')
+                                 usage_logger.log_usage('admin', '관리자', '전체', 'login')
+                                 st.query_params.clear() # [FIX] Clear any params before rerun
+                                 st.rerun()
                             else: st.error("암호가 올바르지 않습니다.")
 
         st.markdown('</div>', unsafe_allow_html=True) # End of login-box-card

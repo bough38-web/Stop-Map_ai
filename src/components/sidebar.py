@@ -161,8 +161,8 @@ def render_sidebar():
                 st.caption("미입력 시: 기본 지도 사용")
         
         st.sidebar.markdown("---")
-        st.sidebar.caption("🚀 Version: 2026-03-11_v12")
-        st.sidebar.caption("✅ March Data Priority Fixed")
+        st.sidebar.caption("🚀 Version: 2026-03-11_v13")
+        st.sidebar.caption("✅ Admin Sync Notify Priority")
         
         # [NEW] Admin Diagnostic Info
         if st.session_state.get('user_role') == 'admin':
