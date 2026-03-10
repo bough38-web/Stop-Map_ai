@@ -322,6 +322,46 @@ def load_and_process_data(zip_file_path_or_obj: Any, district_file_path_or_obj: 
     all_files = glob.glob(os.path.join(extract_folder, "**/*.csv"), recursive=True)
     dfs = []
     
+    def generate_vectorized_record_key(df_in):
+        """Vectorized version of utils.generate_record_key for high performance N=134k+"""
+        if df_in is None or df_in.empty: return df_in
+        
+        # 1. Prepare Title and Address series
+        t_ser = df_in.get('사업장명', pd.Series(['']*len(df_in), index=df_in.index)).fillna('').astype(str)
+        a_ser = (df_in.get('소재지전체주소', pd.Series(['']*len(df_in), index=df_in.index)).fillna('')
+                 .combine_first(df_in.get('도로명전체주소', pd.Series(['']*len(df_in), index=df_in.index)).fillna(''))
+                 .combine_first(df_in.get('주소', pd.Series(['']*len(df_in), index=df_in.index)).fillna(''))
+                 .astype(str))
+        
+        # 2. Define Vectorized Clean
+        replacements = {
+            "서울특별시": "서울", "서울시": "서울", "경기도": "경기", "기도": "경기",
+            "인천특별광역시": "인천", "인천광역시": "인천", "인천시": "인천",
+            "부산광역시": "부산", "부산시": "부산", "대구광역시": "대구", "대구시": "대구",
+            "광주광역시": "광주", "광주시": "광주", "대전광역시": "대전", "대전시": "대전",
+            "울산광역시": "울산", "울산시": "울산", "세종특별자치시": "세종", "세종시": "세종",
+            "제주특별자치도": "제주", "제주도": "제주", "제주시": "제주",
+            "강원특별자치도": "강원", "강원도": "강원", "전북특별자치도": "전북", "전라북도": "전북",
+            "충청북도": "충북", "충북도": "충북", "충청남도": "충남", "충남도": "충남",
+            "전라남도": "전남", "전남도": "전남", "경상북도": "경북", "경북도": "경북",
+            "경상남도": "경남", "경남도": "경남"
+        }
+        
+        def v_clean(ser):
+            # Normalize to NFC
+            # ser = ser.str.normalize('NFC') # Removed to match utils.py behavior (which does it string by string)
+            # Bulk replacements
+            for k, v in replacements.items():
+                ser = ser.str.replace(k, v, regex=False)
+            # Remove quotes and whitespace cleanup
+            ser = ser.str.replace('"', '', regex=False).str.replace("'", "", regex=False).str.replace('\n', '', regex=False)
+            ser = ser.str.replace(r'\s+', ' ', regex=True).str.strip()
+            return ser
+
+        # 3. Apply Clean and Join
+        df_in['record_key'] = v_clean(t_ser) + "_" + v_clean(a_ser)
+        return df_in
+
     for file in all_files:
         try:
             # Check header
@@ -330,48 +370,50 @@ def load_and_process_data(zip_file_path_or_obj: Any, district_file_path_or_obj: 
             if not any('주소' in c for c in header.columns): continue
                 
             df = pd.read_csv(file, encoding='cp949', on_bad_lines='skip', dtype=str, low_memory=False)
-            address_col = [c for c in df.columns if '주소' in c][0]
             
             # Filter standard headers
             # [OPTIMIZATION] Smart Filter for 2026 onwards
             if '인허가일자' in df.columns:
                 # Find status column to differentiate active vs closed
-                # [FIX] Must look for '상태명' to avoid grabbing '상태코드' which contains numbers instead of text
                 status_cols = [c for c in df.columns if '상태명' in c]
                 
                 if status_cols:
                     status_col = status_cols[0]
                     # 영업/정상은 2026년 이후만, 폐업 등은 전체 포함
-                    # Extract year strictly as integer, defaulting invalid to 0
                     raw_dates = df['인허가일자'].fillna('').astype(str).str.replace(r'[^0-9]', '', regex=True)
                     df['parsed_temp_year'] = pd.to_numeric(raw_dates.str[:4], errors='coerce').fillna(0).astype(int)
                     
                     is_active = df[status_col].str.contains('영업|정상', na=False)
                     is_valid_date = df['parsed_temp_year'] >= 2026
                     
-                    # 폐업일자 2026년 이후 조건 추가
                     if '폐업일자' in df.columns:
                         raw_close_dates = df['폐업일자'].fillna('').astype(str).str.replace(r'[^0-9]', '', regex=True)
                         close_years = pd.to_numeric(raw_close_dates.str[:4], errors='coerce').fillna(0).astype(int)
-                        # We only keep closed businesses if they actually closed in 2026 or later
                         is_valid_close_date = close_years >= 2026
                     else:
-                        # Fallback if no close date column, we have to assume True or False.
-                        # Usually, checking status is enough, but user requested strict 2026 closure
                         is_valid_close_date = False
                     
                     mask_active = is_active & is_valid_date
                     mask_closed = ~is_active & is_valid_close_date
                     
-                    df_filtered = df[mask_active | mask_closed].drop(columns=['parsed_temp_year'])
+                    df_filtered = df[mask_active | mask_closed].copy()
+                    df_filtered.drop(columns=['parsed_temp_year'], inplace=True)
                 else:
                     raw_dates = df['인허가일자'].fillna('').astype(str).str.replace(r'[^0-9]', '', regex=True)
                     temp_years = pd.to_numeric(raw_dates.str[:4], errors='coerce').fillna(0).astype(int)
-                    df_filtered = df[temp_years >= 2026]
+                    df_filtered = df[temp_years >= 2026].copy()
             else:
-                df_filtered = df
+                df_filtered = df.copy()
                 
             if not df_filtered.empty:
+                # [OPTIMIZATION] Early Deduplication per File using vectorized key
+                df_filtered = generate_vectorized_record_key(df_filtered)
+                if '인허가일자' in df_filtered.columns:
+                    df_filtered['인허가일자_dt'] = pd.to_datetime(df_filtered['인허가일자'], errors='coerce')
+                    df_filtered.sort_values(by='인허가일자_dt', ascending=False, inplace=True)
+                    df_filtered.drop(columns=['인허가일자_dt'], inplace=True)
+                
+                df_filtered.drop_duplicates(subset=['record_key'], keep='first', inplace=True)
                 dfs.append(df_filtered)
         except Exception:
             continue
@@ -381,28 +423,16 @@ def load_and_process_data(zip_file_path_or_obj: Any, district_file_path_or_obj: 
         
     concatenated_df = pd.concat(dfs, ignore_index=True)
     
-    # [STATS] Before Mix Count
+    # [STATS] Before Global Mix Count
     count_before = len(concatenated_df)
     
-    # [FIX] Sort by '인허가일자' FIRST so drop_duplicates keeps the LATEST record
+    # [GLOBAL DEDUPLICATION] Final pass
     if '인허가일자' in concatenated_df.columns:
-        concatenated_df['인허가일자'] = pd.to_datetime(concatenated_df['인허가일자'], errors='coerce')
-        # Sort descending to keep latest
-        concatenated_df.sort_values(by='인허가일자', ascending=False, inplace=True, na_position='last')
+        concatenated_df['인허가일자_dt'] = pd.to_datetime(concatenated_df['인허가일자'], errors='coerce')
+        concatenated_df.sort_values(by='인허가일자_dt', ascending=False, inplace=True, na_position='last')
+        concatenated_df.drop(columns=['인허가일자_dt'], inplace=True)
 
-    # [IMPROVED] Use normalized key for better duplicate detection
-    from . import utils
-    
-    # Generate normalized key for each record
-    concatenated_df['record_key'] = concatenated_df.apply(
-        lambda row: utils.generate_record_key(
-            row.get('사업장명', ''),
-            row.get('소재지전체주소', '') or row.get('도로명전체주소', '') or row.get('주소', '')
-        ),
-        axis=1
-    )
-    
-    # Remove duplicates based on normalized key (keep='first' now keeps the LATEST due to sorting)
+    # Remove duplicates based on record_key
     concatenated_df.drop_duplicates(subset=['record_key'], keep='first', inplace=True)
     
     # [STATS] After Mix Count

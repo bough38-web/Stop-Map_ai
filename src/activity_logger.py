@@ -1,4 +1,4 @@
-# Version: 20260301-v18-final-ready
+# Version: 2026-03-11_v11 (Data Loading Optimization)
 import json
 import os
 from datetime import datetime
