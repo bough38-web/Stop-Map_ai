@@ -161,8 +161,8 @@ def render_sidebar():
                 st.caption("미입력 시: 기본 지도 사용")
         
         st.sidebar.markdown("---")
-        st.sidebar.caption("🚀 Version: 2026-03-10_v4")
-        st.sidebar.caption("✅ Timezone Mismatch Fix applied")
+        st.sidebar.caption("🚀 Version: 2026-03-10_v5")
+        st.sidebar.caption("✅ Login History & Data Update applied")
     
     return {
         'data_source': data_source,

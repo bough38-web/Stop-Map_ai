@@ -1,4 +1,4 @@
-# Deploy Timestamp: 2026-03-10 17:27:06 (Force Reload - Monitoring Fix v4)
+# Deploy Timestamp: 2026-03-10 17:48:00 (Force Reload - Login History Fix v5)
 import streamlit as st
 import pandas as pd
 import pandas as pd
@@ -3275,16 +3275,20 @@ if raw_df is not None:
                 from datetime import datetime, timedelta
                 days_map = {"최근 7일": 7, "최근 30일": 30, "최근 90일": 90}
                 cutoff_days = days_map[sel_period]
-                from src import utils
-                cutoff_date = now_kst - timedelta(days=cutoff_days)
-                # Ensure cutoff_date is timezone-aware for safe comparison
-                if cutoff_date.tzinfo is None:
-                    cutoff_date = cutoff_date.tz_localize('Asia/Seoul')
+                # [FIX] Timezone-Naive Robust Comparison (Matching usage_logger.py v4)
+                cutoff_date = (now_kst - timedelta(days=cutoff_days)).replace(tzinfo=None)
                 
-                filtered_reports = [
-                    r for r in filtered_reports 
-                    if pd.to_datetime(r.get('timestamp', '2020-01-01 00:00:00'), utc=True).tz_convert('Asia/Seoul') >= cutoff_date
-                ]
+                temp_reports = []
+                for r in filtered_reports:
+                    try:
+                        ts = pd.to_datetime(r.get('timestamp', '2020-01-01 00:00:00'), errors='coerce')
+                        if hasattr(ts, 'tz_localize'):
+                            ts = ts.tz_localize(None)
+                        if pd.notnull(ts) and ts >= cutoff_date:
+                            temp_reports.append(r)
+                    except:
+                        continue
+                filtered_reports = temp_reports
             
             st.markdown(f"**📋 조회 결과: {len(filtered_reports)}건**")
             st.divider()

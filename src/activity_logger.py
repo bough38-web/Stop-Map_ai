@@ -1,3 +1,4 @@
+# Version: 2026-03-10_v4 (Login History & Timezone Fix)
 import json
 import os
 from datetime import datetime
@@ -296,7 +297,8 @@ def sync_to_gsheet(filename, data, **kwargs):
                 # [NEW] Accessor Log Ordering
                 cols_order = ["timestamp", "user_role", "user_name", "action"]
                 df = df[[c for c in cols_order if c in df.columns]]
-                rename_map = {"timestamp": "상태일시", "user_role": "권한", "user_name": "사용자", "action": "작업"}
+                # [FIX] Header Mismatch - Use "일시" to match Usage Logs
+                rename_map = {"timestamp": "일시", "user_role": "권한", "user_name": "사용자", "action": "작업"}
                 df = df.rename(columns=rename_map)
             elif internal_ws_name == "usage_logs":
                 # [NEW] Usage Log Ordering
@@ -454,6 +456,7 @@ def pull_from_gsheet():
                 if df is not None and not df.empty:
                     # Map Korean headers back to internal keys for JSON stability
                     if ws_name_kr == "로그인 이력":
+                        # [FIX] Header Mismatch - Use "일시" instead of "상태일시"
                         rename_map = {"일시": "timestamp", "권한": "user_role", "사용자": "user_name", "작업": "action"}
                         df = df.rename(columns=rename_map)
                     elif ws_name_kr == "사용 이력":
