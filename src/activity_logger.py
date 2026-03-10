@@ -572,9 +572,30 @@ def log_access(user_role, user_name, action="login"):
     save_json_file(ACCESS_LOG_FILE, logs)
 
 
-def get_access_logs(limit=100):
-    """Get recent access logs"""
+def get_access_logs(limit=100, days=None):
+    """Get recent access logs with optional date filtering"""
     logs = load_json_file(ACCESS_LOG_FILE)
+    if not logs: return []
+    
+    if days:
+        try:
+            from datetime import timedelta
+            df = pd.DataFrame(logs)
+            df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+            
+            # Use utils.get_now_kst() for consistency
+            from . import utils
+            cutoff_date = (utils.get_now_kst() - timedelta(days=days)).replace(tzinfo=None)
+            
+            # [FIX] Handle timezone-naive comparison
+            if hasattr(df['timestamp'], 'dt'):
+                df['timestamp'] = df['timestamp'].dt.tz_localize(None)
+            
+            df = df[df['timestamp'] >= cutoff_date]
+            logs = df.to_dict('records')
+        except Exception as e:
+            print(f"DEBUG: get_access_logs filtering error: {e}")
+            
     return logs[-limit:] if logs else []
 
 
