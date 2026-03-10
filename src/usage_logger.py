@@ -122,7 +122,8 @@ def get_usage_stats(days=30):
         }
     
     df = pd.DataFrame(logs)
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df['timestamp'] = pd.to_datetime(df["timestamp"], errors="coerce")
+    df = df.dropna(subset=["timestamp"])
     
     # Filter by date
     from . import utils
