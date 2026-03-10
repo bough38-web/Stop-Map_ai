@@ -1,4 +1,4 @@
-# Version: 2026-03-10_v6 (Persistence & Monitoring Fix)
+# Version: 2026-03-11_v7 (AttributeError Null-Safe Fix)
 import json
 import os
 from datetime import datetime, timedelta
@@ -240,7 +240,10 @@ def get_navigation_history(days=30, user_name=None, user_branch=None):
     # Extract business details from details column
     result = []
     for _, row in df.iterrows():
-        details = row.get('details', {})
+        # [FIX] Force details to be a dict v7
+        details = row.get('details')
+        if not isinstance(details, dict):
+            details = {}
         result.append({
             'timestamp': row['timestamp'].strftime('%Y-%m-%d %H:%M:%S'),
             'user_name': row['user_name'],
@@ -344,7 +347,10 @@ def get_interest_history(days=30, user_name=None, user_branch=None):
     # Extract business details from details column
     result = []
     for _, row in df.iterrows():
-        details = row.get('details', {})
+        # [FIX] Force details to be a dict v7
+        details = row.get('details')
+        if not isinstance(details, dict):
+            details = {}
         result.append({
             'timestamp': row['timestamp'].strftime('%Y-%m-%d %H:%M:%S'),
             'user_name': row['user_name'],
