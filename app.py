@@ -3566,7 +3566,7 @@ if raw_df is not None:
             visit_reports = activity_logger.get_visit_reports(limit=1000)
             st.metric("방문 리포트", f"{len(visit_reports)}건")
         with metric_col5:
-            access_logs_summary = activity_logger.get_access_logs(limit=1000, days=period_days)
+            access_logs_summary = activity_logger.get_access_logs(limit=2000, days=period_days)
             st.metric("접속(로그인)", f"{len(access_logs_summary):,}건")
         
         st.divider()
@@ -3689,15 +3689,18 @@ if raw_df is not None:
         st.divider()
         
         # [NEW] Recent Access Timeline
-        st.markdown("### 🔑 최근 접속 현황 (로그인)")
-        access_logs = activity_logger.get_access_logs(limit=50, days=period_days)
+        st.markdown(f"### 🔑 최근 접속 현황 (최근 {period_days}일 기준)")
+        access_logs = activity_logger.get_access_logs(limit=500, days=period_days)
         if access_logs:
             access_df = pd.DataFrame(access_logs)
-            # [FIX] Rename column to '일시' as requested
+            # Ensure columns exist and are in order
+            cols = ['timestamp', 'user_role', 'user_name', 'action']
+            access_df = access_df[[c for c in cols if c in access_df.columns]]
             access_df.columns = ['일시', '권한', '사용자', '작업']
-            st.dataframe(access_df[::-1], use_container_width=True, hide_index=True)
+            st.dataframe(access_df[::-1], use_container_width=True, hide_index=True, height=400)
+            st.caption(f"💡 위 표는 선택하신 {period_days}일 동안의 기록 중 최근 500건을 표시합니다.")
         else:
-            st.info("접속 기록이 없습니다.")
+            st.info(f"최근 {period_days}일 동안의 접속 기록이 없습니다.")
 
 
 

@@ -1,4 +1,4 @@
-# Version: 2026-03-11_v8 (Login/Monitoring Sync Fix & Diagnostics)
+# Version: 2026-03-11_v10 (Access Log Sync & Filter Fix)
 import json
 import os
 from datetime import datetime
@@ -572,7 +572,7 @@ def log_access(user_role, user_name, action="login"):
     save_json_file(ACCESS_LOG_FILE, logs)
 
 
-def get_access_logs(limit=100, days=None):
+def get_access_logs(limit=200, days=None):
     """Get recent access logs with optional date filtering"""
     logs = load_json_file(ACCESS_LOG_FILE)
     if not logs: return []
@@ -581,22 +581,33 @@ def get_access_logs(limit=100, days=None):
         try:
             from datetime import timedelta
             df = pd.DataFrame(logs)
-            df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
             
-            # Use utils.get_now_kst() for consistency
+            # [REFINED] Robust Timestamp Conversion
+            df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce', utc=True)
+            
+            # Use utils.get_now_kst() and convert to UTC for comparison
             from . import utils
-            cutoff_date = (utils.get_now_kst() - timedelta(days=days)).replace(tzinfo=None)
+            now_kst = utils.get_now_kst()
+            cutoff_date = (now_kst - timedelta(days=days))
             
-            # [FIX] Handle timezone-naive comparison
-            if hasattr(df['timestamp'], 'dt'):
-                df['timestamp'] = df['timestamp'].dt.tz_localize(None)
+            # Ensure cutoff is also UTC-aware for safe comparison
+            cutoff_utc = cutoff_date.astimezone(timedelta(0))
             
-            df = df[df['timestamp'] >= cutoff_date]
+            # Filter
+            df = df[df['timestamp'] >= cutoff_utc]
+            
+            # Convert back to KST string for display consistency if needed, 
+            # or just keep as is for to_dict. 
+            # [FIX] Localize back to KST for display strings in the dict
+            df['timestamp'] = df['timestamp'].dt.tz_convert(timedelta(hours=9)).dt.strftime('%Y-%m-%d %H:%M:%S')
+            
             logs = df.to_dict('records')
         except Exception as e:
             print(f"DEBUG: get_access_logs filtering error: {e}")
             
-    return logs[-limit:] if logs else []
+    # If days is provided, we might want a larger default limit
+    actual_limit = limit if days is None else max(limit, 500)
+    return logs[-actual_limit:] if logs else []
 
 
 # ===== ACTIVITY STATUS =====
