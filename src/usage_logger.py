@@ -1,4 +1,4 @@
-# Version: 2026-03-10_v3 (Final Robust Timestamp Fix)
+# Version: 2026-03-10_v4 (Timezone-Naive Robust Fix)
 import json
 import os
 from datetime import datetime, timedelta
@@ -69,13 +69,16 @@ def get_usage_logs(days=30, user_name=None, user_branch=None, action=None):
     # Convert to DataFrame for easier filtering
     df = pd.DataFrame(logs)
     
-    # [FIX] Robust timestamp conversion
+    # [FIX] Robust timestamp conversion (Naive for comparison)
     df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+    if hasattr(df['timestamp'], 'dt'):
+        df['timestamp'] = df['timestamp'].dt.tz_localize(None)
     df = df.dropna(subset=['timestamp'])
     
     # Filter by date
     from . import utils
-    cutoff_date = utils.get_now_kst() - timedelta(days=days)
+    # [FIX] Force cutoff_date to be naive
+    cutoff_date = (utils.get_now_kst() - timedelta(days=days)).replace(tzinfo=None)
     df = df[df['timestamp'] >= cutoff_date]
     
     # Apply filters
@@ -107,8 +110,10 @@ def get_usage_stats(days=30):
     
     df = pd.DataFrame(logs)
     
-    # [FIX] Robust timestamp conversion
+    # [FIX] Robust timestamp conversion (Naive for comparison)
     df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+    if hasattr(df['timestamp'], 'dt'):
+        df['timestamp'] = df['timestamp'].dt.tz_localize(None)
     df = df.dropna(subset=['timestamp'])
     
     if df.empty:
@@ -124,7 +129,8 @@ def get_usage_stats(days=30):
 
     # Filter by date
     from . import utils
-    cutoff_date = utils.get_now_kst() - timedelta(days=days)
+    # [FIX] Force cutoff_date to be naive
+    cutoff_date = (utils.get_now_kst() - timedelta(days=days)).replace(tzinfo=None)
     df = df[df['timestamp'] >= cutoff_date]
     
     # Calculate statistics
@@ -168,13 +174,16 @@ def get_user_activity_timeline(user_name, days=7):
     
     df = pd.DataFrame(logs)
     
-    # [FIX] Robust timestamp conversion
+    # [FIX] Robust timestamp conversion (Naive for comparison)
     df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+    if hasattr(df['timestamp'], 'dt'):
+        df['timestamp'] = df['timestamp'].dt.tz_localize(None)
     df = df.dropna(subset=['timestamp'])
     
     # Filter by user and date
     from . import utils
-    cutoff_date = utils.get_now_kst() - timedelta(days=days)
+    # [FIX] Force cutoff_date to be naive
+    cutoff_date = (utils.get_now_kst() - timedelta(days=days)).replace(tzinfo=None)
     df = df[(df['user_name'] == user_name) & (df['timestamp'] >= cutoff_date)]
     
     # Sort by timestamp descending
@@ -210,13 +219,16 @@ def get_navigation_history(days=30, user_name=None, user_branch=None):
     
     df = pd.DataFrame(nav_logs)
     
-    # [FIX] Robust timestamp conversion
+    # [FIX] Robust timestamp conversion (Naive for comparison)
     df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+    if hasattr(df['timestamp'], 'dt'):
+        df['timestamp'] = df['timestamp'].dt.tz_localize(None)
     df = df.dropna(subset=['timestamp'])
     
     # Filter by date
     from . import utils
-    cutoff_date = utils.get_now_kst() - timedelta(days=days)
+    # [FIX] Force cutoff_date to be naive
+    cutoff_date = (utils.get_now_kst() - timedelta(days=days)).replace(tzinfo=None)
     df = df[df['timestamp'] >= cutoff_date]
     
     # Apply filters
@@ -311,13 +323,16 @@ def get_interest_history(days=30, user_name=None, user_branch=None):
     
     df = pd.DataFrame(interest_logs)
     
-    # [FIX] Robust timestamp conversion
+    # [FIX] Robust timestamp conversion (Naive for comparison)
     df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+    if hasattr(df['timestamp'], 'dt'):
+        df['timestamp'] = df['timestamp'].dt.tz_localize(None)
     df = df.dropna(subset=['timestamp'])
     
     # Filter by date
     from . import utils
-    cutoff_date = utils.get_now_kst() - timedelta(days=days)
+    # [FIX] Force cutoff_date to be naive
+    cutoff_date = (utils.get_now_kst() - timedelta(days=days)).replace(tzinfo=None)
     df = df[df['timestamp'] >= cutoff_date]
     
     # Apply filters
