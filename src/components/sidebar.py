@@ -159,6 +159,10 @@ def render_sidebar():
                 st.success("✅ 활성화됨")
             else:
                 st.caption("미입력 시: 기본 지도 사용")
+        
+        st.sidebar.markdown("---")
+        st.sidebar.caption("🚀 Version: 2026-03-10_v3")
+        st.sidebar.caption("✅ Monitoring Error Fix applied")
     
     return {
         'data_source': data_source,
