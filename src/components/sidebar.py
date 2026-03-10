@@ -161,8 +161,8 @@ def render_sidebar():
                 st.caption("미입력 시: 기본 지도 사용")
         
         st.sidebar.markdown("---")
-        st.sidebar.caption("🚀 Version: 2026-03-11_v11")
-        st.sidebar.caption("✅ Data Loading Optimization applied")
+        st.sidebar.caption("🚀 Version: 2026-03-11_v12")
+        st.sidebar.caption("✅ March Data Priority Fixed")
         
         # [NEW] Admin Diagnostic Info
         if st.session_state.get('user_role') == 'admin':
