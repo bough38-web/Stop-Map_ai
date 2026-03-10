@@ -1,4 +1,4 @@
-# Version: 2026-03-11_v7 (AttributeError Null-Safe Fix)
+# Version: 2026-03-11_v8 (Monitoring Enrichment & Robust Sync)
 import json
 import os
 from datetime import datetime, timedelta

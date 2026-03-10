@@ -1,4 +1,4 @@
-# Version: 2026-03-10_v6 (Login/Monitoring Sync Fix & Diagnostics)
+# Version: 2026-03-11_v8 (Login/Monitoring Sync Fix & Diagnostics)
 import json
 import os
 from datetime import datetime

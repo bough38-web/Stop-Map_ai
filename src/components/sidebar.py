@@ -161,8 +161,8 @@ def render_sidebar():
                 st.caption("미입력 시: 기본 지도 사용")
         
         st.sidebar.markdown("---")
-        st.sidebar.caption("🚀 Version: 2026-03-11_v7")
-        st.sidebar.caption("✅ AttributeError (Null-Safe) Fix applied")
+        st.sidebar.caption("🚀 Version: 2026-03-11_v8")
+        st.sidebar.caption("✅ Monitoring Enrichment applied")
         
         # [NEW] Admin Diagnostic Info
         if st.session_state.get('user_role') == 'admin':

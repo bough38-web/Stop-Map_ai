@@ -3536,8 +3536,16 @@ if raw_df is not None:
                 key="monitor_period"
             )
         with col_p2:
-            if st.button("🔄 새로고침", use_container_width=True):
-                st.rerun()
+            sync_col1, sync_col2 = st.columns(2)
+            with sync_col1:
+                if st.button("🔄 새로고침", use_container_width=True):
+                    st.rerun()
+            with sync_col2:
+                if st.button("♻️ 시트 동기화", help="구글 시트에서 모든 데이터를 다시 불러옵니다.", use_container_width=True):
+                    with st.spinner("📥 구글 시트 데이터 불러오는 중..."):
+                        activity_logger.pull_from_gsheet()
+                        st.success("동기화 완료!")
+                        st.rerun()
         
         st.divider()
         
@@ -3546,7 +3554,7 @@ if raw_df is not None:
         
         # Top metrics
         st.markdown("### 📊 전체 활동 요약")
-        metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+        metric_col1, metric_col2, metric_col3, metric_col4, metric_col5 = st.columns(5)
         
         with metric_col1:
             st.metric("총 활동 수", f"{usage_stats['total_actions']:,}건")
@@ -3557,6 +3565,9 @@ if raw_df is not None:
         with metric_col4:
             visit_reports = activity_logger.get_visit_reports(limit=1000)
             st.metric("방문 리포트", f"{len(visit_reports)}건")
+        with metric_col5:
+            access_logs_summary = activity_logger.get_access_logs(limit=1000)
+            st.metric("접속(로그인)", f"{len(access_logs_summary):,}건")
         
         st.divider()
         
@@ -3659,7 +3670,7 @@ if raw_df is not None:
         st.divider()
         
         # Recent activity timeline
-        st.markdown("### ⏱️ 최근 활동 타임라인")
+        st.markdown("### ⏱️ 최근 상세 활동 (클릭/검색)")
         
         recent_logs = usage_logger.get_usage_logs(days=period_days)
         
@@ -3674,6 +3685,18 @@ if raw_df is not None:
                 st.caption(f"🕐 {timestamp} | 👤 {user_name} ({branch}) - **{action}**")
         else:
             st.info("활동 로그가 없습니다.")
+            
+        st.divider()
+        
+        # [NEW] Recent Access Timeline
+        st.markdown("### 🔑 최근 접속 현황 (로그인)")
+        access_logs = activity_logger.get_access_logs(limit=50)
+        if access_logs:
+            access_df = pd.DataFrame(access_logs)
+            access_df.columns = ['시간', '권한', '사용자', '작업']
+            st.dataframe(access_df[::-1], use_container_width=True, hide_index=True)
+        else:
+            st.info("접속 기록이 없습니다.")
 
 
 
