@@ -199,22 +199,27 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
             <div id="map-overview">
                 <div class="detail-label">🗺️ 전체 지도 (이곳을 클릭하세요)</div>
                 <!-- [NEW] Interactive Map Legend -->
-                <div id="map-legend" style="position: absolute; bottom: 30px; left: 30px; z-index: 999; background: rgba(255,255,255,0.95); padding: 15px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 13px; border: 1px solid #ddd; pointer-events: none;">
-                    <div style="font-weight: bold; margin-bottom: 10px; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">📍 마커 색상 범례</div>
-                    <div style="display: flex; flex-direction: column; gap: 5px;">
-                        <div style="font-weight: 600; color: #666; font-size: 12px; margin-top: 5px;">[기본 상태]</div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                            <div><img src="https://maps.google.com/mapfiles/ms/icons/blue-dot.png" style="width:18px; vertical-align:middle;"> 영업</div>
-                            <div><img src="https://maps.google.com/mapfiles/ms/icons/red-dot.png" style="width:18px; vertical-align:middle;"> 폐업</div>
-                            <div style="grid-column: span 2;"><img src="https://maps.google.com/mapfiles/ms/icons/purple-dot.png" style="width:18px; vertical-align:middle;"> 대형(100평↑)</div>
-                        </div>
-                        <div style="font-weight: 600; color: #666; font-size: 12px; margin-top: 5px;">[활동 이력]</div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                            <div><img src="https://maps.google.com/mapfiles/ms/icons/green-dot.png" style="width:18px; vertical-align:middle;"> 방문</div>
-                            <div><img src="https://maps.google.com/mapfiles/ms/icons/yellow-dot.png" style="width:18px; vertical-align:middle;"> 상담중</div>
-                            <div><img src="https://maps.google.com/mapfiles/ms/icons/ltblue-dot.png" style="width:18px; vertical-align:middle;"> 상담완료</div>
-                            <div><img src="https://maps.google.com/mapfiles/ms/icons/pink-dot.png" style="width:18px; vertical-align:middle;"> 상담불가</div>
-                            <div style="grid-column: span 2;"><img src="https://maps.google.com/mapfiles/ms/icons/orange-dot.png" style="width:18px; vertical-align:middle;"> <b>계약완료</b></div>
+                <div id="map-legend" style="position: absolute; bottom: 30px; left: 30px; z-index: 999; background: rgba(255,255,255,0.95); padding: 10px 15px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 13px; border: 1px solid #ddd; width: fit-content; min-width: 160px;">
+                    <div id="legend-header" onclick="toggleLegend(event)" style="font-weight: bold; display: flex; justify-content: space-between; align-items: center; cursor: pointer; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 5px;">
+                        <span>📍 마커 색상 범례</span>
+                        <span id="legend-arrow" style="transition: transform 0.3s ease;">▼</span>
+                    </div>
+                    <div id="legend-content" style="display: none;">
+                        <div style="display: flex; flex-direction: column; gap: 5px;">
+                            <div style="font-weight: 600; color: #666; font-size: 12px; margin-top: 5px;">[기본 상태]</div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <div><img src="https://maps.google.com/mapfiles/ms/icons/blue-dot.png" style="width:18px; vertical-align:middle;"> 영업</div>
+                                <div><img src="https://maps.google.com/mapfiles/ms/icons/red-dot.png" style="width:18px; vertical-align:middle;"> 폐업</div>
+                                <div style="grid-column: span 2;"><img src="https://maps.google.com/mapfiles/ms/icons/purple-dot.png" style="width:18px; vertical-align:middle;"> 대형(100평↑)</div>
+                            </div>
+                            <div style="font-weight: 600; color: #666; font-size: 12px; margin-top: 5px;">[활동 이력]</div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <div><img src="https://maps.google.com/mapfiles/ms/icons/green-dot.png" style="width:18px; vertical-align:middle;"> 방문</div>
+                                <div><img src="https://maps.google.com/mapfiles/ms/icons/yellow-dot.png" style="width:18px; vertical-align:middle;"> 상담중</div>
+                                <div><img src="https://maps.google.com/mapfiles/ms/icons/ltblue-dot.png" style="width:18px; vertical-align:middle;"> 상담완료</div>
+                                <div><img src="https://maps.google.com/mapfiles/ms/icons/pink-dot.png" style="width:18px; vertical-align:middle;"> 상담불가</div>
+                                <div style="grid-column: span 2;"><img src="https://maps.google.com/mapfiles/ms/icons/orange-dot.png" style="width:18px; vertical-align:middle;"> <b>계약완료</b></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -239,6 +244,20 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
         
         <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey={kakao_key}&libraries=services,clusterer,drawing,visualization"></script>
         <script>
+            // --- Legend Toggle Logic ---
+            window.toggleLegend = function(e) {{
+                if(e) e.stopPropagation();
+                var content = document.getElementById('legend-content');
+                var arrow = document.getElementById('legend-arrow');
+                if (content.style.display === 'none' || content.style.display === '') {{
+                    content.style.display = 'block';
+                    arrow.style.transform = 'rotate(180deg)';
+                }} else {{
+                    content.style.display = 'none';
+                    arrow.style.transform = 'rotate(0deg)';
+                }}
+            }};
+
             // --- 1. Map Overview ---
             var mapContainer1 = document.getElementById('map-overview'), 
                 mapOption1 = {{ 
@@ -270,6 +289,7 @@ def render_kakao_map(map_df, kakao_key, use_heatmap=False, user_context={}):
                 map: mapOverview, 
                 averageCenter: true, 
                 minLevel: 10 
+            }});
             
             // [NEW] Heatmap Layer (Kakao)
             var useHeatmap = {str(use_heatmap).lower()};
@@ -1236,22 +1256,27 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
         <div id="container">
             <div id="map-container">
                 <!-- [NEW] Interactive Map Legend for Leaflet -->
-                <div id="map-legend" style="position: absolute; bottom: 30px; left: 10px; z-index: 1000; background: rgba(255,255,255,0.95); padding: 15px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 13px; border: 1px solid #ddd; pointer-events: none;">
-                    <div style="font-weight: bold; margin-bottom: 10px; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">📍 마커 색상 범례</div>
-                    <div style="display: flex; flex-direction: column; gap: 5px;">
-                        <div style="font-weight: 600; color: #666; font-size: 12px; margin-top: 5px;">[기본 상태]</div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                            <div><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#2E7D32; margin-right:4px;"></span>영업</div>
-                            <div><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#d32f2f; margin-right:4px;"></span>폐업</div>
-                            <div style="grid-column: span 2;"><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#7B1FA2; margin-right:4px;"></span>대형(100평↑)</div>
-                        </div>
-                        <div style="font-weight: 600; color: #666; font-size: 12px; margin-top: 5px;">[활동 이력]</div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                            <div><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#2E7D32; margin-right:4px;"></span>방문</div>
-                            <div><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#FBC02D; margin-right:4px;"></span>상담중</div>
-                            <div><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#00BCD4; margin-right:4px;"></span>상담완료</div>
-                            <div><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#E91E63; margin-right:4px;"></span>상담불가</div>
-                            <div style="grid-column: span 2;"><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#F57C00; margin-right:4px;"></span>계약완료</div>
+                <div id="map-legend" style="position: absolute; bottom: 30px; left: 10px; z-index: 1000; background: rgba(255,255,255,0.95); padding: 10px 15px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 13px; border: 1px solid #ddd; width: fit-content; min-width: 160px;">
+                    <div id="legend-header-leaf" onclick="toggleLegend(event)" style="font-weight: bold; display: flex; justify-content: space-between; align-items: center; cursor: pointer; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 5px;">
+                        <span>📍 마커 색상 범례</span>
+                        <span id="legend-arrow-leaf" style="transition: transform 0.3s ease;">▼</span>
+                    </div>
+                    <div id="legend-content-leaf" style="display: none;">
+                        <div style="display: flex; flex-direction: column; gap: 5px;">
+                            <div style="font-weight: 600; color: #666; font-size: 12px; margin-top: 5px;">[기본 상태]</div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <div><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#2E7D32; margin-right:4px;"></span>영업</div>
+                                <div><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#d32f2f; margin-right:4px;"></span>폐업</div>
+                                <div style="grid-column: span 2;"><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#7B1FA2; margin-right:4px;"></span>대형(100평↑)</div>
+                            </div>
+                            <div style="font-weight: 600; color: #666; font-size: 12px; margin-top: 5px;">[활동 이력]</div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <div><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#2E7D32; margin-right:4px;"></span>방문</div>
+                                <div><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#FBC02D; margin-right:4px;"></span>상담중</div>
+                                <div><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#00BCD4; margin-right:4px;"></span>상담완료</div>
+                                <div><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#E91E63; margin-right:4px;"></span>상담불가</div>
+                                <div style="grid-column: span 2;"><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#F57C00; margin-right:4px;"></span>계약완료</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1273,6 +1298,20 @@ def render_folium_map(display_df, use_heatmap=False, user_context={}):
         <!-- Heatmap JS -->
         <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
         <script>
+            // --- Legend Toggle Logic (Leaflet) ---
+            window.toggleLegend = function(e) {{
+                if(e) e.stopPropagation();
+                var content = document.getElementById('legend-content-leaf');
+                var arrow = document.getElementById('legend-arrow-leaf');
+                if (content.style.display === 'none' || content.style.display === '') {{
+                    content.style.display = 'block';
+                    arrow.style.transform = 'rotate(180deg)';
+                }} else {{
+                    content.style.display = 'none';
+                    arrow.style.transform = 'rotate(0deg)';
+                }}
+            }};
+
             // Data
             var mapData = {json_data};
             var useHeatmap = {str(use_heatmap).lower()};
