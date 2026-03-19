@@ -144,6 +144,7 @@ ACCESS_LOG_FILE = STORAGE_DIR / "access_logs.json"
 USAGE_LOG_FILE = STORAGE_DIR / "usage_logs.json"
 ACTIVITY_STATUS_FILE = STORAGE_DIR / "activity_status.json"
 CHANGE_HISTORY_FILE = STORAGE_DIR / "change_history.json"
+MAINTENANCE_FILE = STORAGE_DIR / "maintenance.json"
 
 # [NEW] Diagnostic Helper
 def get_storage_info():
@@ -151,7 +152,8 @@ def get_storage_info():
     files = {
         "access_logs": ACCESS_LOG_FILE.exists(),
         "usage_logs": USAGE_LOG_FILE.exists(),
-        "activity_status": ACTIVITY_STATUS_FILE.exists()
+        "activity_status": ACTIVITY_STATUS_FILE.exists(),
+        "maintenance": MAINTENANCE_FILE.exists()
     }
     return str(STORAGE_DIR), files
 
@@ -193,11 +195,26 @@ def load_json_file(filepath):
                 os.rename(filepath, backup_path)
                 print(f"Backing up corrupted file to {backup_path}")
             except: pass
-            return [] if 'logs' in str(filepath.name) or 'history' in str(filepath.name) else {}
+            return [] if any(k in str(filepath.name) for k in ['logs', 'history', 'reports']) else {}
         except Exception as e:
             print(f"Error loading {filepath}: {e}")
-            return [] if 'logs' in str(filepath.name) or 'history' in str(filepath.name) else {}
-    return [] if 'logs' in str(filepath.name) or 'history' in str(filepath.name) else {}
+            return [] if any(k in str(filepath.name) for k in ['logs', 'history', 'reports']) else {}
+    return [] if any(k in str(filepath.name) for k in ['logs', 'history', 'reports']) else {}
+
+def get_maintenance_mode():
+    """Get maintenance mode status"""
+    data = load_json_file(MAINTENANCE_FILE)
+    if not data or not isinstance(data, dict):
+        return {"enabled": False, "message": "점검 및 업데이트 중이니 잠시만 기다려주세요."}
+    return data
+
+def set_maintenance_mode(enabled, message=None):
+    """Set maintenance mode status"""
+    data = get_maintenance_mode()
+    data["enabled"] = enabled
+    if message:
+        data["message"] = message
+    return save_json_file(MAINTENANCE_FILE, data)
 
 
 def save_json_file(filepath, data):

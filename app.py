@@ -53,6 +53,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# [NEW] Maintenance Mode Check (Global Notification)
+# This displays a warning banner to ALL users if enabled by Admin
+maintenance = activity_logger.get_maintenance_mode()
+if maintenance.get("enabled"):
+    st.warning(f"🚧 {maintenance.get('message', '점검 및 업데이트 중이니 잠시만 기다려주세요.')}")
+
 # [DESIGN] Inject Custom CSS for Modern UI
 def inject_custom_css():
     st.markdown("""
@@ -830,6 +836,14 @@ with st.sidebar:
     # Only visible to Admin. Controls visibility of "Conditional Search" on mobile.
     if st.session_state.get('user_role') == 'admin':
         st.sidebar.divider()
+        st.sidebar.subheader("⚙️ 관리자 설정")
+        
+        # [NEW] Maintenance Mode Toggle
+        is_maintenance = st.sidebar.toggle("🚧 점검 모드 (공지 표시)", value=maintenance.get("enabled", False), help="모든 사용자에게 점검 안내 팝업을 표시합니다.")
+        if is_maintenance != maintenance.get("enabled"):
+            activity_logger.set_maintenance_mode(is_maintenance)
+            st.rerun()
+            
         show_mobile_filter = st.sidebar.toggle("📱 모바일에서 필터 표시", value=True, help="끄면 모바일 화면에서 '조건조회' 창이 사라집니다.")
         if not show_mobile_filter:
             st.markdown("""
