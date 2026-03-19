@@ -692,46 +692,46 @@ with st.sidebar:
         uploaded_zip = []
         
         if data_source == "파일 업로드 (File)":
-             if local_zips:
-                 use_local_zip = st.toggle("인허가(Zip) 자동 로드", value=True)
-                 if use_local_zip:
-                     # Let user choose zip if multiple
-                     zip_opts = [os.path.basename(f) for f in local_zips]
-                     # [UX] Auto-select priority data files if available (Use full data to include pre-2026 closed businesses)
-                     preferred_zips = [
-                         "LOCALDATA_NOWMON_CSV-3월.zip",
-                         "LOCALDATA_NOWMON_CSV_3월.zip",
-                         "LOCALDATA_NOWMON_CSV.zip", 
-                         "LOCALDATA_2026_ONLY.zip", 
-                         "LOCALDATA_NOWMON_CSV_2월.zip", 
-                         "LOCALDATA_YESTERDAY_CSV.zip"
-                     ]
-                     # Normalize for comparison
-                     preferred_zips = [unicodedata.normalize('NFC', z) for z in preferred_zips]
-                     zip_opts_norm = [unicodedata.normalize('NFC', z) for z in zip_opts]
-                     
-                      # [UPDATE] Select BOTH top priority files if they exist to combine data
-                      default_zips = []
-                      for pz in preferred_zips[:3]: # [FIX] Expand to top 3 to ensure combining 3월 + Baseline
-                          matching = [zip_opts[i] for i, z in enumerate(zip_opts_norm) if z == pz]
-                          if matching: 
-                              default_zips.extend(matching)
-                      
-                      # [ADD] Also include daily automated extraction files
-                      daily_zips = [zip_opts[i] for i, z in enumerate(zip_opts_norm) if z.startswith("LOCALDATA_DAILY_")]
-                      default_zips.extend(daily_zips)
-                     
-                     if not default_zips and zip_opts: 
-                         default_zips = [zip_opts[0]]
-                     
-                     sel_zips = st.multiselect("사용할 인허가 파일 (ZIP)", zip_opts, default=default_zips, help="중복 방지를 위해 단일 파일 선택을 권장합니다.")
-                     uploaded_zip = [os.path.join("data", z) for z in sel_zips]
-                     if sel_zips:
-                         st.caption(f"선택됨: {', '.join(sel_zips)}")
-                 else:
-                     uploaded_zip = st.file_uploader("인허가 데이터 (ZIP)", type="zip", accept_multiple_files=True)
-             else:
-                  uploaded_zip = st.file_uploader("인허가 데이터 (ZIP)", type="zip", accept_multiple_files=True)
+            if local_zips:
+                use_local_zip = st.toggle("인허가(Zip) 자동 로드", value=True)
+                if use_local_zip:
+                    # Let user choose zip if multiple
+                    zip_opts = [os.path.basename(f) for f in local_zips]
+                    # [UX] Auto-select priority data files if available (Use full data to include pre-2026 closed businesses)
+                    preferred_zips = [
+                        "LOCALDATA_NOWMON_CSV-3월.zip",
+                        "LOCALDATA_NOWMON_CSV_3월.zip",
+                        "LOCALDATA_NOWMON_CSV.zip", 
+                        "LOCALDATA_2026_ONLY.zip", 
+                        "LOCALDATA_NOWMON_CSV_2월.zip", 
+                        "LOCALDATA_YESTERDAY_CSV.zip"
+                    ]
+                    # Normalize for comparison
+                    preferred_zips = [unicodedata.normalize('NFC', z) for z in preferred_zips]
+                    zip_opts_norm = [unicodedata.normalize('NFC', z) for z in zip_opts]
+                    
+                    # [UPDATE] Select BOTH top priority files if they exist to combine data
+                    default_zips = []
+                    for pz in preferred_zips[:3]: # [FIX] Expand to top 3 to ensure combining 3월 + Baseline
+                        matching = [zip_opts[i] for i, z in enumerate(zip_opts_norm) if z == pz]
+                        if matching:
+                            default_zips.extend(matching)
+                    
+                    # [ADD] Also include daily automated extraction files
+                    daily_zips = [zip_opts[i] for i, z in enumerate(zip_opts_norm) if z.startswith("LOCALDATA_DAILY_")]
+                    default_zips.extend(daily_zips)
+                    
+                    if not default_zips and zip_opts: 
+                        default_zips = [zip_opts[0]]
+                    
+                    sel_zips = st.multiselect("사용할 인허가 파일 (ZIP)", zip_opts, default=default_zips, help="중복 방지를 위해 단일 파일 선택을 권장합니다.")
+                    uploaded_zip = [os.path.join("data", z) for z in sel_zips]
+                    if sel_zips:
+                        st.caption(f"선택됨: {', '.join(sel_zips)}")
+                else:
+                    uploaded_zip = st.file_uploader("인허가 데이터 (ZIP)", type="zip", accept_multiple_files=True)
+            else:
+                uploaded_zip = st.file_uploader("인허가 데이터 (ZIP)", type="zip", accept_multiple_files=True)
                  
         else: # OpenAPI
             st.info("🌐 지방행정 인허가 데이터 (LocalData)")
