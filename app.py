@@ -3318,11 +3318,21 @@ if raw_df is not None:
             col_f1, col_f2, col_f3 = st.columns(3)
             
             with col_f1:
-                branches = ["전체"] + sorted(list(set([r.get('user_branch', '') for r in all_reports if r.get('user_branch')])))
+                # [FIX] Cast to str and filter NaN to prevent TypeError in sorted()
+                branches = ["전체"] + sorted(list(set([
+                    str(r.get('user_branch')).strip() 
+                    for r in all_reports 
+                    if r.get('user_branch') and not pd.isna(r.get('user_branch'))
+                ])))
                 sel_branch = st.selectbox("🏢 지사", branches, key="visit_branch_filter")
             
             with col_f2:
-                managers = ["전체"] + sorted(list(set([r.get('user_name', '') for r in all_reports if r.get('user_name')])))
+                # [FIX] Cast to str and filter NaN to prevent TypeError in sorted()
+                managers = ["전체"] + sorted(list(set([
+                    str(r.get('user_name')).strip() 
+                    for r in all_reports 
+                    if r.get('user_name') and not pd.isna(r.get('user_name'))
+                ])))
                 sel_manager = st.selectbox("👤 담당자", managers, key="visit_manager_filter")
             
             with col_f3:
