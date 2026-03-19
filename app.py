@@ -710,12 +710,16 @@ with st.sidebar:
                      preferred_zips = [unicodedata.normalize('NFC', z) for z in preferred_zips]
                      zip_opts_norm = [unicodedata.normalize('NFC', z) for z in zip_opts]
                      
-                     # [UPDATE] Select BOTH top priority files if they exist to combine data
-                     default_zips = []
-                     for pz in preferred_zips[:3]: # [FIX] Expand to top 3 to ensure combining 3월 + Baseline
-                         matching = [zip_opts[i] for i, z in enumerate(zip_opts_norm) if z == pz]
-                         if matching:
-                             default_zips.extend(matching)
+                      # [UPDATE] Select BOTH top priority files if they exist to combine data
+                      default_zips = []
+                      for pz in preferred_zips[:3]: # [FIX] Expand to top 3 to ensure combining 3월 + Baseline
+                          matching = [zip_opts[i] for i, z in enumerate(zip_opts_norm) if z == pz]
+                          if matching: 
+                              default_zips.extend(matching)
+                      
+                      # [ADD] Also include daily automated extraction files
+                      daily_zips = [zip_opts[i] for i, z in enumerate(zip_opts_norm) if z.startswith("LOCALDATA_DAILY_")]
+                      default_zips.extend(daily_zips)
                      
                      if not default_zips and zip_opts: 
                          default_zips = [zip_opts[0]]
@@ -765,6 +769,51 @@ with st.sidebar:
             if 'api_fetched_df' in st.session_state:
                 api_df = st.session_state['api_fetched_df']
                 st.caption(f"✅ 수신된 데이터: {len(api_df)}건")
+
+    with st.sidebar.expander("🤖 자동화 모니터링", expanded=False):
+        st.subheader("일일 데이터 동기화 상태")
+        
+        # [FEATURE] Monitoring Logs
+        log_path = os.path.join("인허가자료db-API", "auto_sync.log")
+        if os.path.exists(log_path):
+            try:
+                with open(log_path, "r", encoding="utf-8") as f:
+                    logs = f.readlines()
+                # Show last 15 lines
+                st.text_area("최근 동기화 로그", "".join(logs[-15:]), height=180)
+            except:
+                st.info("로그를 읽는 중 오류가 발생했습니다.")
+        else:
+            st.info("동기화 로그가 아직 없습니다.")
+            
+        # [FEATURE] Latest Sync File Status
+        sync_files = glob.glob(os.path.join("data", "LOCALDATA_DAILY_*.zip"))
+        if sync_files:
+            latest_sync = max(sync_files, key=os.path.getmtime)
+            st.success(f"최근 파일: {os.path.basename(latest_sync)}")
+            st.caption(f"동기화 시점: {datetime.fromtimestamp(os.path.getmtime(latest_sync)).strftime('%Y-%m-%d %H:%M:%S')}")
+        else:
+            st.warning("자동 동기화 데이터 없음")
+            
+        # [FEATURE] Manual Trigger for Testing
+        if st.button("🚀 지금 즉시 동기화 실행", use_container_width=True):
+            with st.spinner("데이터 추출 및 동기화 엔진 가동 중..."):
+                import subprocess
+                try:
+                    # Run auto_sync.py from root
+                    # Using the full path to avoid issues
+                    script_path = os.path.join(os.path.dirname(__file__), "인허가자료db-API", "auto_sync.py")
+                    res = subprocess.run(["python3", script_path], capture_output=True, text=True)
+                    if res.returncode == 0:
+                        st.success("동기화가 성공적으로 완료되었습니다!")
+                        st.balloons()
+                        import time
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error(f"동기화 중 오류 발생: {res.stderr}")
+                except Exception as e:
+                    st.error(f"실행 중 예외 발생: {e}")
 
 
 
