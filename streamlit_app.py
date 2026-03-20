@@ -3860,35 +3860,35 @@ if raw_df is not None:
     if active_nav == "📈 상세통계":
         st.subheader("📈 다차원 상세 분석")
         
-        # [FEATURE] 15-Day Daily Trend Chart
-        st.markdown("##### 📅 최근 15일 영업/폐업 추이")
+        # [FEATURE] 20-Day Daily Trend Chart (Stacked)
+        st.markdown("##### 📅 최근 20일 신규/폐업 추이 (누적)")
         try:
             # 1. Prepare Data
             trend_end_date = utils.get_now_kst().normalize()
-            trend_start_date = trend_end_date - pd.Timedelta(days=14) # 15 days inclusive: [Today-6, Today]
+            trend_start_date = trend_end_date - pd.Timedelta(days=19) # 20 days inclusive
             
             trend_data = []
             
-            # Open (In-license)
+            # New (In-license)
             if '인허가일자' in base_df.columns:
-                 open_7d = base_df[
+                 new_recs = base_df[
                      (base_df['인허가일자'] >= trend_start_date) & 
                      (base_df['인허가일자'] <= trend_end_date + pd.Timedelta(days=1)) 
                  ].copy()
-                 if not open_7d.empty:
-                     daily_open = open_7d.groupby(open_7d['인허가일자'].dt.date).size().reset_index(name='count')
-                     daily_open['status'] = '영업'
-                     daily_open.rename(columns={'인허가일자': 'date'}, inplace=True)
-                     trend_data.append(daily_open)
+                 if not new_recs.empty:
+                     daily_new = new_recs.groupby(new_recs['인허가일자'].dt.date).size().reset_index(name='count')
+                     daily_new['status'] = '신규'
+                     daily_new.rename(columns={'인허가일자': 'date'}, inplace=True)
+                     trend_data.append(daily_new)
             
             # Closed
             if '폐업일자' in base_df.columns:
-                 close_7d = base_df[
+                 close_recs = base_df[
                      (base_df['폐업일자'] >= trend_start_date) & 
                      (base_df['폐업일자'] <= trend_end_date + pd.Timedelta(days=1))
                  ].copy()
-                 if not close_7d.empty:
-                     daily_close = close_7d.groupby(close_7d['폐업일자'].dt.date).size().reset_index(name='count')
+                 if not close_recs.empty:
+                     daily_close = close_recs.groupby(close_recs['폐업일자'].dt.date).size().reset_index(name='count')
                      daily_close['status'] = '폐업'
                      daily_close.rename(columns={'폐업일자': 'date'}, inplace=True)
                      trend_data.append(daily_close)
@@ -3896,35 +3896,31 @@ if raw_df is not None:
             if trend_data:
                 trend_df = pd.concat(trend_data, ignore_index=True)
                 trend_df['date'] = pd.to_datetime(trend_df['date'])
-                # [FIX] Create formatted string for x-axis to prevent duplicates (Altair Ordinal Issue)
                 trend_df['date_str'] = trend_df['date'].dt.strftime('%m-%d')
                 
-                # [FIX] Explicitly define sort order using a list for Ordinal Axis
-                # 'sort="date"' caused an error because "date" is not an encoding channel or "ascending"/"descending".
-                # Providing the sorted array of strings guarantees correct order.
                 sorted_date_strs = sorted(trend_df['date'].unique())
                 sorted_date_strs = [pd.Timestamp(d).strftime('%m-%d') for d in sorted_date_strs]
 
-                # 2. Visualize
+                # 2. Visualize (Stacked Bar Chart)
                 trend_chart = alt.Chart(trend_df).mark_bar().encode(
-                    x=alt.X('date_str:O', sort=sorted_date_strs, axis=alt.Axis(title='날짜 (2026)')), # Explicit sort list
-                    y=alt.Y('count:Q', title='건수'),
+                    x=alt.X('date_str:O', sort=sorted_date_strs, axis=alt.Axis(title='날짜')), 
+                    y=alt.Y('count:Q', title='건수', stack=True), # Explicitly stack
                     color=alt.Color('status:N', 
-                                    scale=alt.Scale(domain=['영업', '폐업'], range=['#AED581', '#EF9A9A']), 
+                                    scale=alt.Scale(domain=['신규', '폐업'], range=['#AED581', '#EF9A9A']), 
                                     legend=alt.Legend(title="구분")),
                     tooltip=['date_str', 'status', 'count']
                 ).properties(
-                    height=200
+                    height=300
                 )
                 
-                # Add text labels on bars
+                # Add total counts on top if possible, or just individual labels
                 text = trend_chart.mark_text(dy=-5, fontSize=10).encode(
                     text='count:Q'
                 )
                 
                 st.altair_chart(trend_chart + text, use_container_width=True)
             else:
-                st.info("최근 7일간 변동 데이터가 없습니다.")
+                st.info("최근 20일간 변동 데이터가 없습니다.")
                 
         except Exception as e:
             st.error(f"차트 생성 중 오류가 발생했습니다: {e}")
