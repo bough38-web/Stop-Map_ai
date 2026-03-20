@@ -142,8 +142,10 @@ except Exception:
 
 ACCESS_LOG_FILE = STORAGE_DIR / "access_logs.json"
 USAGE_LOG_FILE = STORAGE_DIR / "usage_logs.json"
+VIEW_LOG_FILE = STORAGE_DIR / "view_logs.json"
 ACTIVITY_STATUS_FILE = STORAGE_DIR / "activity_status.json"
 CHANGE_HISTORY_FILE = STORAGE_DIR / "change_history.json"
+MAINTENANCE_FILE = STORAGE_DIR / "maintenance.json"
 
 # [NEW] Diagnostic Helper
 def get_storage_info():
@@ -151,7 +153,9 @@ def get_storage_info():
     files = {
         "access_logs": ACCESS_LOG_FILE.exists(),
         "usage_logs": USAGE_LOG_FILE.exists(),
-        "activity_status": ACTIVITY_STATUS_FILE.exists()
+        "view_logs": VIEW_LOG_FILE.exists(),
+        "activity_status": ACTIVITY_STATUS_FILE.exists(),
+        "maintenance": MAINTENANCE_FILE.exists()
     }
     return str(STORAGE_DIR), files
 
@@ -193,11 +197,26 @@ def load_json_file(filepath):
                 os.rename(filepath, backup_path)
                 print(f"Backing up corrupted file to {backup_path}")
             except: pass
-            return [] if 'logs' in str(filepath.name) or 'history' in str(filepath.name) else {}
+            return [] if any(k in str(filepath.name) for k in ['logs', 'history', 'reports']) else {}
         except Exception as e:
             print(f"Error loading {filepath}: {e}")
-            return [] if 'logs' in str(filepath.name) or 'history' in str(filepath.name) else {}
-    return [] if 'logs' in str(filepath.name) or 'history' in str(filepath.name) else {}
+            return [] if any(k in str(filepath.name) for k in ['logs', 'history', 'reports']) else {}
+    return [] if any(k in str(filepath.name) for k in ['logs', 'history', 'reports']) else {}
+
+def get_maintenance_mode():
+    """Get maintenance mode status"""
+    data = load_json_file(MAINTENANCE_FILE)
+    if not data or not isinstance(data, dict):
+        return {"enabled": False, "message": "점검 및 업데이트 중이니 잠시만 기다려주세요."}
+    return data
+
+def set_maintenance_mode(enabled, message=None):
+    """Set maintenance mode status"""
+    data = get_maintenance_mode()
+    data["enabled"] = enabled
+    if message:
+        data["message"] = message
+    return save_json_file(MAINTENANCE_FILE, data)
 
 
 def save_json_file(filepath, data):
@@ -263,6 +282,7 @@ def sync_to_gsheet(filename, data, **kwargs):
         ws_name_map = {
             "access_logs": "로그인 이력",
             "usage_logs": "사용 이력",
+            "view_logs": "조회 이력",
             "activity_status": "활동상태",
             "visit_reports": "방문보고서",
             "change_history": "변경내역",
@@ -285,11 +305,12 @@ def sync_to_gsheet(filename, data, **kwargs):
             return
             
         # [NEW] Enforce Column Ordering and User-friendly Names for GSheet
-        if internal_ws_name in ["activity_status", "visit_reports", "access_logs", "usage_logs"]:
-            # 1. Ensure photo columns exist (even if all None)
-            for c in ["photo_path1", "photo_path2", "photo_path3"]:
-                if c not in df.columns:
-                    df[c] = None
+        if internal_ws_name in ["activity_status", "visit_reports", "access_logs", "usage_logs", "view_logs"]:
+            # 1. Ensure photo columns exist (even if all None) for relevant types
+            if internal_ws_name in ["activity_status", "visit_reports"]:
+                for c in ["photo_path1", "photo_path2", "photo_path3"]:
+                    if c not in df.columns:
+                        df[c] = None
                     
             # 2. Standard columns and ordering
             if internal_ws_name == "activity_status":
@@ -457,6 +478,7 @@ def pull_from_gsheet():
         mapping = {
             "로그인 이력": ACCESS_LOG_FILE,
             "사용 이력": USAGE_LOG_FILE,
+            "조회 이력": VIEW_LOG_FILE,
             "방문보고서": VISIT_REPORT_FILE,
             "활동상태": ACTIVITY_STATUS_FILE,
             "변경내역": CHANGE_HISTORY_FILE
@@ -483,6 +505,9 @@ def pull_from_gsheet():
                                     except: return val
                                 return val
                             df["details"] = df["details"].apply(safe_json_load)
+                    elif ws_name_kr == "조회 이력":
+                        rename_map = {"일시": "timestamp", "권한": "user_role", "사용자": "user_name", "대상": "target", "상세내용": "details"}
+                        df = df.rename(columns=rename_map)
 
                     # Convert back to JSON structure
                     if ws_name_kr == "활동상태":
@@ -496,9 +521,8 @@ def pull_from_gsheet():
                         # List of dicts
                         new_data = df.to_dict(orient="records")
                     
-                    # Save locally
+                    # Save locally (Atomic)
                     save_json_file(local_path, new_data)
-                    # print(f"DEBUG: Pulled '{ws_name_kr}' from Google Sheets to {local_path}")
             except Exception as inner_e:
                 print(f"DEBUG: Pulled error for {ws_name_kr}: {inner_e}")
                 
@@ -531,6 +555,7 @@ def push_to_gsheet():
         files_to_sync = {
             "activity_status.json": load_json_file(ACTIVITY_STATUS_FILE),
             "visit_reports.json": load_json_file(VISIT_REPORT_FILE),
+            "view_logs.json": load_json_file(VIEW_LOG_FILE),
             "change_history.json": load_json_file(CHANGE_HISTORY_FILE),
             "access_logs.json": load_json_file(ACCESS_LOG_FILE),
             "usage_logs.json": load_json_file(USAGE_LOG_FILE),
@@ -601,7 +626,8 @@ def get_access_logs(limit=200, days=None):
             # Convert back to KST string for display consistency if needed, 
             # or just keep as is for to_dict. 
             # [FIX] Localize back to KST for display strings in the dict
-            df['timestamp'] = df['timestamp'].dt.tz_convert(timedelta(hours=9)).dt.strftime('%Y-%m-%d %H:%M:%S')
+            # Use 'Asia/Seoul' explicitly instead of timedelta(hours=9) to avoid TypeError
+            df['timestamp'] = df['timestamp'].dt.tz_convert('Asia/Seoul').dt.strftime('%Y-%m-%d %H:%M:%S')
             
             logs = df.to_dict('records')
         except Exception as e:
@@ -745,7 +771,7 @@ def get_user_activity_keys(user_name):
 
 # ===== VIEW LOGGING =====
 
-VIEW_LOG_FILE = STORAGE_DIR / "view_logs.json"
+# VIEW_LOG_FILE moved to top
 
 def log_view(user_role, user_name, target, details):
     """Log view/search activity"""

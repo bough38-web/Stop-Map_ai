@@ -668,6 +668,11 @@ with st.sidebar:
             ["파일 업로드 (File)", "OpenAPI 연동 (Auto)"],
             index=0
         )
+        if 'last_data_source' not in st.session_state:
+            st.session_state.last_data_source = data_source
+        elif st.session_state.last_data_source != data_source:
+            usage_logger.log_usage(st.session_state.get('user_role', 'user'), st.session_state.get('user_name', 'unknown'), st.session_state.get('user_branch', ''), 'data_source_change', {'from': st.session_state.last_data_source, 'to': data_source})
+            st.session_state.last_data_source = data_source
         
         # [FIX] Enhanced File Selection with 20260119 Priority
         local_zips = sorted(glob.glob(os.path.join("data", "*.zip")), key=os.path.getmtime, reverse=True)
@@ -711,46 +716,46 @@ with st.sidebar:
         uploaded_zip = []
         
         if data_source == "파일 업로드 (File)":
-             if local_zips:
-                 use_local_zip = st.toggle("인허가(Zip) 자동 로드", value=True)
-                 if use_local_zip:
-                     # Let user choose zip if multiple
-                     zip_opts = [os.path.basename(f) for f in local_zips]
-                     # [UX] Auto-select priority data files if available (Use full data to include pre-2026 closed businesses)
-                     preferred_zips = [
-                         "LOCALDATA_NOWMON_CSV-3월.zip",
-                         "LOCALDATA_NOWMON_CSV_3월.zip",
-                         "LOCALDATA_NOWMON_CSV.zip", 
-                         "LOCALDATA_2026_ONLY.zip", 
-                         "LOCALDATA_NOWMON_CSV_2월.zip", 
-                         "LOCALDATA_YESTERDAY_CSV.zip"
-                     ]
-                     # Normalize for comparison
-                     preferred_zips = [unicodedata.normalize('NFC', z) for z in preferred_zips]
-                     zip_opts_norm = [unicodedata.normalize('NFC', z) for z in zip_opts]
-                     
-                     # [UPDATE] Select BOTH top priority files if they exist to combine data
-                     default_zips = []
-                     for pz in preferred_zips[:3]: # [FIX] Expand to top 3 to ensure combining 3월 + Baseline
-                         matching = [zip_opts[i] for i, z in enumerate(zip_opts_norm) if z == pz]
-                         if matching: 
-                             default_zips.extend(matching)
-                      
-                     # [ADD] Also include daily automated extraction files
-                     daily_zips = [zip_opts[i] for i, z in enumerate(zip_opts_norm) if z.startswith("LOCALDATA_DAILY_")]
-                     default_zips.extend(daily_zips)
-                     
-                     if not default_zips and zip_opts: 
-                         default_zips = [zip_opts[0]]
-                     
-                     sel_zips = st.multiselect("사용할 인허가 파일 (ZIP)", zip_opts, default=default_zips, help="중복 방지를 위해 단일 파일 선택을 권장합니다.")
-                     uploaded_zip = [os.path.join("data", z) for z in sel_zips]
-                     if sel_zips:
-                         st.caption(f"선택됨: {', '.join(sel_zips)}")
-                 else:
-                     uploaded_zip = st.file_uploader("인허가 데이터 (ZIP)", type="zip", accept_multiple_files=True)
-             else:
-                  uploaded_zip = st.file_uploader("인허가 데이터 (ZIP)", type="zip", accept_multiple_files=True)
+            if local_zips:
+                use_local_zip = st.toggle("인허가(Zip) 자동 로드", value=True)
+                if use_local_zip:
+                    # Let user choose zip if multiple
+                    zip_opts = [os.path.basename(f) for f in local_zips]
+                    # [UX] Auto-select priority data files if available (Use full data to include pre-2026 closed businesses)
+                    preferred_zips = [
+                        "LOCALDATA_NOWMON_CSV-3월.zip",
+                        "LOCALDATA_NOWMON_CSV_3월.zip",
+                        "LOCALDATA_NOWMON_CSV.zip", 
+                        "LOCALDATA_2026_ONLY.zip", 
+                        "LOCALDATA_NOWMON_CSV_2월.zip", 
+                        "LOCALDATA_YESTERDAY_CSV.zip"
+                    ]
+                    # Normalize for comparison
+                    preferred_zips = [unicodedata.normalize('NFC', z) for z in preferred_zips]
+                    zip_opts_norm = [unicodedata.normalize('NFC', z) for z in zip_opts]
+                    
+                    # [UPDATE] Select BOTH top priority files if they exist to combine data
+                    default_zips = []
+                    for pz in preferred_zips[:3]: # [FIX] Expand to top 3 to ensure combining 3월 + Baseline
+                        matching = [zip_opts[i] for i, z in enumerate(zip_opts_norm) if z == pz]
+                        if matching:
+                            default_zips.extend(matching)
+                    
+                    # [ADD] Also include daily automated extraction files
+                    daily_zips = [zip_opts[i] for i, z in enumerate(zip_opts_norm) if z.startswith("LOCALDATA_DAILY_")]
+                    default_zips.extend(daily_zips)
+                    
+                    if not default_zips and zip_opts: 
+                        default_zips = [zip_opts[0]]
+                    
+                    sel_zips = st.multiselect("사용할 인허가 파일 (ZIP)", zip_opts, default=default_zips, help="중복 방지를 위해 단일 파일 선택을 권장합니다.")
+                    uploaded_zip = [os.path.join("data", z) for z in sel_zips]
+                    if sel_zips:
+                        st.caption(f"선택됨: {', '.join(sel_zips)}")
+                else:
+                    uploaded_zip = st.file_uploader("인허가 데이터 (ZIP)", type="zip", accept_multiple_files=True)
+            else:
+                uploaded_zip = st.file_uploader("인허가 데이터 (ZIP)", type="zip", accept_multiple_files=True)
                  
         else: # OpenAPI
             st.info("🌐 지방행정 인허가 데이터 (LocalData)")
@@ -774,6 +779,7 @@ with st.sidebar:
             fetch_btn = st.button("데이터 가져오기 (Fetch)")
             
             if fetch_btn and api_auth_key:
+                usage_logger.log_usage(st.session_state.get('user_role', 'user'), st.session_state.get('user_name', 'unknown'), st.session_state.get('user_branch', ''), 'openapi_fetch', {'start': api_start_date.strftime("%Y%m%d"), 'end': api_end_date.strftime("%Y%m%d")})
                 with st.spinner("🌐 API 데이터 조회 중..."):
                     s_date = api_start_date.strftime("%Y%m%d")
                     e_date = api_end_date.strftime("%Y%m%d")
@@ -816,6 +822,7 @@ with st.sidebar:
             
         # [FEATURE] Manual Trigger for Testing
         if st.button("🚀 지금 즉시 동기화 실행", use_container_width=True):
+            usage_logger.log_usage('admin', '관리자', '전체', 'manual_sync_trigger')
             with st.spinner("데이터 추출 및 동기화 엔진 가동 중..."):
                 import subprocess
                 try:
@@ -849,6 +856,15 @@ with st.sidebar:
     # Only visible to Admin. Controls visibility of "Conditional Search" on mobile.
     if st.session_state.get('user_role') == 'admin':
         st.sidebar.divider()
+        st.sidebar.subheader("⚙️ 관리자 설정")
+        
+        # [NEW] Maintenance Mode Toggle
+        is_maintenance = st.sidebar.toggle("🚧 점검 모드 (공지 표시)", value=maintenance.get("enabled", False), help="모든 사용자에게 점검 안내 팝업을 표시합니다.")
+        if is_maintenance != maintenance.get("enabled"):
+            usage_logger.log_usage('admin', '관리자', '전체', 'maintenance_toggle', {'enabled': is_maintenance})
+            activity_logger.set_maintenance_mode(is_maintenance)
+            st.rerun()
+            
         show_mobile_filter = st.sidebar.toggle("📱 모바일에서 필터 표시", value=True, help="끄면 모바일 화면에서 '조건조회' 창이 사라집니다.")
         if not show_mobile_filter:
             st.markdown("""
@@ -3350,11 +3366,21 @@ if raw_df is not None:
             col_f1, col_f2, col_f3 = st.columns(3)
             
             with col_f1:
-                branches = ["전체"] + sorted(list(set([r.get('user_branch', '') for r in all_reports if r.get('user_branch')])))
+                # [FIX] Cast to str and filter NaN to prevent TypeError in sorted()
+                branches = ["전체"] + sorted(list(set([
+                    str(r.get('user_branch')).strip() 
+                    for r in all_reports 
+                    if r.get('user_branch') and not pd.isna(r.get('user_branch'))
+                ])))
                 sel_branch = st.selectbox("🏢 지사", branches, key="visit_branch_filter")
             
             with col_f2:
-                managers = ["전체"] + sorted(list(set([r.get('user_name', '') for r in all_reports if r.get('user_name')])))
+                # [FIX] Cast to str and filter NaN to prevent TypeError in sorted()
+                managers = ["전체"] + sorted(list(set([
+                    str(r.get('user_name')).strip() 
+                    for r in all_reports 
+                    if r.get('user_name') and not pd.isna(r.get('user_name'))
+                ])))
                 sel_manager = st.selectbox("👤 담당자", managers, key="visit_manager_filter")
             
             with col_f3:
@@ -4020,6 +4046,8 @@ if raw_df is not None:
         
         # [NEW] Expert Feat 1: AI Scoring
         if not map_df.empty:
+            # [LOG] AI Scoring Trigger
+            usage_logger.log_usage(st.session_state.get('user_role', 'user'), st.session_state.get('user_name', 'unknown'), st.session_state.get('user_branch', ''), 'ai_expert_scoring', {'record_count': len(map_df)})
             map_df = calculate_ai_scores(map_df)
             # [LOG] Log AI Scoring Action once per session or limited
             if 'ai_scored_this_load' not in st.session_state:
