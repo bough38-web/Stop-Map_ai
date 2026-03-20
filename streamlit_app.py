@@ -2319,11 +2319,17 @@ if raw_df is not None:
         # 1. Branch
         # GLOBAL_BRANCH_ORDER used from top scope
         current_branches_in_raw = [unicodedata.normalize('NFC', str(b)) for b in raw_df['관리지사'].unique() if pd.notna(b)]
-        sorted_branches_for_filter = [b for b in GLOBAL_BRANCH_ORDER if b in current_branches_in_raw]
         
-        others_for_filter = [b for b in current_branches_in_raw if b not in GLOBAL_BRANCH_ORDER]
-        sorted_branches_for_filter.extend(others_for_filter)
-        sorted_branches_for_filter = [unicodedata.normalize('NFC', b) for b in sorted_branches_for_filter]
+        # [FIX] Admin Visibility: Always show all 9 standard branches to Administrators
+        if st.session_state.user_role == 'admin':
+            sorted_branches_for_filter = [unicodedata.normalize('NFC', b) for b in GLOBAL_BRANCH_ORDER]
+            others_in_raw = [b for b in current_branches_in_raw if b not in sorted_branches_for_filter]
+            sorted_branches_for_filter.extend(sorted(others_in_raw))
+        else:
+            sorted_branches_for_filter = [b for b in GLOBAL_BRANCH_ORDER if b in current_branches_in_raw]
+            others_for_filter = [b for b in current_branches_in_raw if b not in GLOBAL_BRANCH_ORDER]
+            sorted_branches_for_filter.extend(others_for_filter)
+            sorted_branches_for_filter = [unicodedata.normalize('NFC', b) for b in sorted_branches_for_filter]
 
 
 
@@ -2483,13 +2489,18 @@ if raw_df is not None:
              if '폐업일자' in filter_df.columns:
                  filter_df = filter_df[filter_df['폐업일자'].dt.date >= target_date]
 
-        def get_ym_options(column):
-            if column not in raw_df.columns: return []
-            dates = raw_df[column].dropna()
-            if dates.empty: return []
-            return sorted(dates.dt.strftime('%Y-%m').unique(), reverse=True)
+        def get_ym_options():
+            # [FIX] Combine Permit Date and Modified Date to ensure Mar 2026 is visible
+            all_dates = pd.Series()
+            if '인허가일자' in raw_df.columns:
+                all_dates = pd.concat([all_dates, raw_df['인허가일자'].dropna()])
+            if '최종수정시점' in raw_df.columns:
+                all_dates = pd.concat([all_dates, raw_df['최종수정시점'].dropna()])
+            
+            if all_dates.empty: return []
+            return sorted(pd.to_datetime(all_dates).dt.strftime('%Y-%m').unique(), reverse=True)
 
-        permit_ym_opts = ["전체"] + get_ym_options('인허가일자')
+        permit_ym_opts = ["전체"] + get_ym_options()
         if 'sb_permit_ym' not in st.session_state: st.session_state.sb_permit_ym = "전체"
         sel_permit_ym = st.selectbox(
             "인허가일자 (월별)", 
@@ -2727,7 +2738,15 @@ if raw_df is not None:
         base_df = base_df[base_df[type_col].isin(sel_types)]
         
     if sel_permit_ym != "전체":
-        base_df = base_df[base_df['인허가일자'].dt.strftime('%Y-%m') == sel_permit_ym]
+        if '최종수정시점' in base_df.columns:
+            # [FIX] Syntax fixed: Use parentheses to wrap the entire multi-line expression
+            mask_permit = (
+                (base_df['인허가일자'].dt.strftime('%Y-%m') == sel_permit_ym) |
+                ((base_df['인허가일자'].isna()) & (base_df['최종수정시점'].dt.strftime('%Y-%m') == sel_permit_ym))
+            )
+            base_df = base_df[mask_permit]
+        else:
+            base_df = base_df[base_df['인허가일자'].dt.strftime('%Y-%m') == sel_permit_ym]
         
     if sel_close_ym != "전체":
         base_df = base_df[base_df['폐업일자'].dt.strftime('%Y-%m') == sel_close_ym]
@@ -3940,13 +3959,16 @@ if raw_df is not None:
         
         from src import utils
         now = utils.get_now_kst()
-        if '인허가일자' in df.columns:
-            valid_dates = df.dropna(subset=['인허가일자']).copy()
+        # [FIX] Use '최종수정시점' as best available date for statistics
+        effective_date_col = '최종수정시점' if '최종수정시점' in df.columns else '인허가일자'
+        
+        if effective_date_col in df.columns:
+            valid_dates = df.dropna(subset=[effective_date_col]).copy()
             if not valid_dates.empty:
-                if not pd.api.types.is_datetime64_any_dtype(valid_dates['인허가일자']):
-                     valid_dates['인허가일자'] = pd.to_datetime(valid_dates['인허가일자'], errors='coerce')
+                if not pd.api.types.is_datetime64_any_dtype(valid_dates[effective_date_col]):
+                     valid_dates[effective_date_col] = pd.to_datetime(valid_dates[effective_date_col], errors='coerce')
                 
-                valid_dates['business_years'] = (now - valid_dates['인허가일자']).dt.days / 365.25
+                valid_dates['business_years'] = (now - valid_dates[effective_date_col]).dt.days / 365.25
                 avg_age = valid_dates['business_years'].mean()
             else:
                 avg_age = 0
