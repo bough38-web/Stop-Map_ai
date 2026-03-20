@@ -3869,39 +3869,36 @@ if raw_df is not None:
             
             trend_data = []
             
-            # New (In-license)
-            if '인허가일자' in base_df.columns:
-                 # [FIX] Robust filtering - base_df columns are already tz-aware from data_loader
-                 series_new = base_df['인허가일자']
-                 if not pd.api.types.is_datetime64_any_dtype(series_new):
-                     series_new = pd.to_datetime(series_new, errors='coerce')
-                 if series_new.dt.tz is None:
-                     series_new = series_new.dt.tz_localize('Asia/Seoul')
+            # Trend Series (Use Updated Date as it is more complete for Mar 6-17)
+            if '최종수정시점' in base_df.columns:
+                 series_trend = base_df['최종수정시점']
+                 if not pd.api.types.is_datetime64_any_dtype(series_trend):
+                     series_trend = pd.to_datetime(series_trend, errors='coerce')
+                 if series_trend.dt.tz is None:
+                     series_trend = series_trend.dt.tz_localize('Asia/Seoul')
                  
+                 # 1. Filter for New (using status)
+                 mask_new = base_df['영업상태명'].str.contains('영업|정상', na=False)
                  new_recs = base_df[
-                     (series_new >= trend_start_date) & 
-                     (series_new <= trend_end_date + pd.Timedelta(days=1)) 
+                     mask_new & 
+                     (series_trend >= trend_start_date) & 
+                     (series_trend <= trend_end_date + pd.Timedelta(days=1)) 
                  ].copy()
                  if not new_recs.empty:
-                     daily_new = new_recs.groupby(series_new[new_recs.index].dt.date).size().reset_index(name='count')
+                     daily_new = new_recs.groupby(series_trend[new_recs.index].dt.date).size().reset_index(name='count')
                      daily_new['status'] = '신규'
                      daily_new.columns = ['date', 'count', 'status']
                      trend_data.append(daily_new)
-            
-            # Closed
-            if '폐업일자' in base_df.columns:
-                 series_close = base_df['폐업일자']
-                 if not pd.api.types.is_datetime64_any_dtype(series_close):
-                     series_close = pd.to_datetime(series_close, errors='coerce')
-                 if series_close.dt.tz is None:
-                     series_close = series_close.dt.tz_localize('Asia/Seoul')
                  
+                 # 2. Filter for Closed
+                 mask_closed = ~mask_new
                  close_recs = base_df[
-                     (series_close >= trend_start_date) & 
-                     (series_close <= trend_end_date + pd.Timedelta(days=1))
+                     mask_closed &
+                     (series_trend >= trend_start_date) & 
+                     (series_trend <= trend_end_date + pd.Timedelta(days=1))
                  ].copy()
                  if not close_recs.empty:
-                     daily_close = close_recs.groupby(series_close[close_recs.index].dt.date).size().reset_index(name='count')
+                     daily_close = close_recs.groupby(series_trend[close_recs.index].dt.date).size().reset_index(name='count')
                      daily_close['status'] = '폐업'
                      daily_close.columns = ['date', 'count', 'status']
                      trend_data.append(daily_close)
