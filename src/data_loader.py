@@ -35,15 +35,32 @@ def _process_and_merge_district_data(target_df: pd.DataFrame, district_file_path
     except Exception as e:
         return target_df, [], f"Error reading District file: {e}"
 
-    # 2. Normalize District Data
+    # 2. Normalize District Data with Robust Column Mapping
     if '주소시' in df_district.columns:
         df_district['full_address'] = df_district[['주소시', '주소군구', '주소동']].astype(str).agg(' '.join, axis=1)
-    elif '주소' in df_district.columns:
-        df_district['full_address'] = df_district['주소']
-        
+    else:
+        # Try candidate names for address
+        addr_col = next((c for c in df_district.columns if any(p in c for p in ['설치주소', '도로명주소', '소재지주소', '주소'])), None)
+        if addr_col:
+            df_district['full_address'] = df_district[addr_col]
+        else:
+            return target_df, [], "District file must contain an address column (e.g., '주소' or '설치주소').", {}
+
+    # Try candidate names for Branch
+    branch_col = next((c for c in df_district.columns if any(p in c for p in ['관리지사', '지사'])), None)
+    if branch_col:
+        df_district['관리지사'] = df_district[branch_col].apply(normalize_str)
+    else:
+        df_district['관리지사'] = '미지정'
+
+    # Try candidate names for Manager
+    mgr_col = next((c for c in df_district.columns if any(p in c for p in ['SP담당', '구역담당영업사원', '담당'])), None)
+    if mgr_col:
+        df_district['SP담당'] = df_district[mgr_col].apply(normalize_str)
+    else:
+        df_district['SP담당'] = '미지정'
+
     df_district['full_address'] = df_district['full_address'].apply(normalize_str)
-    df_district['관리지사'] = df_district['관리지사'].apply(normalize_str)
-    df_district['SP담당'] = df_district['SP담당'].apply(normalize_str)
     
     df_district['full_address_norm'] = df_district['full_address'].apply(normalize_address)
     df_district = df_district.dropna(subset=['full_address_norm'])
