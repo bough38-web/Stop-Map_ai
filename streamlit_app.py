@@ -2489,13 +2489,17 @@ if raw_df is not None:
              if '폐업일자' in filter_df.columns:
                  filter_df = filter_df[filter_df['폐업일자'].dt.date >= target_date]
 
-        def get_ym_options():
+        def get_ym_options(column=None):
             # [FIX] Combine Permit Date and Modified Date to ensure Mar 2026 is visible
             all_dates = pd.Series()
-            if '인허가일자' in raw_df.columns:
-                all_dates = pd.concat([all_dates, raw_df['인허가일자'].dropna()])
-            if '최종수정시점' in raw_df.columns:
-                all_dates = pd.concat([all_dates, raw_df['최종수정시점'].dropna()])
+            if column:
+                if column in raw_df.columns:
+                    all_dates = raw_df[column].dropna()
+            else:
+                if '인허가일자' in raw_df.columns:
+                    all_dates = pd.concat([all_dates, raw_df['인허가일자'].dropna()])
+                if '최종수정시점' in raw_df.columns:
+                    all_dates = pd.concat([all_dates, raw_df['최종수정시점'].dropna()])
             
             if all_dates.empty: return []
             return sorted(pd.to_datetime(all_dates).dt.strftime('%Y-%m').unique(), reverse=True)
