@@ -3007,8 +3007,9 @@ if raw_df is not None:
             if not sorted_branches:
                 st.info("표시할 지사 데이터가 없습니다.")
             else:
-                # Prepare grid - Single Row
-                n_cols = len(sorted_branches)
+                # [FEATURE] Add '전체' (Total) card for Administrator overview
+                display_branches = ["전체"] + sorted_branches
+                n_cols = len(display_branches)
                 
                 # Active Branch Logic (Source of Truth)
                 if sel_branch != "전체":
@@ -3018,10 +3019,14 @@ if raw_df is not None:
                 sel_dashboard_branch = unicodedata.normalize('NFC', raw_dashboard_branch)
 
                 cols = st.columns(n_cols)
-                for idx, b_name in enumerate(sorted_branches):
+                for idx, b_name in enumerate(display_branches):
                     with cols[idx]:
                         # 1. Calculate Stats
-                        b_df = base_df[base_df['관리지사'] == b_name]
+                        if b_name == "전체":
+                            b_df = base_df  # Overall summary in the current filtered state
+                        else:
+                            b_df = base_df[base_df['관리지사'] == b_name]
+                        
                         b_total = len(b_df)
                         count_active = len(b_df[b_df['영업상태명'] == '영업/정상'])
                         count_closed = len(b_df[b_df['영업상태명'] == '폐업'])
@@ -3031,7 +3036,7 @@ if raw_df is not None:
                         card_class = "dashboard-card branch-active" if is_selected else "dashboard-card"
                         
                         # 3. Render Card HTML
-                        disp_name = b_name # [STRICT] Do not strip "지사"
+                        disp_name = "전체" if b_name == "전체" else b_name
                         card_html = f"""
                         <div class="{card_class}">
                             <div class="card-header">
