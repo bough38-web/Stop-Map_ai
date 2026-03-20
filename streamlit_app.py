@@ -1542,7 +1542,8 @@ if raw_df is not None:
                             mgr_candidates['display'] = mgr_candidates['SP담당'].apply(mask_name)
                         
                         display_to_real_map = dict(zip(mgr_candidates['display'], mgr_candidates['SP담당']))
-                        mgr_list = sorted(mgr_candidates['display'].unique().tolist())
+                        # [FIX] Sanitize mgr_list: Remove Nulls and ensure strings to avoid TypeError in st.selectbox
+                        mgr_list = sorted([str(x) for x in mgr_candidates['display'].unique() if pd.notna(x)])
                     else:
                         mgr_list = []
                         display_to_real_map = {}
