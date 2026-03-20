@@ -219,7 +219,7 @@ def save_json_file(filepath, data):
         os.replace(temp_path, filepath)
         
         # [NEW] Sync to GSheet if it's one of the persistent files
-        if filepath.name in ["activity_status.json", "visit_reports.json", "change_history.json", "access_logs.json", "usage_logs.json"]:
+        if filepath.name in ["activity_status.json", "visit_reports.json", "change_history.json", "access_logs.json", "usage_logs.json", "view_logs.json"]:
             sync_to_gsheet(filepath.name, data)
             
         return True
@@ -265,7 +265,8 @@ def sync_to_gsheet(filename, data, **kwargs):
             "usage_logs": "사용 이력",
             "activity_status": "활동상태",
             "visit_reports": "방문보고서",
-            "change_history": "변경내역"
+            "change_history": "변경내역",
+            "view_logs": "조회 이력"
         }
         ws_name = ws_name_map.get(internal_ws_name, internal_ws_name)
         
@@ -532,7 +533,8 @@ def push_to_gsheet():
             "visit_reports.json": load_json_file(VISIT_REPORT_FILE),
             "change_history.json": load_json_file(CHANGE_HISTORY_FILE),
             "access_logs.json": load_json_file(ACCESS_LOG_FILE),
-            "usage_logs.json": load_json_file(USAGE_LOG_FILE)
+            "usage_logs.json": load_json_file(USAGE_LOG_FILE),
+            "view_logs.json": load_json_file(VIEW_LOG_FILE)
         }
         
         success_count = 0

@@ -176,7 +176,8 @@ def load_system_config():
         "notice_title": "",
         "notice_content": "",
         "show_notice": False,
-        "data_standard_date": ""
+        "data_standard_date": "",
+        "maintenance_mode": False
     }
     if not os.path.exists(CONFIG_FILE):
         return default_config

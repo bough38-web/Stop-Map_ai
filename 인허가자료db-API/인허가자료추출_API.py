@@ -202,7 +202,12 @@ for idx, row in df_urls.iterrows():
     svc_id_raw = str(row.iloc[7]) if not pd.isna(row.iloc[7]) else f"ID_{idx+1}"
     
     auth_key = str(row.iloc[9]) if not pd.isna(row.iloc[9]) else str(row.iloc[5])
-    if "apis.data.go.kr" not in api_url or auth_key == 'nan' or not auth_key: continue
+    
+    # [FIX] Fallback key for missing entries in Google Sheet
+    if auth_key == 'nan' or not auth_key:
+        auth_key = "DvyS97s/WyCWPJjBU7bvoebRE+4lxRphMHewhAcQQrGMPT/8PcP0bOCO8bTs2b7H25qViKWruSqim57HphOAjA=="
+
+    if "apis.data.go.kr" not in api_url or not auth_key: continue
 
     logger.info(f"🔎 [{idx+1}] {svc_full_name} 조회 중...")
     

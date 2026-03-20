@@ -53,11 +53,24 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# [MAINTENANCE] Check Maintenance Mode state (Global Block)
+sys_config = load_system_config()
+is_maintenance = sys_config.get("maintenance_mode", False)
+
+# Initialize Session State (Earliest possible)
+if 'user_role' not in st.session_state:
+    st.session_state.user_role = None
+
+if is_maintenance and st.session_state.user_role != 'admin':
+    st.warning("🚧 **시스템 점검 안내**")
+    st.error("현재 시스템 점검 중입니다. 잠시 후 다시 접속해 주세요.")
+    st.info(f"📅 점검 내용: {sys_config.get('notice_content', '정기 점검')}")
+    st.stop()
+
 # [DESIGN] Inject Custom CSS for Modern UI
 def inject_custom_css():
     st.markdown("""
     <style>
-        /* Modern Dashboard Card */
         div[data-testid="stExpander"] details {
             border: 1px solid #e0e0e0;
             border-radius: 8px;
@@ -603,6 +616,8 @@ with st.sidebar:
             except: pass
             
             if st.button("🔌 연결 상태 확인", use_container_width=True, key="sync_check_main"):
+                # [LOG] Sync Connection Check
+                usage_logger.log_usage(st.session_state.get('user_role'), st.session_state.get('user_manager_name', 'System'), st.session_state.get('user_branch', ''), 'sync_check', {'action': 'connection_check'})
                 with st.spinner("구글 시트 연결 확인 중..."):
                     success, msg = activity_logger.check_gsheet_connection()
                     if success: st.success(msg)
@@ -613,12 +628,16 @@ with st.sidebar:
             c_sync1, c_sync2 = st.columns(2)
             with c_sync1:
                 if st.button("🔄 시트로 올리기", use_container_width=True, key="sync_push_main"):
+                    # [LOG] Sync Push
+                    usage_logger.log_usage(st.session_state.get('user_role'), st.session_state.get('user_manager_name', 'System'), st.session_state.get('user_branch', ''), 'sync_push', {'action': 'manual_push'})
                     with st.spinner("전송 중..."):
                         success, msg = activity_logger.push_to_gsheet()
                         if success: st.success(msg)
                         else: st.error(msg)
             with c_sync2:
                 if st.button("📥 시트에서 받기", use_container_width=True, key="sync_pull_main"):
+                    # [LOG] Sync Pull
+                    usage_logger.log_usage(st.session_state.get('user_role'), st.session_state.get('user_manager_name', 'System'), st.session_state.get('user_branch', ''), 'sync_pull', {'action': 'manual_pull'})
                     with st.spinner("가져오는 중..."):
                         activity_logger.pull_from_gsheet()
                         st.success("완료!")
@@ -710,16 +729,16 @@ with st.sidebar:
                      preferred_zips = [unicodedata.normalize('NFC', z) for z in preferred_zips]
                      zip_opts_norm = [unicodedata.normalize('NFC', z) for z in zip_opts]
                      
-                      # [UPDATE] Select BOTH top priority files if they exist to combine data
-                      default_zips = []
-                      for pz in preferred_zips[:3]: # [FIX] Expand to top 3 to ensure combining 3월 + Baseline
-                          matching = [zip_opts[i] for i, z in enumerate(zip_opts_norm) if z == pz]
-                          if matching: 
-                              default_zips.extend(matching)
+                     # [UPDATE] Select BOTH top priority files if they exist to combine data
+                     default_zips = []
+                     for pz in preferred_zips[:3]: # [FIX] Expand to top 3 to ensure combining 3월 + Baseline
+                         matching = [zip_opts[i] for i, z in enumerate(zip_opts_norm) if z == pz]
+                         if matching: 
+                             default_zips.extend(matching)
                       
-                      # [ADD] Also include daily automated extraction files
-                      daily_zips = [zip_opts[i] for i, z in enumerate(zip_opts_norm) if z.startswith("LOCALDATA_DAILY_")]
-                      default_zips.extend(daily_zips)
+                     # [ADD] Also include daily automated extraction files
+                     daily_zips = [zip_opts[i] for i, z in enumerate(zip_opts_norm) if z.startswith("LOCALDATA_DAILY_")]
+                     default_zips.extend(daily_zips)
                      
                      if not default_zips and zip_opts: 
                          default_zips = [zip_opts[0]]
@@ -1850,8 +1869,21 @@ if raw_df is not None:
                         n_title = st.text_input("제목", value=curr_config.get("notice_title", ""))
                         n_content = st.text_area("내용", value=curr_config.get("notice_content", ""))
                         if st.form_submit_button("설정 저장"):
-                            save_system_config({"data_standard_date":new_date, "show_notice":use_notice, "notice_title":n_title, "notice_content":n_content})
+                            # [LOG] Log Config Change
+                            usage_logger.log_usage(st.session_state.get('user_role'), st.session_state.get('user_manager_name', 'Admin'), st.session_state.get('user_branch', '전체'), 'config_change', {'action': 'save_system_config'})
+                            
+                            save_system_config({
+                                "data_standard_date": new_date,
+                                "show_notice": use_notice,
+                                "notice_title": n_title,
+                                "notice_content": n_content,
+                                "maintenance_mode": st.session_state.get('new_maint_mode', curr_config.get("maintenance_mode", False))
+                            })
                             st.rerun()
+                    
+                    # [NEW] Maintenance Toggle in Form (Outside or Inside)
+                    maint_val = st.toggle("🚧 시스템 점검 모드 활성화", value=curr_config.get("maintenance_mode", False))
+                    st.session_state.new_maint_mode = maint_val
 
                 with adm_tab2: # VOC Management
                     st.subheader("요청사항(VOC) 관리")
@@ -3989,6 +4021,10 @@ if raw_df is not None:
         # [NEW] Expert Feat 1: AI Scoring
         if not map_df.empty:
             map_df = calculate_ai_scores(map_df)
+            # [LOG] Log AI Scoring Action once per session or limited
+            if 'ai_scored_this_load' not in st.session_state:
+                usage_logger.log_usage(st.session_state.get('user_role'), st.session_state.get('user_manager_name', 'System'), st.session_state.get('user_branch', ''), 'ai_scoring', {'count': len(map_df)})
+                st.session_state.ai_scored_this_load = True
             
         # [NEW] Expert Feat 2: Heatmap Toggle
         use_heatmap = st.checkbox("🌡️ 상권 밀집도(히트맵) 보기", value=False)

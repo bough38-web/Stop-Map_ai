@@ -10,7 +10,7 @@ def run_sync():
     print("🚀 Starting 2026 Data Sync Automation...")
     
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    zip_path = os.path.join(base_dir, 'data', 'LOCALDATA_NOWMON_CSV.zip')
+    zip_path = os.path.join(base_dir, 'data', 'LOCALDATA_NOWMON_CSV_3월_최종.zip')
     output_zip = os.path.join(base_dir, 'data', 'LOCALDATA_2026_ONLY.zip')
     output_csv = os.path.join(base_dir, 'data', 'LOCALDATA_2026_ONLY.csv')
 
