@@ -655,6 +655,11 @@ with st.sidebar:
             ["파일 업로드 (File)", "OpenAPI 연동 (Auto)"],
             index=0
         )
+        if 'last_data_source' not in st.session_state:
+            st.session_state.last_data_source = data_source
+        elif st.session_state.last_data_source != data_source:
+            usage_logger.log_usage(st.session_state.get('user_role', 'user'), st.session_state.get('user_name', 'unknown'), st.session_state.get('user_branch', ''), 'data_source_change', {'from': st.session_state.last_data_source, 'to': data_source})
+            st.session_state.last_data_source = data_source
         
         # [FIX] Enhanced File Selection with 20260119 Priority
         local_zips = sorted(glob.glob(os.path.join("data", "*.zip")), key=os.path.getmtime, reverse=True)
@@ -761,6 +766,7 @@ with st.sidebar:
             fetch_btn = st.button("데이터 가져오기 (Fetch)")
             
             if fetch_btn and api_auth_key:
+                usage_logger.log_usage(st.session_state.get('user_role', 'user'), st.session_state.get('user_name', 'unknown'), st.session_state.get('user_branch', ''), 'openapi_fetch', {'start': api_start_date.strftime("%Y%m%d"), 'end': api_end_date.strftime("%Y%m%d")})
                 with st.spinner("🌐 API 데이터 조회 중..."):
                     s_date = api_start_date.strftime("%Y%m%d")
                     e_date = api_end_date.strftime("%Y%m%d")
@@ -803,6 +809,7 @@ with st.sidebar:
             
         # [FEATURE] Manual Trigger for Testing
         if st.button("🚀 지금 즉시 동기화 실행", use_container_width=True):
+            usage_logger.log_usage('admin', '관리자', '전체', 'manual_sync_trigger')
             with st.spinner("데이터 추출 및 동기화 엔진 가동 중..."):
                 import subprocess
                 try:
@@ -841,6 +848,7 @@ with st.sidebar:
         # [NEW] Maintenance Mode Toggle
         is_maintenance = st.sidebar.toggle("🚧 점검 모드 (공지 표시)", value=maintenance.get("enabled", False), help="모든 사용자에게 점검 안내 팝업을 표시합니다.")
         if is_maintenance != maintenance.get("enabled"):
+            usage_logger.log_usage('admin', '관리자', '전체', 'maintenance_toggle', {'enabled': is_maintenance})
             activity_logger.set_maintenance_mode(is_maintenance)
             st.rerun()
             
@@ -4012,6 +4020,8 @@ if raw_df is not None:
         
         # [NEW] Expert Feat 1: AI Scoring
         if not map_df.empty:
+            # [LOG] AI Scoring Trigger
+            usage_logger.log_usage(st.session_state.get('user_role', 'user'), st.session_state.get('user_name', 'unknown'), st.session_state.get('user_branch', ''), 'ai_expert_scoring', {'record_count': len(map_df)})
             map_df = calculate_ai_scores(map_df)
             
         # [NEW] Expert Feat 2: Heatmap Toggle
