@@ -3871,9 +3871,12 @@ if raw_df is not None:
             
             # New (In-license)
             if '인허가일자' in base_df.columns:
-                 # [FIX] Robust Timezone-aware filtering
-                 series_new = pd.to_datetime(base_df['인허가일자'], errors='coerce')
-                 if series_new.dt.tz is None: series_new = series_new.dt.tz_localize('Asia/Seoul')
+                 # [FIX] Robust filtering - base_df columns are already tz-aware from data_loader
+                 series_new = base_df['인허가일자']
+                 if not pd.api.types.is_datetime64_any_dtype(series_new):
+                     series_new = pd.to_datetime(series_new, errors='coerce')
+                 if series_new.dt.tz is None:
+                     series_new = series_new.dt.tz_localize('Asia/Seoul')
                  
                  new_recs = base_df[
                      (series_new >= trend_start_date) & 
@@ -3882,15 +3885,16 @@ if raw_df is not None:
                  if not new_recs.empty:
                      daily_new = new_recs.groupby(series_new[new_recs.index].dt.date).size().reset_index(name='count')
                      daily_new['status'] = '신규'
-                     daily_new.rename(columns={'index': 'date'}, inplace=True) # groupy.size().reset_index puts index in col 0
-                     # Fix renormalization of columns for trend_data
                      daily_new.columns = ['date', 'count', 'status']
                      trend_data.append(daily_new)
             
             # Closed
             if '폐업일자' in base_df.columns:
-                 series_close = pd.to_datetime(base_df['폐업일자'], errors='coerce')
-                 if series_close.dt.tz is None: series_close = series_close.dt.tz_localize('Asia/Seoul')
+                 series_close = base_df['폐업일자']
+                 if not pd.api.types.is_datetime64_any_dtype(series_close):
+                     series_close = pd.to_datetime(series_close, errors='coerce')
+                 if series_close.dt.tz is None:
+                     series_close = series_close.dt.tz_localize('Asia/Seoul')
                  
                  close_recs = base_df[
                      (series_close >= trend_start_date) & 

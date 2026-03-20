@@ -164,10 +164,11 @@ def _process_and_merge_district_data(target_df: pd.DataFrame, district_file_path
             # First convert to datetime (ensure it's not a string)
             converted = pd.to_datetime(final_df[col], errors='coerce')
             
-            # If any values are naive (no timezone), localize them to Asia/Seoul (KST)
+            # [FIX] Safer localization logic to avoid 'Already tz-aware' or mixed TZ errors
             if converted.dt.tz is None:
                 final_df[col] = converted.dt.tz_localize('Asia/Seoul', ambiguous='infer', nonexistent='shift_forward')
             else:
+                # If already tz-aware, just ensure it's KST
                 final_df[col] = converted.dt.tz_convert('Asia/Seoul')
             
     # Candidate columns for "Last Modified"
