@@ -20,6 +20,9 @@ from src import usage_logger  # Usage tracking for admin monitoring
 from src import voc_manager  # VOC / Request Manager
 
 # [RELEASE] Version: 20260301-v18-final-ready
+# [FIX] Global Baseline for Maintenance Mode (Prevent NameError)
+maintenance = {"enabled": False, "message": "점검 및 업데이트 중이니 잠시만 기다려주세요."}
+
 # [SYSTEM] Initial Sync - Pull from GSheet if local data is missing (Cloud Persistence Fix)
 if 'initial_sync_done' not in st.session_state:
     with st.spinner("🔄 서버 데이터 동기화 중..."):
@@ -859,8 +862,11 @@ with st.sidebar:
         st.sidebar.subheader("⚙️ 관리자 설정")
         
         # [NEW] Maintenance Mode Toggle
-        is_maintenance = st.sidebar.toggle("🚧 점검 모드 (공지 표시)", value=maintenance.get("enabled", False), help="모든 사용자에게 점검 안내 팝업을 표시합니다.")
-        if is_maintenance != maintenance.get("enabled"):
+        # [FIX] Use safe attribute access to prevent NameError in race conditions
+        current_maintenance_state = maintenance.get("enabled", False) if 'maintenance' in globals() else False
+        is_maintenance = st.sidebar.toggle("🚧 점검 모드 (공지 표시)", value=current_maintenance_state, help="모든 사용자에게 점검 안내 팝업을 표시합니다.")
+        
+        if is_maintenance != current_maintenance_state:
             usage_logger.log_usage('admin', '관리자', '전체', 'maintenance_toggle', {'enabled': is_maintenance})
             activity_logger.set_maintenance_mode(is_maintenance)
             st.rerun()
